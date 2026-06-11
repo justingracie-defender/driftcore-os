@@ -118,7 +118,7 @@ interlocks and qualified engineering review. Always.
 ## Quickstart
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/driftcore-os.git
+git clone https://github.com/justingracie-defender/driftcore-os.git
 cd driftcore-os
 pip install -r requirements.txt
 python main.py
@@ -163,7 +163,7 @@ CONTRIBUTING.md    How to help
 | v2.4 | Fable narrator + audit chain | ✅ |
 | v3.0 | Three-mode cognition, sycophancy, Bayesian uncertainty | ✅ |
 | v3.1 | Hardware interlocks, immutable invariants, constitution, license | ✅ (this release) |
-| v3.2 | Real LLM adapters (abduction + sycophancy via API) | Planned |
+| v3.2 | Real LLM adapters — SafeLLMAdapter (Claude/GPT/Grok/local) | ✅ |
 | v3.3 | ROS2 robotics binding on real hardware | Planned |
 | v3.4 | Distributed multi-node execution | Planned |
 | v3.5 | UI dashboard — drift visualization + Fable feed + mode control | Planned |

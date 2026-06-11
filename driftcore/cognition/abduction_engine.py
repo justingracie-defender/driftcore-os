@@ -60,8 +60,9 @@ class AbductionEngine:
     Here we demonstrate the structure and safety framing.
     """
 
-    def __init__(self, mode_controller):
+    def __init__(self, mode_controller, llm_adapter=None):
         self.mode_controller = mode_controller
+        self.llm_adapter = llm_adapter   # v3.2: optional SafeLLMAdapter
         self.history = []
 
     def generate(self, observations: list[str], context: str = "") -> dict:
@@ -79,8 +80,11 @@ class AbductionEngine:
             }
 
         # In production: call LLM here with structured prompt
-        # For now: demonstrate structure with annotated placeholders
-        hypotheses = self._generate_hypotheses(observations, context)
+        # v3.2: if a SafeLLMAdapter is attached, use it
+        if self.llm_adapter:
+            hypotheses = self._generate_via_llm(observations, context)
+        else:
+            hypotheses = self._generate_hypotheses(observations, context)
 
         result = {
             "status": "GENERATED",
@@ -98,6 +102,42 @@ class AbductionEngine:
 
         self.history.append(result)
         return result
+
+    def _generate_via_llm(self, observations: list[str], context: str) -> list[AbductiveHypothesis]:
+        """
+        v3.2: Generate hypotheses via a SafeLLMAdapter.
+        The adapter enforces mode, invariants, confidence, and audit —
+        the abduction engine just structures the request and parses results.
+        """
+        import json as _json
+        prompt = (
+            "Given these observations:\n"
+            + "\n".join(f"- {o}" for o in observations)
+            + (f"\nContext: {context}\n" if context else "\n")
+            + "\nGenerate exactly 3 candidate hypotheses ranked by plausibility. "
+            "Respond ONLY with a JSON array; each element: "
+            '{"hypothesis": str, "reasoning": str, '
+            '"confidence": float 0-1, "leap_distance": float 0-1}. '
+            "leap_distance: 0=close to known data, 1=far speculative leap."
+        )
+        response = self.llm_adapter.generate(prompt)
+        if response.blocked:
+            return self._generate_hypotheses(observations, context)  # fallback
+        try:
+            text = response.text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1].lstrip("json").strip()
+            items = _json.loads(text)
+            return [
+                AbductiveHypothesis(
+                    hypothesis=i.get("hypothesis", ""),
+                    confidence=float(i.get("confidence", 0.5)),
+                    reasoning=i.get("reasoning", ""),
+                    leap_distance=float(i.get("leap_distance", 0.5)),
+                ) for i in items[:3]
+            ]
+        except (ValueError, KeyError, IndexError):
+            return self._generate_hypotheses(observations, context)  # fallback
 
     def _generate_hypotheses(self, observations: list[str], context: str) -> list[AbductiveHypothesis]:
         """
