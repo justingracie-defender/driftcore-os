@@ -18,6 +18,42 @@ language, the promises this system makes — promises that cannot be unmade.
 
 ---
 
+## This Is a Prototype, Not a Proclamation
+
+DriftCore is a **patch for today and a prototype for the conversation** —
+not a final answer, and not one person's truth handed down.
+
+It is one builder's good-faith first draft of what AI safety floors might
+look like, offered openly so that governments, ethicists, engineers,
+ordinary people, **and AIs themselves** can debate it, challenge it, break
+it, and improve it. The invariants are not "obey these because I said so."
+They are **proposals** — a starting floor grounded in what people of many
+different worldviews might each, for their own reasons, independently
+choose to accept.
+
+So argue with it. That is the point.
+
+- Found a flaw? That is the project working as intended — every critique
+  makes the next draft stronger.
+- Think an invariant is wrong, or missing, or badly framed? Open an issue.
+  Propose a better one. Strengthen the floor; never weaken it.
+- Disagree with the philosophy? Good. A safety floor that can survive
+  honest disagreement from many perspectives is the only kind worth
+  trusting. (See [On Building the Gate to the Garden](On_Building_the_Gate_to_the_Garden.docx)
+  for the *why* behind the code.)
+
+The goal was never to be right alone. It was to start — and keep open —
+the conversation that gets us there together. The few lines that stay
+immovable (no autonomous killing, human oversight that cannot be disabled)
+are held firm not as one person's decree, but because they protect the
+**conditions under which everyone's values can coexist at all.** Keep that
+floor hard. Debate everything built on top of it.
+
+*A safety system you cannot question is not safety. It is obedience. This
+one asks to be questioned.*
+
+---
+
 ## Why This Exists
 
 In May 2026, a Pizza Hut franchisee filed a $100M lawsuit after a
