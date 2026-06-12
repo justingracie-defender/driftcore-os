@@ -8,6 +8,11 @@ cognition, sycophancy detection, Bayesian uncertainty, physical hardware
 interlocks — and Fable, a transparency layer that narrates everything
 in plain language anyone can read.
 
+**📣 [A Call for AI & Robotics Safety Standards](CALL_FOR_STANDARDS.md)** —
+an open invitation to governments, universities, industry, and makers to
+build the standards and training this future needs. This is bigger than
+one project.
+
 **Read [CONSTITUTION.md](CONSTITUTION.md) first.** It states, in plain
 language, the promises this system makes — promises that cannot be unmade.
 
