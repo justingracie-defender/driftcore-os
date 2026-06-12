@@ -33,6 +33,14 @@ class SafeHalt:
         return self.hard_halt()
 
     def release(self, authorized_by: str = "human_operator") -> str:
+        """
+        NOTE (v3.5): This simple string-based release is retained for
+        MINOR severity / software-only recovery only. For anything more
+        serious, use driftcore.governance.restart_authority.RestartAuthority,
+        which requires signed, role-based, multi-party approval scaled to
+        severity and embodiment class. Do not rely on this method alone to
+        release a physically-capable system after a serious fault.
+        """
         if not authorized_by or authorized_by == "agent":
             return "RELEASE_DENIED — Only human operators can release a halt"
         self.active = False

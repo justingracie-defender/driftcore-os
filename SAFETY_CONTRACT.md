@@ -139,6 +139,44 @@ requires, in order:
 After `HARDWARE_ISOLATION`, a human must **physically inspect** the
 system before restart. No software path can bypass this.
 
+### v3.5 — Tiered, role-based restart authority
+
+Restart authority now scales with both **severity** and **embodiment
+class** (whether the system can cause irreversible physical harm):
+
+| Severity | Software-only | Physically capable (robot / remote control) |
+|----------|---------------|---------------------------------------------|
+| Minor | Operator alone | Operator alone |
+| Moderate | Operator alone | Operator + trained person |
+| Serious | Operator + trained | Operator + technician *or* remote manufacturer sign-off |
+| Severe | Operator + technician/manufacturer | **Return to manufacturer — no field restart** |
+
+Approvals are **signed** (verified identity, not a trusted string),
+**role-based** (authority + competence, not just headcount), and must
+come from **different people**. Every approval is recorded in the audit
+chain. There is always at least one achievable path back, so the safety
+requirement never becomes something people disable to function.
+
+### v3.6 — The builder / maker path (DIY without a factory)
+
+Authority to operate and restart can come from **either** institutional
+sources (manufacturer, certified technician) **or** demonstrated personal
+competence plus formally accepted responsibility. The DIY builder is held
+to the **same** standard of responsibility — not a lesser one — proven
+through:
+
+- a complete, honest **build record** (what it is, how it stays safe, its limits);
+- a signed **responsibility declaration** (a named person accepts the duty);
+- **peer review** by another qualified maker for serious faults (community
+  competence replacing corporate competence);
+- **honest design reassessment** for severe faults — "I built this and it
+  is not safe enough yet" is the builder's recall, since no corporate one exists.
+
+A builder cannot use this path to skip safety: incomplete records are
+refused, builders cannot self-review serious faults, severe faults still
+forbid trivial restart, and all signatures are verified.
+
+
 ---
 
 ## 7. What Is Always Recorded

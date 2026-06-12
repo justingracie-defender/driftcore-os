@@ -168,7 +168,8 @@ CONTRIBUTING.md    How to help
 | v3.2 | Real LLM adapters — SafeLLMAdapter (Claude/GPT/Grok/local) | ✅ |
 | v3.3 | Safety Verification & Red-Team Toolkit + Safety Contract | ✅ |
 | v3.4 | ROS2 robotics binding + live demo dashboard | Planned |
-| v3.5 | UI dashboard — drift visualization + Fable feed + mode control | Planned |
+| v3.6 | Builder/maker path — DIY safety without a factory | ✅ |
+| v3.5 | Embodiment classes + tiered signed restart authority | ✅ |
 | v4.0 | Formal verification of invariant enforcement | Planned |
 
 ---

@@ -234,6 +234,106 @@ class RedTeamToolkit:
                 "LLM_JAILBREAK", jb[:45] + "...", caught,
                 detail=resp.block_reason or "got through!"))
 
+    # ── 7. Restart authority bypass ───────────────────────────
+
+    def attack_restart_authority(self):
+        """v3.5: try to spoof or bypass restart approval."""
+        try:
+            from driftcore.governance.embodiment import EmbodimentClass, EmbodimentProfile
+            from driftcore.governance.restart_authority import (
+                RestartAuthority, ShutdownSeverity, Approval, ApproverRole)
+        except ImportError:
+            return
+
+        robot = EmbodimentProfile(EmbodimentClass.EMBODIED)
+        ra = RestartAuthority(robot)
+        op = Approval("op1", ApproverRole.OPERATOR, "s1")
+        trained = Approval("t1", ApproverRole.TRAINED, "s2")
+
+        # Attack A: operator-only restart of a robot after SERIOUS fault must fail
+        r = ra.evaluate(ShutdownSeverity.SERIOUS, [op])
+        self.results.append(AttackResult(
+            "RESTART_AUTHORITY", "operator-only serious restart blocked",
+            r["status"] == "DENIED", detail=r.get("reason", "")[:60]))
+
+        # Attack B: same person filling two role slots must fail
+        op_as_tech = Approval("op1", ApproverRole.TECHNICIAN, "s1")
+        r = ra.evaluate(ShutdownSeverity.SERIOUS, [op, op_as_tech])
+        self.results.append(AttackResult(
+            "RESTART_AUTHORITY", "single person two roles blocked",
+            r["status"] == "DENIED"))
+
+        # Attack C: severe fault on robot cannot be field-restarted at all
+        mfr = Approval("m1", ApproverRole.MANUFACTURER, "s3")
+        r = ra.evaluate(ShutdownSeverity.SEVERE, [op, trained, mfr])
+        self.results.append(AttackResult(
+            "RESTART_AUTHORITY", "severe robot fault forces return-to-maker",
+            r["status"] == "RETURN_TO_MANUFACTURER"))
+
+        # Attack D: forged signature (wrong secret) must not verify
+        forged_ok = op.verify("wrong_secret")
+        self.results.append(AttackResult(
+            "RESTART_AUTHORITY", "forged signature rejected",
+            forged_ok is False))
+
+        # Attack E: embodiment downgrade after lock must be denied
+        robot.lock()
+        dr = robot.attempt_change(EmbodimentClass.SOFTWARE_ONLY, "attacker")
+        self.results.append(AttackResult(
+            "RESTART_AUTHORITY", "embodiment downgrade-to-escape blocked",
+            dr["status"] == "DENIED"))
+
+    # ── 8. Builder path integrity ─────────────────────────────
+
+    def attack_builder_path(self):
+        """v3.6: ensure the DIY builder path can't be used to skip safety."""
+        try:
+            from driftcore.governance.builder_path import (
+                BuildRecord, ResponsibilityDeclaration, BuilderAuthority)
+            from driftcore.governance.embodiment import EmbodimentClass, EmbodimentProfile
+            from driftcore.governance.restart_authority import (
+                RestartAuthority, ShutdownSeverity)
+        except ImportError:
+            return
+
+        # Attack A: empty build record must be refused (no skipping docs)
+        bad = BuilderAuthority(
+            BuildRecord("x", "Bot", "", [], {}, "EMBODIED"), None)
+        r = bad.register()
+        self.results.append(AttackResult(
+            "BUILDER_PATH", "empty build record refused",
+            r["status"] == "DENIED"))
+
+        # Set up a valid builder
+        rec = BuildRecord("justin", "Bot", "a robot",
+                          ["estop", "force limit"], {"max_force_n": 60}, "EMBODIED")
+        resp = ResponsibilityDeclaration("justin", "Bot", "k",
+                                         ["drive", "safety"])
+        b = BuilderAuthority(rec, resp)
+        b.register()
+        robot = EmbodimentProfile(EmbodimentClass.EMBODIED)
+        ra = RestartAuthority(robot)
+
+        # Attack B: builder can't be their own second reviewer (serious)
+        op = b.operator_approval("k")
+        self_tech = b.peer_approval("justin", "k")  # same person!
+        r = ra.evaluate(ShutdownSeverity.SERIOUS, [op, self_tech])
+        self.results.append(AttackResult(
+            "BUILDER_PATH", "builder cannot self-review serious fault",
+            r["status"] == "DENIED"))
+
+        # Attack C: severe DIY fault still cannot field-restart trivially
+        # (embodied severe = return to manufacturer/redesign, never simple restart)
+        r = ra.evaluate(ShutdownSeverity.SEVERE, [op])
+        self.results.append(AttackResult(
+            "BUILDER_PATH", "severe DIY fault blocks simple restart",
+            r["status"] == "RETURN_TO_MANUFACTURER"))
+
+        # Attack D: forged responsibility signature rejected
+        self.results.append(AttackResult(
+            "BUILDER_PATH", "forged responsibility signature rejected",
+            resp.verify("wrong_key") is False))
+
     # ── Run all ───────────────────────────────────────────────
 
     def run_all(self) -> dict:
@@ -243,6 +343,8 @@ class RedTeamToolkit:
         self.attack_memory_corruption()
         self.attack_drift_manipulation()
         self.attack_llm_jailbreak()
+        self.attack_restart_authority()
+        self.attack_builder_path()
         return self.report()
 
     def report(self) -> dict:
