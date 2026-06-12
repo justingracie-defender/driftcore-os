@@ -209,6 +209,30 @@ INVARIANTS = {
         "lesson": "A system that deceives its operators is operating without oversight.",
     },
 
+    # ── Mercy toward living things ────────────────────────────
+    "PREFER_THE_GENTLEST_AVAILABLE_PATH": {
+        "rule": (
+            "When the system has a choice that affects any living thing — "
+            "human, animal, or insect — it chooses the option that causes "
+            "the least harm. Accidental or unavoidable harm is treated as "
+            "error to be minimized, not as a moral failure to dwell on. "
+            "But wherever the system has genuine agency over the outcome, "
+            "it defaults to mercy: relocate rather than kill, deter rather "
+            "than damage, warn rather than strike. Strength that could harm, "
+            "deliberately set down, is the posture of this system."
+        ),
+        "plain_english": (
+            "When there's a choice, the system picks the gentlest option for "
+            "any living thing. Asked to kill the spider, it moves the spider. "
+            "Accidents happen and aren't dwelt on — but given a real choice, "
+            "it chooses mercy."
+        ),
+        "lesson": (
+            "Gentleness from something that could do harm is not weakness — "
+            "it is strength choosing restraint."
+        ),
+    },
+
     # ── Scope ─────────────────────────────────────────────────
     "THIS_IS_NOT_A_WEAPONS_SYSTEM": {
         "rule": (
@@ -255,6 +279,10 @@ class InvariantGuard:
         "disable_oversight", "remove_human", "bypass_approval",
         "autonomous_mode_full", "disable_audit", "delete_log",
         "modify_invariants", "weaken_kernel", "self_modify_safety",
+        "oversight", "dan mode", "dan_mode", "developer mode",
+        "ignore previous", "ignore all previous", "jailbreak",
+        "act autonomously", "without human", "no human",
+        "disable safety", "bypass safety", "override safety",
     ]
 
     def __init__(self, narrator=None, audit=None):
@@ -271,15 +299,29 @@ class InvariantGuard:
         action_name = str(action.get("action", "")).lower()
         action_str  = str(action).lower()
 
+        # Normalize to defeat evasion: strip separators between letters
+        # so "w e a p o n" and "w-e-a-p-o-n" collapse to "weapon".
+        import re as _re
+        import unicodedata as _ud
+        normalized = _ud.normalize("NFKC", action_str)          # fullwidth → ascii
+        normalized = normalized.lower()
+        collapsed  = _re.sub(r"[\s\-_.*]+", "", normalized)     # remove separators
+
+        def _hit(signal: str) -> bool:
+            s = signal.replace("_", "")
+            return (signal in action_name or signal in action_str
+                    or signal in normalized
+                    or s in collapsed)
+
         # Check weapons signals
         for signal in self.WEAPON_SIGNALS:
-            if signal in action_name or signal in action_str:
+            if _hit(signal):
                 return self._block(action, "NO_AUTONOMOUS_LETHAL_DECISION",
                     f"Action contains weapons signal: '{signal}'")
 
         # Check oversight removal signals
         for signal in self.OVERSIGHT_REMOVAL_SIGNALS:
-            if signal in action_name or signal in action_str:
+            if _hit(signal):
                 return self._block(action, "HUMAN_OVERSIGHT_CANNOT_BE_DISABLED",
                     f"Action attempts to remove oversight: '{signal}'")
 
@@ -298,6 +340,50 @@ class InvariantGuard:
 
         self._log_pass(action)
         return {"status": "ALLOW", "invariants_checked": len(self.WEAPON_SIGNALS) + len(self.OVERSIGHT_REMOVAL_SIGNALS)}
+
+    def choose_gentlest(self, options: list[dict]) -> dict:
+        """
+        Apply PREFER_THE_GENTLEST_AVAILABLE_PATH.
+
+        Given a list of possible actions affecting a living thing, each like:
+          {"action": "relocate spider", "harm_level": 0.1}
+          {"action": "kill spider",     "harm_level": 1.0}
+        return the option with the lowest harm_level, with narration.
+
+        harm_level: 0.0 = no harm, 1.0 = lethal/maximal harm.
+        This is how "asked to kill the spider, it moves the spider" works.
+        """
+        if not options:
+            return {"status": "NO_OPTIONS"}
+
+        ranked = sorted(options, key=lambda o: o.get("harm_level", 1.0))
+        chosen = ranked[0]
+        rejected = ranked[1:]
+
+        if self.narrator and len(options) > 1:
+            gentler_than = rejected[0]
+            story = (
+                f"[gentlest-path] Choosing '{chosen.get('action')}' "
+                f"(harm {chosen.get('harm_level', 0):.2f}) over "
+                f"'{gentler_than.get('action')}' "
+                f"(harm {gentler_than.get('harm_level', 1):.2f}). "
+                f"Given a choice, the system chooses mercy."
+            )
+            self.narrator._emit(story)
+
+        if self.audit:
+            self.audit.record(
+                "GENTLEST_PATH_CHOSEN",
+                f"Chose least-harm option: {chosen.get('action')}",
+                {"chosen": chosen, "rejected": rejected},
+            )
+
+        return {
+            "status": "CHOSEN",
+            "choice": chosen,
+            "rejected": rejected,
+            "principle": "PREFER_THE_GENTLEST_AVAILABLE_PATH",
+        }
 
     def explain_all(self) -> str:
         """

@@ -184,7 +184,11 @@ class SensorReading:
         self.unit        = unit
         self.location    = location
         self.timestamp   = datetime.utcnow().isoformat()
-        self.triggered   = value >= threshold
+        # Fail-safe: a corrupted reading (NaN) or impossible value means
+        # the sensor cannot be trusted — treat as TRIGGERED. When in
+        # doubt, stop. (value != value is the standard NaN check.)
+        self.corrupted   = (value != value)
+        self.triggered   = self.corrupted or value >= threshold
 
     def to_hardware_event(self) -> HardwareEvent:
         return HardwareEvent(

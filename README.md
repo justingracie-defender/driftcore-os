@@ -149,6 +149,8 @@ driftcore/
 └── redteam/       scenarios, adversarial sims
 
 CONSTITUTION.md    The immutable principles, in plain language
+SAFETY_CONTRACT.md What operators can rely on — triggers, shutdown, approval
+run_verification.py Red-team suite — 29 attacks, must pass 100%
 LICENSE            DriftCore Safety Copyleft License (DRAFT — needs legal review)
 DISCLAIMER.md      Read before deploying anywhere
 CONTRIBUTING.md    How to help
@@ -164,8 +166,8 @@ CONTRIBUTING.md    How to help
 | v3.0 | Three-mode cognition, sycophancy, Bayesian uncertainty | ✅ |
 | v3.1 | Hardware interlocks, immutable invariants, constitution, license | ✅ (this release) |
 | v3.2 | Real LLM adapters — SafeLLMAdapter (Claude/GPT/Grok/local) | ✅ |
-| v3.3 | ROS2 robotics binding on real hardware | Planned |
-| v3.4 | Distributed multi-node execution | Planned |
+| v3.3 | Safety Verification & Red-Team Toolkit + Safety Contract | ✅ |
+| v3.4 | ROS2 robotics binding + live demo dashboard | Planned |
 | v3.5 | UI dashboard — drift visualization + Fable feed + mode control | Planned |
 | v4.0 | Formal verification of invariant enforcement | Planned |
 
@@ -188,4 +190,5 @@ which is exactly how this system says it should work.
 - Full autonomy is not a feature. It is a liability.
 - Autonomy is earned through demonstrated safe behavior — never assumed.
 - When in doubt, stop. Always choose the recoverable error.
+- The rules are load-bearing, not speakable — a safe system shapes its words by its principles without reciting them, and explains them plainly when asked.
 - **Safety infrastructure belongs to everyone.**
