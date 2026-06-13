@@ -52,6 +52,8 @@ floor hard. Debate everything built on top of it.
 *A safety system you cannot question is not safety. It is obedience. This
 one asks to be questioned.*
 
+See also **[Why Legibility: On Explicit Invariants and the Black Box](WHY_LEGIBILITY.md)** — why DriftCore writes its safety rules down where anyone can read them, and why the opacity of trained AI systems is a real, field-wide limitation worth naming honestly.
+
 ---
 
 ## Why This Exists
