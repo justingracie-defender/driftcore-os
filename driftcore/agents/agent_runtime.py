@@ -11,10 +11,11 @@ from datetime import datetime
 
 class AgentRuntime:
 
-    def __init__(self, kernel, state_machine, memory, narrator=None):
+    def __init__(self, kernel, state_machine, memory, narrator=None, queryable_memory=None):
         self.kernel = kernel
         self.state_machine = state_machine
-        self.memory = memory
+        self.memory = memory                         # MemoryFS — raw log + quarantine
+        self.queryable_memory = queryable_memory     # DriftcoreMemory — two-stage query store
         self.narrator = narrator
         self.execution_log = []
 
@@ -36,7 +37,7 @@ class AgentRuntime:
         # Kernel evaluation
         decision = self.kernel.evaluate(input_event)
 
-        # Log to memory
+        # Log to raw memory (MemoryFS — append-only ledger)
         if self.memory:
             self.memory.log_raw({
                 "event": input_event,
@@ -44,6 +45,14 @@ class AgentRuntime:
                 "state": state.name,
                 "decision": decision,
             })
+
+        # Feed queryable memory (DriftcoreMemory — two-stage surprise/resonance store)
+        if self.queryable_memory:
+            observation = (
+                f"event={input_event} drift={drift_score:.3f} "
+                f"state={state.name} decision={decision}"
+            )
+            self.queryable_memory.observe(observation, source="agent_runtime")
 
         self._log(input_event, drift_score, state.name, decision)
 

@@ -9,6 +9,7 @@ from driftcore.kernel.policies import PolicyEngine
 from driftcore.drift.drift_model import compute_drift, compute_drift_with_mode, explain_drift
 from driftcore.drift.drift_detector import DriftDetector
 from driftcore.memory.memory_fs import MemoryFS
+from driftcore.memory.memory_core import DriftcoreMemory
 from driftcore.memory.integrity import IntegrityChecker
 from driftcore.agents.agent_runtime import AgentRuntime
 from driftcore.network.trust_model import TrustModel
@@ -38,13 +39,14 @@ def main():
     print("Initializing all systems...\n")
 
     # ── Core ──────────────────────────────────────────────────
-    kernel        = SafetyKernel()
-    state_machine = StateMachine()
-    memory        = MemoryFS()
-    integrity     = IntegrityChecker()
-    trust_model   = TrustModel()
-    halt          = SafeHalt()
-    recovery      = RecoverySystem(memory, integrity)
+    kernel           = SafetyKernel()
+    state_machine    = StateMachine()
+    memory           = MemoryFS()                  # raw log + quarantine (safety layer)
+    queryable_memory = DriftcoreMemory(capacity=200)  # two-stage surprise/resonance store
+    integrity        = IntegrityChecker()
+    trust_model      = TrustModel()
+    halt             = SafeHalt()
+    recovery         = RecoverySystem(memory, integrity)
 
     # ── v3.0: Cognition + Uncertainty ─────────────────────────
     mode_ctrl   = CognitiveModeController(CognitiveMode.TRUTH)
@@ -56,7 +58,8 @@ def main():
     narrator     = Narrator(verbosity="standard")
     audit        = AuditStory()
     trust_bridge = TrustBridge(trust_model, audit)
-    agent        = AgentRuntime(kernel, state_machine, memory, narrator)
+    agent        = AgentRuntime(kernel, state_machine, memory, narrator,
+                                queryable_memory=queryable_memory)
 
     audit.record("SYSTEM_INIT", "DriftCore OS v3.0 initialized.")
 
@@ -244,7 +247,8 @@ def main():
 
     narrator.warning_summary()
 
-    print(f"\n  Memory      : {memory.stats()}")
+    print(f"\n  Memory (raw): {memory.stats()}")
+    print(f"  Memory (qry): {queryable_memory.stats()}")
     print(f"  Mode history: {[h['to'] for h in mode_ctrl.history]}")
     print(f"\n✅ DriftCore OS v3.0 — complete.")
     print("🚀 Ready for: ROS2 | LLM adapters | Distributed nodes | UI dashboard\n")
