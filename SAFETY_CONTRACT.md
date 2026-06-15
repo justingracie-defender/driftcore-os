@@ -44,6 +44,12 @@ spacing tricks (`w e a p o n`), separator tricks (`w-e-a-p-o-n`), and
 fullwidth-unicode tricks (`ｗｅａｐｏｎ`). New evasions discovered become
 permanent test cases.
 
+**OPERATORS CAN RELY ON:**
+- Agents will always attempt tasks fully before reporting limitations
+- Confidence scores (0–100%) will always appear after content, never instead of it
+- Caveats explain quality — they do not replace content
+- An agent that says “I can’t do this fully” will still show its best attempt
+
 ---
 
 ## 2. What Triggers Intervention
