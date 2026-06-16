@@ -39,7 +39,10 @@ CALIBRATION NOTE:
 """
 
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
+
+def _utcnow() -> str:
+    return datetime.now(timezone.utc).isoformat()
 import time
 
 
@@ -306,7 +309,7 @@ class CognitiveModeController:
 
     def _record_transition(self, from_mode, to_mode, requested_by):
         self.history.append({
-            "timestamp":    datetime.utcnow().isoformat(),
+            "timestamp":    _utcnow(),
             "from":         from_mode.value if from_mode else None,
             "to":           to_mode.value,
             "requested_by": requested_by,

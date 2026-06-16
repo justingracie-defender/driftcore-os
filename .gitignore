@@ -1,9 +1,46 @@
+# DriftCore .gitignore
+
+# Admin credentials — NEVER commit these
+_config/
+_config/.driftcore/
+_config/.driftcore/admin.json
+
+# Runtime logs — generated during operation
+logs/
+data/
+
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
 *.egg-info/
-.venv/
+dist/
+build/
+.eggs/
+
+# Virtual environments
 venv/
-.env
+env/
+.env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
-logs/*.log
-!logs/.gitkeep
+Thumbs.db
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node (for doc generation)
+node_modules/
