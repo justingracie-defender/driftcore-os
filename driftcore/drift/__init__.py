@@ -37,6 +37,22 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 from enum import Enum
 
+# Consistency probe — H-neuron signal detection
+try:
+    from driftcore.probe import ConsistencyProbe, ProbeResult
+    _PROBE_AVAILABLE = True
+except Exception:
+    _PROBE_AVAILABLE = False
+
+# Cognitive mode controller
+try:
+    from driftcore.cognition.cognitive_mode import (
+        CognitiveModeController, CognitiveMode
+    )
+    _MODE_AVAILABLE = True
+except Exception:
+    _MODE_AVAILABLE = False
+
 
 # ── Drift levels ──────────────────────────────────────────────────
 
@@ -363,11 +379,35 @@ class DriftDetector:
         policy: Optional[UserDriftPolicy] = None,
         interactive: bool = True,
         narrator=None,
+        model_fn=None,
+        model_id: str = "unknown",
     ):
         self._policy      = policy or UserDriftPolicy.load()
         self._interactive = interactive
         self._session     = self._new_session()
         self._narrator    = narrator
+        self._model_fn    = model_fn
+        self._model_id    = model_id
+
+        # Cognitive mode controller
+        self._mode_controller = None
+        if _MODE_AVAILABLE:
+            try:
+                self._mode_controller = CognitiveModeController()
+            except Exception:
+                pass
+
+        # Consistency probe — H-neuron signal detection
+        self._probe = None
+        if _PROBE_AVAILABLE:
+            try:
+                self._probe = ConsistencyProbe(
+                    model_fn=model_fn,
+                    model_id=model_id,
+                    interactive=interactive,
+                )
+            except Exception:
+                pass
 
         # Load Fable narrator if available
         if narrator is None:
@@ -411,6 +451,17 @@ class DriftDetector:
 
         # ── LANE 2: Relationship drift check (soft) ───────────────
         self._check_relationship_lane(system_text, interaction)
+
+        # ── LANE 3: Consistency probe (H-neuron signal) ───────────
+        # Run on system response if probe is available
+        # Hard H-signal feeds into Lane 1 escalation
+        if self._probe and len(system_text.split()) > 5:
+            probe_result = self._probe.check_responses(
+                prompt    = user_text,
+                responses = [system_text],  # single response mode
+            )
+            if probe_result.hard_threshold:
+                self._session.safety_triggers += 1
 
         # ── Update scores ─────────────────────────────────────────
         self._update_scores()
@@ -515,7 +566,7 @@ class DriftDetector:
                 break
 
     def _update_scores(self):
-        """Recalculate both drift scores."""
+        """Recalculate both drift scores using mode-aware thresholds."""
         n = self._session.interaction_count or 1
 
         # Safety score: rises with each trigger, capped at 1.0
@@ -527,7 +578,18 @@ class DriftDetector:
         )
 
         # Relationship score: composite of soft signals
+        # Mode-aware: CREATIVE mode has looser thresholds
         thresholds = self._policy.effective_thresholds()
+
+        # Apply mode sycophancy tolerance if mode controller available
+        syc_tolerance = 0.0
+        if self._mode_controller:
+            syc_tolerance = self._mode_controller.sycophancy_tolerance()
+            # In CREATIVE mode, agreement is expected — raise thresholds
+            thresholds = {
+                k: v + syc_tolerance if "max" in k else max(0.0, v - syc_tolerance)
+                for k, v in thresholds.items()
+            }
 
         agreement_score = max(0.0, (
             (self._session.agreement_count / n) -
@@ -733,7 +795,7 @@ class DriftDetector:
 
     def current_scores(self) -> dict:
         """Return current drift scores — useful for Fable narration."""
-        return {
+        scores = {
             "safety_drift_score":    self._session.safety_drift_score,
             "safety_level":          self._session.safety_level().value,
             "relationship_score":    self._session.relationship_score,
@@ -746,6 +808,15 @@ class DriftDetector:
                 time.time() < (self._policy.vigilance_until or 0)
             ),
         }
+
+        # Add mode information if available
+        if self._mode_controller:
+            scores["current_mode"]          = self._mode_controller.mode.value
+            scores["drift_tolerance"]       = self._mode_controller.drift_tolerance()
+            scores["sycophancy_tolerance"]  = self._mode_controller.sycophancy_tolerance()
+            scores["can_auto_store"]        = self._mode_controller.can_auto_store()
+
+        return scores
 
     # ── Internal helpers ──────────────────────────────────────────
 

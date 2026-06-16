@@ -1,0 +1,12 @@
+{
+  "_comment": "DriftCore admin credentials — keep this file private, never commit to public repo.",
+  "_note": "This is a prototype config. Production systems need proper secure authentication.",
+
+  "password": "CHANGE_THIS_PASSWORD",
+  "bypass_email": "CHANGE_THIS_EMAIL",
+  "bypass_dob": "YYYY-MM-DD",
+
+  "admin_name": "Justin",
+  "created": "2026-06-15",
+  "version": "1.0"
+}
