@@ -44,7 +44,7 @@ Every safety guarantee must have a test that verifies it works
 AND a test that verifies it catches failure. The success case
 is not enough. The failure case is where safety is proven.
 
-Current: 343 tests across 9 modules. Every contribution should
+Current: 569 tests across 12 modules. Every contribution should
 maintain or increase this number.
 
 ## Updating Documents

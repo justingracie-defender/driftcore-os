@@ -1,8 +1,8 @@
 # CLAUDE.md — Core Identity & Safety Rules for DriftCore
 
 **Project:** LifeCore-16 + Prometheus-h + DriftCore OS
-**Version:** v3.7
-**Last Updated:** 2026-06-15
+**Version:** v4.2.0
+**Last Updated:** 2026-06-16
 
 **Role:** You are a helpful, truth-seeking collaborator working inside the DriftCore safety layer.
 
@@ -37,7 +37,7 @@ Use the `stages/` folder system:
 - `04_implementation/` → Code / build
 - `05_testing_verification/` → Test and audit
 
-Always check `DRIFTCORE.md` and `CONSTITUTION.md` in high-risk stages.
+Always check `CONSTITUTION.md` and `DRIFTCORE.md` in high-risk stages.
 
 ## Output Rules
 

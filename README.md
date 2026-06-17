@@ -1,4 +1,4 @@
-# 🧠 DriftCore OS v4.1.1
+# 🧠 DriftCore OS v4.2.0
 
 > *"The safest system is the one that knows what it knows — and says so."*
 
@@ -18,21 +18,11 @@ Requires Python 3.10+. No external dependencies for core modules.
 git clone https://github.com/justingracie-defender/driftcore-os
 cd driftcore-os
 
-# Run the full test suite — 427 tests
-python test_memory_core.py
-python test_memory_extended.py
-python test_enforcement.py
-python test_audit_chain.py
-python test_observation_gate.py
-python test_drift_detector.py
-python test_storage.py
-python test_consistency_probe.py
-python test_cognitive_mode.py
-python test_api.py
-python test_profiles_feedback.py
-
-# Or run all at once
+# Run the full test suite — 569 tests across 12 modules
 for f in test_*.py; do python "$f"; done
+
+# Or count them yourself
+bash scripts/count_tests.sh
 ```
 
 All tests should pass. If any fail, open an issue.
@@ -80,10 +70,11 @@ driftcore/
 ├── cognition/         Three-mode cognition controller
 ├── api/               Universal agent/device interface
 ├── profiles/          Deployment profiles per context
-└── feedback/          Bottom-up feedback loop
+├── feedback/          Bottom-up feedback loop
+└── verification/      Risk classification, intent, guard, coordinator, governed actuator
 ```
 
-**427 tests. 12 modules. All green.**
+**569 tests. 12 modules. All green.**
 
 ---
 

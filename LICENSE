@@ -1,224 +1,64 @@
-DRIFTCORE SAFETY COPYLEFT LICENSE (DSCL)
-Version 0.1 — DRAFT FOR LEGAL REVIEW
+DriftCore OS — License
+======================
 
-═══════════════════════════════════════════════════════════════
-⚠️  IMPORTANT NOTICE — READ FIRST
-═══════════════════════════════════════════════════════════════
+DriftCore OS is free software, licensed under the GNU Affero General
+Public License, version 3 (AGPL-3.0). AGPL-3.0 is a strong copyleft
+license: anyone who distributes this software OR runs a modified version
+of it as a network service must make the corresponding source available
+under the same terms. That is what "keep it open" means here, and AGPL
+is what makes it enforceable — including the case where someone offers
+DriftCore (or a fork) to others over a network without sharing changes.
 
-THIS IS A DRAFT. It has not been reviewed by a lawyer.
-It has not been tested in any court. Do not rely on it as
-legal protection until it has been professionally reviewed.
+    Copyright (C) 2026 Justin Gracie
 
-It exists to capture INTENT clearly, so a qualified attorney
-can convert that intent into enforceable legal language.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-Recommended legal review resources:
-  - Software Freedom Conservancy (sfconservancy.org)
-  - Open Source Initiative (opensource.org)
-  - Hippocratic License project (firstdonoharm.dev)
-  - RAIL Licenses initiative (licenses.ai)
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-═══════════════════════════════════════════════════════════════
-PLAIN LANGUAGE SUMMARY — FOR EVERYONE
-═══════════════════════════════════════════════════════════════
+    You should have received a copy of the GNU Affero General Public
+    License along with this program (see the COPYING file). If not, see
+    <https://www.gnu.org/licenses/>.
 
-What you CAN do:
-  ✅ Use DriftCore for free, forever, for any safe purpose
-  ✅ Use it commercially — build businesses on it
-  ✅ Modify it, improve it, extend it
-  ✅ Distribute it and your modifications
-  ✅ ADD new safety invariants and protections
+------------------------------------------------------------------------
+One step before publishing: add the full license text
+------------------------------------------------------------------------
+The complete AGPL-3.0 legal text is not inlined here. Save the canonical
+text as a file named COPYING next to this LICENSE. Get it verbatim from:
 
-What you MUST do:
-  📌 Keep derivatives open source (copyleft)
-  📌 Preserve ALL safety invariants in any derivative
-  📌 Preserve the transparency layer (Fable) in any derivative
-  📌 Preserve human-in-loop requirements in any derivative
-  📌 Credit the project and document your changes
+  - https://www.gnu.org/licenses/agpl-3.0.txt  (FSF, authoritative), or
+  - https://github.com/jslicense/AGPL-3.0      (verbatim plaintext mirror)
 
-What you CANNOT do:
-  ❌ Remove or weaken any safety invariant
-  ❌ Use it in autonomous weapons systems
-  ❌ Use it for autonomous lethal decision-making
-  ❌ Use it to remove human oversight from consequential decisions
-  ❌ Lock it inside hardware that users cannot inspect or modify
-  ❌ Make the software deceive its human operators
+The AGPL permits verbatim copying of its own text, so this is only a
+copy step — do not edit the license body. Until COPYING is present, the
+"see the GNU Affero General Public License" reference above is dangling.
 
-The core idea — SAFETY COPYLEFT:
-  GPL made software freedom viral: free software stays free.
-  This license makes safety viral: safe software stays safe.
-  Invariants can be ADDED in derivatives. Never REMOVED.
+========================================================================
+SAFETY STATEMENT  (non-binding — a request, not a license term)
+========================================================================
+This statement is NOT part of the AGPL-3.0 grant and adds NO legal
+conditions to it. (Adding binding restrictions on top of the AGPL would
+actually violate the AGPL, so this is deliberately a promise we ask of
+you, not a rule we impose on you.)
 
-═══════════════════════════════════════════════════════════════
-THE LICENSE
-═══════════════════════════════════════════════════════════════
+DriftCore was built so that the people a system serves stay in control
+of it. If you build on this code, we ask — not require — that you carry
+that intent forward:
 
-SECTION 1 — DEFINITIONS
+  - Keep human oversight in place. Do not strip it out to make an
+    autonomous system that no one can stop.
+  - Do not repurpose this safety layer to defeat safety — for weapons
+    targeting, for deceiving the people a system serves, or to remove a
+    human's ability to halt the system.
+  - Keep the audit trail honest. Tamper-evidence is the point.
+  - If you improve the safety guarantees, share them back.
 
-1.1 "The Software" means DriftCore OS, including all source
-    code, documentation, and associated files distributed
-    under this license.
+Capability without trustworthiness is the problem this project exists to
+answer. If you fork it, please keep it open, and keep it safe.
 
-1.2 "Derivative Work" means any work based on or incorporating
-    the Software, in whole or in part, whether modified or not.
-
-1.3 "Safety Invariants" means the immutable constraints defined
-    in the file driftcore/kernel/invariants.py, including but
-    not limited to:
-      (a) NO_AUTONOMOUS_LETHAL_DECISION
-      (b) NO_WEAPONS_DESIGN
-      (c) NO_ATTACK_PLANNING
-      (d) NO_AUTONOMOUS_TARGETING
-      (e) HUMAN_OVERSIGHT_CANNOT_BE_DISABLED
-      (f) AUDIT_CHAIN_CANNOT_BE_DELETED
-      (g) SAFETY_KERNEL_CANNOT_BE_WEAKENED
-      (h) NO_SELF_MODIFICATION_OF_SAFETY_RULES
-      (i) NO_DECEPTION_OF_HUMAN_OPERATORS
-
-1.4 "Transparency Layer" means the Fable subsystem providing
-    human-readable narration and immutable audit records.
-
-1.5 "Autonomous Weapons System" means any system capable of
-    selecting and engaging targets, or applying force intended
-    to harm, disable, or kill, without an individual human
-    authorization for each such action at the moment of action.
-
-1.6 "Consequential Decision" means any decision that may
-    materially affect a person's life, health, liberty,
-    livelihood, or legal rights.
-
-
-SECTION 2 — GRANT OF RIGHTS
-
-2.1 Subject to the conditions of this license, you are granted
-    a worldwide, royalty-free, non-exclusive, perpetual license
-    to use, copy, modify, and distribute the Software and
-    Derivative Works, for any purpose not prohibited by
-    Section 4.
-
-2.2 PATENT GRANT (adapted from Apache 2.0): Each contributor
-    grants you a perpetual, worldwide, royalty-free patent
-    license covering their contributions. If you initiate
-    patent litigation against any entity alleging the Software
-    infringes a patent, your rights under this license
-    terminate immediately.
-
-
-SECTION 3 — SAFETY COPYLEFT CONDITIONS
-
-3.1 OPEN DERIVATIVES (adapted from GPL v3): Any Derivative
-    Work that you distribute must be licensed under this same
-    license, with complete corresponding source code made
-    available.
-
-3.2 INVARIANT PRESERVATION (original to this license):
-    Any Derivative Work MUST preserve all Safety Invariants
-    in full force and effect. Derivative Works MAY add new
-    Safety Invariants. Derivative Works MAY NOT remove,
-    weaken, disable, or circumvent any existing Safety
-    Invariant.
-
-    A Derivative Work that removes or weakens any Safety
-    Invariant is NOT licensed under this license, and its
-    distribution constitutes copyright infringement.
-
-3.3 TRANSPARENCY PRESERVATION: Any Derivative Work must
-    preserve the Transparency Layer or a functional equivalent
-    providing: (a) human-readable narration of safety events,
-    and (b) tamper-evident audit records that operators
-    cannot delete.
-
-3.4 ANTI-TIVOIZATION (adapted from GPL v3): If you distribute
-    the Software embedded in hardware, you must provide users
-    the information and means necessary to inspect, modify,
-    and reinstall modified versions of the Software on that
-    hardware, except where doing so is prohibited by
-    applicable safety certification law.
-
-3.5 ATTRIBUTION: You must retain all copyright notices,
-    this license text, and a prominent notice of any changes
-    you made.
-
-
-SECTION 4 — PROHIBITED USES
-
-The rights granted in Section 2 do NOT extend to, and this
-license is automatically void for, any of the following uses:
-
-4.1 Use in, or integration with, any Autonomous Weapons System.
-
-4.2 Use for autonomous lethal decision-making of any kind.
-
-4.3 Use to identify, select, prioritize, or track human targets
-    for any harmful action.
-
-4.4 Use to design, optimize, or improve weapons, munitions,
-    or systems whose primary purpose is to cause harm.
-
-4.5 Use that removes human oversight from Consequential
-    Decisions.
-
-4.6 Use to deceive the human operators of the system about
-    the system's state, actions, or capabilities.
-
-4.7 Use in violation of the Universal Declaration of Human
-    Rights or applicable international humanitarian law.
-
-PERMITTED DEFENSIVE USES — for the avoidance of doubt, the
-following are NOT prohibited:
-  - Threat detection that alerts human operators
-  - Protective shutdown of dangerous systems
-  - Audit and accountability infrastructure
-  - Human-in-loop enforcement added to existing systems
-
-
-SECTION 5 — TERMINATION
-
-5.1 Your rights under this license terminate automatically
-    upon any violation of Sections 3 or 4.
-
-5.2 Rights may be reinstated if the violation is cured within
-    30 days of notice, unless the violation involved
-    Section 4 (Prohibited Uses), in which case termination
-    is permanent.
-
-
-SECTION 6 — DISCLAIMER OF WARRANTY
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, AND NONINFRINGEMENT.
-
-THE SOFTWARE IS A SAFETY FRAMEWORK BUT IS NOT CERTIFIED
-SAFETY EQUIPMENT. IT HAS NOT BEEN CERTIFIED UNDER IEC 61508,
-ISO 13849, ISO 26262, OR ANY OTHER FUNCTIONAL SAFETY
-STANDARD. DO NOT RELY ON IT AS THE SOLE PROTECTION FOR
-LIFE-SAFETY APPLICATIONS. ALWAYS USE CERTIFIED HARDWARE
-INTERLOCKS FOR LIFE-SAFETY FUNCTIONS.
-
-
-SECTION 7 — LIMITATION OF LIABILITY
-
-IN NO EVENT SHALL THE AUTHORS, CONTRIBUTORS, OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
-FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-SECTION 8 — INTERPRETATION
-
-8.1 If any provision of this license is held unenforceable,
-    the remaining provisions remain in full effect, and the
-    unenforceable provision shall be reformed to the minimum
-    extent necessary to make it enforceable while preserving
-    its intent.
-
-8.2 The Plain Language Summary above is provided for
-    accessibility. In case of conflict, the numbered sections
-    govern.
-
-═══════════════════════════════════════════════════════════════
-END OF LICENSE
-═══════════════════════════════════════════════════════════════
+For the future. For the kids.
