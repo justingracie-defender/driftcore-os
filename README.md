@@ -1,4 +1,4 @@
-# 🧠 DriftCore OS v4.2.0
+# 🧠 DriftCore OS v4.3.0
 
 > *"The safest system is the one that knows what it knows — and says so."*
 
@@ -18,7 +18,7 @@ Requires Python 3.10+. No external dependencies for core modules.
 git clone https://github.com/justingracie-defender/driftcore-os
 cd driftcore-os
 
-# Run the full test suite — 569 tests across 12 modules
+# Run the full test suite — 625 tests across 12 modules
 for f in test_*.py; do python "$f"; done
 
 # Or count them yourself
@@ -71,10 +71,10 @@ driftcore/
 ├── api/               Universal agent/device interface
 ├── profiles/          Deployment profiles per context
 ├── feedback/          Bottom-up feedback loop
-└── verification/      Risk classification, intent, guard, coordinator, governed actuator
+└── verification/      Risk classification, intent, guard, coordinator, governed actuator, uncertainty, edge loop, ledger
 ```
 
-**569 tests. 12 modules. All green.**
+**625 tests. 12 modules. All green.**
 
 ---
 

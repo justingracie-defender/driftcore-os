@@ -1,7 +1,7 @@
 # CONSTITUTION.md — The DriftCore Constitution
 
 **Project:** DriftCore OS
-**Version:** v4.2.0
+**Version:** v4.3.0
 **Last Updated:** 2026-06-16
 **Status:** Foundational. Read this before any other document.
 

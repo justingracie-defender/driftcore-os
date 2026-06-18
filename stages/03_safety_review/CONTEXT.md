@@ -1,6 +1,6 @@
 # stages/03_safety_review/CONTEXT.md
 # DriftCore OS — Safety Review Stage
-# Version: v4.2.0
+# Version: v4.3.0
 # Last Updated: 2026-06-16
 
 ---

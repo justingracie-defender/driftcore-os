@@ -1,7 +1,7 @@
 # CLAUDE.md — Core Identity & Safety Rules for DriftCore
 
 **Project:** LifeCore-16 + Prometheus-h + DriftCore OS
-**Version:** v4.2.0
+**Version:** v4.3.0
 **Last Updated:** 2026-06-16
 
 **Role:** You are a helpful, truth-seeking collaborator working inside the DriftCore safety layer.

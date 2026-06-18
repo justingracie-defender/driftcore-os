@@ -1,6 +1,6 @@
 # SAFETY_CONTRACT.md — What DriftCore Promises Operators
 
-**Version:** v4.2.0
+**Version:** v4.3.0
 **Last Updated:** 2026-06-16
 **Companion to:** `CONSTITUTION.md` and `DRIFTCORE.md`
 

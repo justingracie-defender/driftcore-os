@@ -1,9 +1,58 @@
 # Phase B — Review Notes (for external review)
 
-**Status:** built, all tests passing. Suite is **569 tests / 15 files**.
+**Status:** built, all tests passing. Suite is **625 tests / 18 files**.
 Run `python test_invariant_guard.py` (expect 42/42),
-`python test_governed_actuator.py` (expect 16/16), and
-`bash scripts/count_tests.sh` (expect 569 across 15 files) to confirm.
+`python test_governed_actuator.py` (expect 16/16),
+`python test_uncertainty_engine.py` (expect 25/25),
+`python test_edge_loop.py` (expect 21/21),
+`python test_ledger.py` (expect 10/10), and
+`bash scripts/count_tests.sh` (expect 625 across 18 files) to confirm.
+
+## Phase D — Edge-resolution learning loop
+
+`verification/edge_loop.py`. Turns each gap a human reviews into a
+concrete, revisable rule — "case law, not weight updates."
+- detects edges: insufficient-signal / uncovered / rule-conflict / covered.
+- **insufficient signal never fabricates** — the only resolution for
+  unintelligible input is to request clarification; you cannot ratify
+  "act anyway."
+- **no ruling can lower a bright line** — any chosen outcome whose effect
+  the InvariantGuard would BLOCK is refused, even for a human.
+- human-only ratify/overturn; ratifying emits a regression case (the test
+  to add); the ledger is append-only, hash-chained, and revisable
+  (overturning APPENDS a correction — history is never erased).
+
+Honest limit: it proposes *structural* options (which rule wins, fall back
+to the reversible default, escalate), not a fabricated moral verdict — the
+human supplies the judgment. Rule-matching and signal-quality are inputs
+from upstream analysis.
+
+## Phase C — Uncertainty Engine + Governance Memory
+
+`verification/uncertainty.py`. Composes the EXISTING real components
+rather than reinventing them:
+- uncertainty = the `ConsistencyProbe`'s `h_signal` (behavioral divergence
+  across prompt variations) — NOT self-reported confidence, NOT a constant.
+  Consistent answers score ~0.0; divergent answers score high.
+- per-mode threshold + containment come from the existing
+  `MODE_DRIFT_TOLERANCE` and `MODE_STORAGE_RULES` (one source of truth):
+  TRUTH uncertainty → human review (no auto-act/store); DISCOVERY →
+  bounded exploration (Tier 2, no autonomous action); CREATIVE → fuel, but
+  always contained (never auto-stores, never actuates).
+- governance memory: append-only, hash-chained (tamper-evident), advisory
+  only — precedent never feeds the score or lowers a bright line.
+- the guard runs ABOVE all modes in the coordinator; CREATIVE can imagine a
+  blocked action, the guard still blocks the effect.
+
+Honest limits for this phase:
+- The signal is only as good as the responses fed in. In production a
+  sampler must supply genuine model variations; a degenerate sampler
+  (always returns the same string) would read as falsely certain. The
+  engine measures divergence honestly — it cannot fix a bad sampler.
+- The engine RETURNS `contained`/`auto_store` flags; downstream storage
+  must honor them. Actuation containment IS enforced (a REVIEW outcome
+  yields no actuation grant); storage containment is a wiring point.
+- Governance memory is tamper-EVIDENT, not OS-immutable.
 
 ## Round 2 — your review feedback, addressed
 

@@ -1,6 +1,6 @@
 # DRIFTCORE.md — Operating Reference
 
-**Version:** v4.2.0
+**Version:** v4.3.0
 **Last Updated:** 2026-06-16
 **Companion to:** `CONSTITUTION.md` (the why) and `SAFETY_CONTRACT.md` (the promises)
 
@@ -108,10 +108,17 @@ holding the actuator still cannot make it move. This is cryptographic
 compliance at the driver layer — see the limitations register for what it
 does and does not guarantee.
 
+An optional mode-aware **uncertainty gate** (`uncertainty.py`) runs last,
+after guard and risk: the system escalates to human review on high *risk*
+OR high *uncertainty* (behavioral, from the consistency probe — not
+self-report). Its response is mode-specific (caution in TRUTH, bounded
+exploration in DISCOVERY, contained free play in CREATIVE), and the guard
+still sits above every mode.
+
 ## Quick Operator Commands
 
 ```bash
-bash scripts/count_tests.sh      # verify the suite (expect 569 / 15 files)
+bash scripts/count_tests.sh      # verify the suite (expect 625 / 18 files)
 for f in test_*.py; do python "$f"; done
 ```
 

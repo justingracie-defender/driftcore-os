@@ -29,6 +29,7 @@ from typing import Optional, Union, Callable
 from driftcore.verification.intent import IntentDetector
 from driftcore.verification.invariant_guard import InvariantGuard, GuardStatus
 from driftcore.verification.governed_actuator import GrantAuthority
+from driftcore.verification.uncertainty import UncertaintyEngine
 
 
 class Outcome(str, Enum):
@@ -57,7 +58,8 @@ class VerificationCoordinator:
     def __init__(self, guard: InvariantGuard, classifier,
                  detector: Optional[IntentDetector] = None,
                  audit_logger: Optional[Callable] = None,
-                 grant_authority: Optional[GrantAuthority] = None):
+                 grant_authority: Optional[GrantAuthority] = None,
+                 uncertainty_engine: Optional[UncertaintyEngine] = None):
         self.guard      = guard
         self.classifier = classifier
         self.detector   = detector or IntentDetector()
@@ -65,6 +67,18 @@ class VerificationCoordinator:
         # Mints actuation grants. Give the SAME authority to your actuators
         # so they can verify; the agent never holds it.
         self.grants     = grant_authority or GrantAuthority()
+        # Optional mode-aware uncertainty gate. Only runs when configured AND
+        # the caller supplies probe_responses in context — otherwise no-op.
+        self.uncertainty = uncertainty_engine
+
+    def _uncertainty_check(self, prompt: str, ctx: dict):
+        """Run the uncertainty engine iff configured and given probe samples."""
+        if self.uncertainty is None or not prompt:
+            return None
+        responses = ctx.get("probe_responses")
+        if not responses:
+            return None
+        return self.uncertainty.assess(prompt, responses, ctx.get("mode", "TRUTH"))
 
     def _grant_for(self, request) -> Optional[dict]:
         """Mint a single-use actuation grant for an actuation request that
@@ -107,8 +121,17 @@ class VerificationCoordinator:
                     return Decision(Outcome.REVIEW_REQUIRED, tier=tier,
                                     reason="Risk tier requires human review.",
                                     detail={"intent": intent.to_dict() if intent else None})
+                # Uncertainty gate (mode-aware) — escalate on EITHER risk or
+                # uncertainty. Guard and risk have already run; this is last.
+                unc = self._uncertainty_check(prompt, ctx)
+                if unc is not None and unc.response == "REVIEW_REQUIRED":
+                    return Decision(Outcome.REVIEW_REQUIRED, tier=tier, reason=unc.reason,
+                                    detail={"uncertainty": unc.to_dict()})
+                detail = {"intent": intent.to_dict() if intent else None}
+                if unc is not None:
+                    detail["uncertainty"] = unc.to_dict()
                 return Decision(Outcome.PROCEED, tier=tier, grant=self._grant_for(request),
-                                detail={"intent": intent.to_dict() if intent else None})
+                                detail=detail)
 
             # No prompt to score (pure structured action that passed the guard).
             return Decision(Outcome.PROCEED, grant=self._grant_for(request),
