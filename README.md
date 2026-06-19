@@ -18,7 +18,7 @@ Requires Python 3.10+. No external dependencies for core modules.
 git clone https://github.com/justingracie-defender/driftcore-os
 cd driftcore-os
 
-# Run the full test suite — 625 tests across 12 modules
+# Run the full test suite — 654 tests across 20 files
 for f in test_*.py; do python "$f"; done
 
 # Or count them yourself
@@ -74,7 +74,7 @@ driftcore/
 └── verification/      Risk classification, intent, guard, coordinator, governed actuator, uncertainty, edge loop, ledger
 ```
 
-**625 tests. 12 modules. All green.**
+**654 tests across 20 files. All green.**
 
 ---
 

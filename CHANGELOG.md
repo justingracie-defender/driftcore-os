@@ -3,6 +3,45 @@
 All notable changes to DriftCore OS. Test counts are produced by
 `bash scripts/count_tests.sh` (the single source of truth).
 
+## v4.4.0 — Proportionate Response & Reflection
+
+Two new components in `verification/`, built and stress-tested across a
+multi-AI review loop (proposals checked against the running code, not taken
+on confidence).
+
+Added
+- `verification/proportionate_response.py` — the least-harm ladder as code.
+  The trigger is the THREAT, never the category ("kill wasps"/"clear
+  invasives" are labels that rot). An option that doesn't actually work is
+  filtered out (effectiveness gate); urgency drops the slow options but never
+  lowers a bright line (those stay with `InvariantGuard`); effort owed scales
+  with the stakes (proportionality both ways); reversible beats irreversible,
+  and an irreversible non-urgent action returns `AUTHORIZATION_REQUIRED`.
+  Every plan carries success criteria fixed BEFORE acting.
+- `verification/reflection.py` — telling a good job from a poor one WITHOUT
+  self-grading. The verdict is a pure function of external evidence (observed
+  vs. predicted, human override/redo, bright-line incident) and a human
+  RATING-WITH-NOTES anchored to the pre-committed criteria. A clean result is
+  only `PROVISIONALLY_GOOD` until its observation window closes — certainty is
+  earned by time, not asserted at completion. Ratings are append-only and
+  revisable (a day-1 GOOD can be overturned on day 90). `to_case_law()`
+  exports the lesson — full revision history included — to the existing
+  EdgeLoop; reflection never stores case law itself.
+
+Safety properties pinned by tests
+- A bright line surfacing at reflection time is an `INCIDENT` (guard-layer
+  breach to escalate), short-circuited first, not a score to be weighed.
+- No self-assessment field can move the verdict — enforced by a field-allowlist
+  tripwire that fails loudly if any new field is added, forcing review.
+- The verdict tracks the recorded evidence, so the remaining attack surface is
+  INPUT integrity — explicitly left to the upstream audit chain / observation
+  gate, NOT claimed here.
+
+Tests: `test_proportionate_response.py`, `test_reflection.py`.
+
+Notes
+- Module count unchanged; both new files live in `verification`.
+
 ## v4.3.0 — Uncertainty Engine
 
 Added
