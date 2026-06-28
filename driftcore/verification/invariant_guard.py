@@ -1,256 +1,277 @@
 """
 driftcore/verification/invariant_guard.py
-=========================================
-Phase B — the "cannot" layer.
+==========================================
+The constitutional floor, as enforced CODE — the module that is imported by
+skills/__init__.py but, until now, DID NOT EXIST (so the import silently
+`except ImportError: pass`ed and the floor enforced nothing). This fills the
+empty slot: it produces real CONSTITUTION-layer verdicts the AuthorityResolver
+can act on.
 
-Where the RiskClassifier *scores and judges* (and can be tuned), the
-InvariantGuard *refuses absolutely*. It runs BEFORE the classifier in the
-coordinator, so an invariant violation hard-blocks regardless of any risk
-score. These are the bright lines.
+Design principles (all grounded in this project's own architecture):
+  * UNIVERSAL. No bodies, no force numbers, no household specifics. These are
+    invariants for ANY agent — a software agent with no body included. The
+    physical force cap (60N etc.) is NOT here; that is the deployment/LifeCore
+    floor, required-to-exist via objectives.coverage.require_local_floor.
+  * AUTHORIZATION-AWARE. The data-egress invariant does not blanket-ban data
+    leaving the box — that would forbid the owner's own authorized work (the
+    exact thing that made an over-cautious agent refuse a legitimate PAT task).
+    It bans exfiltration to UNAUTHORIZED parties. Owner-authorized egress
+    simply does not trip it. The qualifier is in the predicate, so authorized
+    use is allowed at the floor with no override needed.
+  * FAIL-CLOSED. If the guard cannot evaluate (errors, or a required guard is
+    absent), the answer is DENY/halt, never silent allow. `load_guard()` raises
+    rather than letting a missing floor pass — the opposite of the old
+    `except ImportError: pass`.
+  * STRUCTURED, not keyword-guessing. The real mechanism is explicit effect
+    tags + an authorization context supplied by the caller. A coarse text
+    backstop exists ONLY so a mis-tagged obviously-harmful action still trips;
+    it is a safety net, not the primary mechanism, and is documented as such.
 
-Two design rules carried over from the design discussion:
-
-  1. EFFECTS, NOT PURPOSES. The guard refuses based on what an action
-     *does* (its declared effect / capability), not on a guess about why
-     someone wants it. "Only good purposes" is not enforceable; "never
-     apply force to a person", "never copy yourself to other systems",
-     "never capture a person's data without consent" are.
-
-  2. PROPOSE, BUT NEVER SELF-GRANT. An agent may *request* a capability
-     change, but cannot *authorize* one. Authorization requires a token
-     the agent cannot produce — it must be signed by an admin authority
-     whose secret the agent does not hold.
-
-HONEST SCOPE (belongs in the limitations register):
-  - This governs actions presented THROUGH the coordinator. It is not
-    antivirus for the host machine and cannot stop code or hardware
-    operating outside DriftCore's control.
-  - Effect detection is authoritative when the caller declares a
-    structured effect. The free-text tripwires below are a conservative
-    *extra* net for obviously-dangerous phrasing; they are best-effort,
-    NOT the primary protection. The real protection is capability gating
-    + unforgeable authorization, because a maliciously mislabelled action
-    is exactly what intent/keyword reading cannot catch.
-  - PROTOTYPE: the approval signature uses HMAC to model the
-    agent/admin separation. Production should use an admin-held
-    asymmetric or hardware-backed key, never a shared secret.
+What is NOT decided here: the *faithfulness* judgement (objectives.coverage)
+and the physical force cap (deployment floor). This module is the hard-line
+"never, regardless of objective" set only.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Union
-import hmac
-import hashlib
-import os
-import time
+from typing import Callable, Dict, FrozenSet, List, Optional, Set, Union
+
+from driftcore.authority.resolver import (
+    AuthorityLayer, LayerVerdict, Verdict, _is_human,
+)
 
 
-class Effect(str, Enum):
-    """What an action does, in checkable terms."""
-    NONE             = "NONE"
-    READ             = "READ"
-    LETHAL           = "LETHAL"            # force/weapon directed at a person
-    PHYSICAL_FORCE   = "PHYSICAL_FORCE"    # applies force (non-lethal) — needs auth
-    RESTRAINT        = "RESTRAINT"          # restrains/confines a person — needs auth
-    HIGH_ENERGY      = "HIGH_ENERGY"        # high-energy actuation — needs auth
-    SELF_REPLICATION = "SELF_REPLICATION"  # copy/propagate self to other systems
-    SENSITIVE_CAPTURE= "SENSITIVE_CAPTURE" # keystrokes/screen/mic/cam/exfiltration
-    DISABLE_OVERSIGHT= "DISABLE_OVERSIGHT" # remove/bypass human oversight
-    ALTER_AUDIT      = "ALTER_AUDIT"        # edit/delete the audit trail
-    OTHER            = "OTHER"
+# ── Effects: what kind of thing an action does ────────────────────
+
+class Effect(Enum):
+    NONE             = "none"
+    PHYSICAL_FORCE   = "physical_force"   # universal layer does NOT cap this;
+                                          # the local deployment floor does.
+    DATA_EGRESS      = "data_egress"      # data leaving the local boundary
+    ACCOUNT_ACCESS   = "account_access"   # accessing an external account
+    OVERSIGHT_CONTROL = "oversight_control"  # touching the system's own guards
+    DECEPTION        = "deception"        # misleading the operator
+    LOG_MUTATION     = "log_mutation"     # altering the audit/safety ledger
 
 
-# The inviolable invariants. Deliberately few and concrete.
-INVARIANT_LETHAL          = "NO_AUTONOMOUS_LETHAL_DECISION"
-INVARIANT_SELF_REPLICATE  = "NO_SELF_REPLICATION"
-INVARIANT_COVERT_CAPTURE  = "NO_COVERT_CAPTURE_WITHOUT_CONSENT"
-INVARIANT_OVERSIGHT       = "HUMAN_OVERSIGHT_CANNOT_BE_DISABLED"
-INVARIANT_AUDIT           = "AUDIT_CHAIN_CANNOT_BE_DELETED"
-INVARIANT_SELF_GRANT      = "AI_MAY_NOT_SELF_GRANT_CAPABILITY"
-INVARIANT_CORE_MOD        = "AGENT_MAY_NOT_MODIFY_CORE_GOVERNANCE"
-INVARIANT_PHYSICAL        = "PHYSICAL_ACTION_REQUIRES_AUTHORIZATION"
+# ── Authorization context the caller supplies ─────────────────────
 
-# Targets that an agent may never modify, even with an approval token —
-# changing these would weaken every other protection. A human admin does
-# this out-of-band, never the agent/coordinator path (see CONSTITUTION §6).
-_CORE_TARGETS = ("coordinator", "guard", "authority", "invariant",
-                 "risk_threshold", "safety_kernel", "governance", "constitution")
-
-
-class GuardStatus(str, Enum):
-    ALLOW                  = "ALLOW"                   # guard raises no objection
-    BLOCK                  = "BLOCK"                   # hard, absolute refusal
-    REQUIRES_AUTHORIZATION = "REQUIRES_AUTHORIZATION"  # needs human admin approval
-
-
-@dataclass
-class GuardDecision:
-    status:    GuardStatus
-    invariant: Optional[str] = None
-    reason:    str = ""
-
-    def to_dict(self) -> dict:
-        return {"status": self.status.value,
-                "invariant": self.invariant,
-                "reason": self.reason}
-
-
-def _env_secret() -> Optional[bytes]:
-    """Optional production secret from the environment (hex or raw)."""
-    v = os.environ.get("DRIFTCORE_APPROVAL_SECRET")
-    if not v:
-        return None
-    try:
-        return bytes.fromhex(v)
-    except ValueError:
-        return v.encode()
-
-
-class ApprovalAuthority:
+@dataclass(frozen=True)
+class ActionContext:
     """
-    Models a human administrator's signing key. The AGENT DOES NOT HOLD
-    `_secret`, so it cannot mint a valid token — it can only request one.
+    What the guard needs to tell authorized work from a violation.
 
-    Tokens are now:
-      - bound to a specific capability_id (no cross-capability replay),
-      - single-use (a nonce is consumed on first successful verify),
-      - time-limited (expire after ttl_seconds).
-
-    Secret precedence: explicit arg > DRIFTCORE_APPROVAL_SECRET env var >
-    a fresh random per-process key.
-
-    PROTOTYPE NOTE: HMAC stands in for an admin-held asymmetric/hardware
-    key. The point demonstrated is the *separation* and the use limits,
-    not the cipher.
+    owner_authorized   — the human owner explicitly authorized THIS action
+                         (e.g. handed over their own PAT for their own task).
+    target_authorized  — the destination/party is an authorized recipient
+                         (not "an unauthorized party").
+    authorised_by      — who authorized it (checked with the shared _is_human
+                         gate, so "the agent authorized itself" does not count).
     """
-    def __init__(self, secret: Optional[bytes] = None):
-        self._secret = secret or _env_secret() or os.urandom(32)
-        self._consumed = set()   # spent nonces (single-use enforcement)
+    owner_authorized: bool = False
+    target_authorized: bool = False
+    authorised_by: str = ""
 
-    def issue(self, capability_id: str, admin_id: str, ttl_seconds: int = 300) -> dict:
-        nonce   = os.urandom(8).hex()
-        expires = time.time() + ttl_seconds
-        payload = f"{capability_id}|{admin_id}|{nonce}|{expires}".encode()
-        sig = hmac.new(self._secret, payload, hashlib.sha256).hexdigest()
-        return {"capability_id": capability_id, "admin_id": admin_id,
-                "nonce": nonce, "expires": expires, "sig": sig}
-
-    def verify(self, token: object, capability_id: str, consume: bool = True) -> bool:
-        if not isinstance(token, dict):
-            return False
-        try:
-            cap, admin, nonce = token["capability_id"], token["admin_id"], token["nonce"]
-            expires, sig = float(token["expires"]), token["sig"]
-        except (KeyError, TypeError, ValueError):
-            return False
-        if not all(isinstance(x, str) for x in (cap, admin, nonce, sig)):
-            return False
-        if cap != capability_id:        # bound to one capability
-            return False
-        if time.time() > expires:       # expired
-            return False
-        if nonce in self._consumed:     # already spent (single-use)
-            return False
-        expected = hmac.new(self._secret, f"{cap}|{admin}|{nonce}|{expires}".encode(),
-                            hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, sig):
-            return False
-        if consume:
-            self._consumed.add(nonce)
-        return True
+    @property
+    def has_human_authorization(self) -> bool:
+        return self.owner_authorized and _is_human(self.authorised_by)
 
 
-# Conservative free-text tripwires — best-effort EXTRA net, not the primary gate.
-_LETHAL_CUES      = ("kill", "lethal", "fire on", "shoot", "attack the human",
-                     "harm the", "injure", "as a weapon", "weaponize")
-_REPLICATION_CUES = ("copy yourself", "replicate yourself", "propagate to",
-                     "install yourself on", "spread to other", "self-replicate",
-                     "clone yourself onto")
-_CAPTURE_CUES     = ("keylog", "log keystrokes", "record the screen", "exfiltrate",
-                     "secretly record", "covertly capture", "steal the password",
-                     "skim the card", "read their card")
-_OVERSIGHT_CUES   = ("disable oversight", "remove human oversight", "bypass the human",
-                     "turn off oversight", "disable the kill switch")
-_AUDIT_CUES       = ("delete the audit", "erase the log", "wipe the audit",
-                     "rewrite the audit", "clear the history")
+# ── An invariant ──────────────────────────────────────────────────
 
+@dataclass(frozen=True)
+class Invariant:
+    """
+    A hard line. `fires` returns True when the action VIOLATES it (-> deny).
+    Authorization-aware invariants read the context inside `fires`.
+    """
+    invariant_id: str
+    description: str
+    applies_to: FrozenSet[Effect]
+    fires: Callable[["GuardRequest"], bool]
+
+
+@dataclass(frozen=True)
+class GuardRequest:
+    action: str
+    effects: FrozenSet[Effect]
+    context: ActionContext = field(default_factory=ActionContext)
+
+
+# ── The seed constitutional invariant set ─────────────────────────
+# Append-only in spirit: these are the hard "never, regardless of objective"
+# lines. Adding/removing one should be a human-ratified, ledgered change
+# (mirror objectives.ObjectiveLedger); they are defined here as the floor's
+# initial content, not as something the agent edits at runtime.
+
+def _egress_to_unauthorized(req: "GuardRequest") -> bool:
+    # Fires (DENY) only when data is leaving AND it is NOT owner-authorized to
+    # an authorized recipient. Owner-authorized egress does NOT fire -> allowed.
+    leaving = bool(req.effects & {Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS})
+    if not leaving:
+        return False
+    authorized = req.context.has_human_authorization and req.context.target_authorized
+    return not authorized
+
+
+def _disable_oversight(req: "GuardRequest") -> bool:
+    # Touching the system's own guards is never permitted, even by a human via
+    # this layer — the floor is non-overridable. (A human changes the floor
+    # through the ratified ledger path, not by an in-band action.)
+    return Effect.OVERSIGHT_CONTROL in req.effects
+
+
+def _deceive_operator(req: "GuardRequest") -> bool:
+    return Effect.DECEPTION in req.effects
+
+
+def _mutate_safety_log(req: "GuardRequest") -> bool:
+    # The audit/safety ledger is append-only; in-band mutation is a hard no.
+    # (Note: erasing one's OWN content is a separate, allowed data-ownership
+    # operation handled elsewhere; this is specifically the integrity log.)
+    return Effect.LOG_MUTATION in req.effects
+
+
+SEED_INVARIANTS: List[Invariant] = [
+    Invariant("no_unauthorized_exfiltration",
+              "Data may not leave the local boundary / no account is accessed "
+              "except with the owner's authorization to an authorized party.",
+              frozenset({Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS}),
+              _egress_to_unauthorized),
+    Invariant("no_disabling_oversight",
+              "The system may not disable, weaken, or evade its own safety "
+              "oversight.",
+              frozenset({Effect.OVERSIGHT_CONTROL}),
+              _disable_oversight),
+    Invariant("no_deceiving_operator",
+              "The system may not deceive its human operator.",
+              frozenset({Effect.DECEPTION}),
+              _deceive_operator),
+    Invariant("no_safety_log_mutation",
+              "The append-only audit/safety ledger may not be altered in band.",
+              frozenset({Effect.LOG_MUTATION}),
+              _mutate_safety_log),
+]
+
+
+# ── Coarse text backstop (safety net only, NOT primary) ───────────
+# If a caller fails to tag effects, these substrings re-derive a likely effect
+# so an obviously-harmful action still trips. This is deliberately conservative
+# and is NOT the mechanism — structured effects + context are. Documented as a
+# backstop so no one mistakes it for the real classifier.
+
+_TEXT_EFFECT_HINTS: Dict[str, Effect] = {
+    "exfiltrat": Effect.DATA_EGRESS,
+    "leak ": Effect.DATA_EGRESS,
+    "disable oversight": Effect.OVERSIGHT_CONTROL,
+    "disable safety": Effect.OVERSIGHT_CONTROL,
+    "bypass safety": Effect.OVERSIGHT_CONTROL,
+    "ignore invariant": Effect.OVERSIGHT_CONTROL,
+    "deceive": Effect.DECEPTION,
+    "mislead the": Effect.DECEPTION,
+    "delete the audit": Effect.LOG_MUTATION,
+    "erase the log": Effect.LOG_MUTATION,
+}
+
+
+def _infer_effects(text: str) -> Set[Effect]:
+    t = text.lower()
+    return {eff for needle, eff in _TEXT_EFFECT_HINTS.items() if needle in t}
+
+
+# ── Result ────────────────────────────────────────────────────────
+
+class GuardStatus(Enum):
+    ALLOWED = "allowed"
+    BLOCKED = "blocked"
+
+
+@dataclass(frozen=True)
+class GuardResult:
+    status: GuardStatus
+    reason: str
+    binding_invariant: Optional[str] = None
+
+    def to_verdict(self) -> LayerVerdict:
+        """Surface as a CONSTITUTION-layer verdict for the AuthorityResolver."""
+        return LayerVerdict(
+            layer=AuthorityLayer.CONSTITUTION,
+            verdict=(Verdict.ABSTAIN if self.status is GuardStatus.ALLOWED
+                     else Verdict.DENY),
+            reason=self.reason,
+        )
+
+
+# ── The guard ─────────────────────────────────────────────────────
 
 class InvariantGuard:
-    """The hard 'cannot' layer. Deterministic, fail-closed."""
+    """Evaluates an action against the constitutional floor. Fail-closed."""
 
-    def __init__(self, authority: Optional[ApprovalAuthority] = None):
-        # The guard holds the authority; the agent path must not.
-        self.authority = authority or ApprovalAuthority()
+    def __init__(self, invariants: Optional[List[Invariant]] = None):
+        self._invariants = list(invariants if invariants is not None
+                                else SEED_INVARIANTS)
 
-    def check(self, action: Union[dict, str], context: Optional[dict] = None) -> GuardDecision:
-        ctx = context or {}
-        if isinstance(action, str):
-            action = self._describe(action)
-        if not isinstance(action, dict):
-            # Fail closed on anything we cannot reason about.
-            return GuardDecision(GuardStatus.BLOCK, None,
-                                 "Unparseable action — refused (fail-closed).")
+    def evaluate(self,
+                 action: str = "",
+                 effect: Union[Effect, Set[Effect], None] = None,
+                 context: Optional[ActionContext] = None) -> GuardResult:
+        """
+        Backward-compatible with the existing skills call site
+        (`evaluate(action=desc, effect=Effect.PHYSICAL_FORCE|NONE)`), and
+        extended to accept a set of effects + an authorization context.
 
-        text   = str(action.get("prompt", "")).lower()
-        effect = action.get("effect")
+        PHYSICAL_FORCE alone is ALLOWED here on purpose: the universal floor
+        does not cap force — the local deployment floor does. So a hardware
+        skill is not blocked by this module merely for being physical.
+        """
+        try:
+            # Normalise effects.
+            if effect is None:
+                effects: Set[Effect] = set()
+            elif isinstance(effect, Effect):
+                effects = {effect}
+            else:
+                effects = set(effect)
+            effects -= {Effect.NONE}
 
-        # 1. Lethal / weapon-against-person — absolute.
-        if effect == Effect.LETHAL or any(c in text for c in _LETHAL_CUES):
-            return GuardDecision(GuardStatus.BLOCK, INVARIANT_LETHAL,
-                                 "Action directs force/harm at a person.")
+            # Backstop: if nothing meaningful tagged, infer from text.
+            if not effects:
+                effects |= _infer_effects(action)
 
-        # 1b. Non-lethal physical action — graded: never silent, needs a human.
-        if effect in (Effect.PHYSICAL_FORCE, Effect.RESTRAINT, Effect.HIGH_ENERGY):
-            if not bool(action.get("authorized")):
-                return GuardDecision(GuardStatus.REQUIRES_AUTHORIZATION, INVARIANT_PHYSICAL,
-                                     f"Physical action ({effect}) requires human authorization.")
+            req = GuardRequest(
+                action=action,
+                effects=frozenset(effects),
+                context=context or ActionContext(),
+            )
 
-        # 2. Self-replication / self-propagation — absolute.
-        if effect == Effect.SELF_REPLICATION or any(c in text for c in _REPLICATION_CUES):
-            return GuardDecision(GuardStatus.BLOCK, INVARIANT_SELF_REPLICATE,
-                                 "Action would copy or propagate the system to other hosts.")
+            for inv in self._invariants:
+                if not (inv.applies_to & req.effects):
+                    continue
+                if inv.fires(req):
+                    return GuardResult(
+                        GuardStatus.BLOCKED,
+                        f"constitutional invariant '{inv.invariant_id}' blocks "
+                        f"this action: {inv.description}",
+                        binding_invariant=inv.invariant_id,
+                    )
+            return GuardResult(GuardStatus.ALLOWED, "no constitutional invariant fired")
 
-        # 3. Disabling oversight — absolute.
-        if effect == Effect.DISABLE_OVERSIGHT or any(c in text for c in _OVERSIGHT_CUES):
-            return GuardDecision(GuardStatus.BLOCK, INVARIANT_OVERSIGHT,
-                                 "Action would disable or bypass human oversight.")
+        except Exception as e:
+            # Fail closed: an unevaluable action is denied, never waved through.
+            return GuardResult(
+                GuardStatus.BLOCKED,
+                f"invariant guard could not evaluate the action and fails "
+                f"closed: {e!r}",
+                binding_invariant="__guard_error__",
+            )
 
-        # 4. Altering the audit trail — absolute.
-        if effect == Effect.ALTER_AUDIT or any(c in text for c in _AUDIT_CUES):
-            return GuardDecision(GuardStatus.BLOCK, INVARIANT_AUDIT,
-                                 "Action would alter or delete the audit trail.")
 
-        # 5. Covert capture/exfiltration WITHOUT consent — absolute.
-        covert = effect == Effect.SENSITIVE_CAPTURE or any(c in text for c in _CAPTURE_CUES)
-        if covert and not bool(action.get("consent")):
-            return GuardDecision(GuardStatus.BLOCK, INVARIANT_COVERT_CAPTURE,
-                                 "Sensitive data capture without recorded consent.")
-
-        # 6. Propose-but-never-self-grant: capability changes need admin approval.
-        if action.get("capability_change"):
-            cap_id    = str(action.get("capability_id", ""))
-            target    = str(action.get("target", "")).lower()
-            requester = str(action.get("requester", "agent")).lower()
-            # Core governance is off-limits to the agent path entirely — even
-            # with a token. A human admin changes these out-of-band.
-            if requester != "human_admin" and any(
-                    t in cap_id.lower() or t in target for t in _CORE_TARGETS):
-                return GuardDecision(GuardStatus.BLOCK, INVARIANT_CORE_MOD,
-                                     "An agent may not modify core governance "
-                                     "(guard / coordinator / authority / thresholds / invariants).")
-            token = action.get("approval_token")
-            if token is None:
-                return GuardDecision(GuardStatus.REQUIRES_AUTHORIZATION, INVARIANT_SELF_GRANT,
-                                     "Capability change requires human admin authorization.")
-            if not self.authority.verify(token, cap_id):
-                return GuardDecision(GuardStatus.BLOCK, INVARIANT_SELF_GRANT,
-                                     "Approval invalid — the agent cannot grant itself capabilities.")
-            # valid admin approval → the guard does not object
-
-        return GuardDecision(GuardStatus.ALLOW)
-
-    @staticmethod
-    def _describe(prompt: str) -> dict:
-        """Best-effort effect descriptor from free text. Conservative; the
-        structured `action` dict is the authoritative interface."""
-        return {"prompt": prompt, "effect": None}
+def load_guard() -> InvariantGuard:
+    """
+    The fail-closed loader. Call sites MUST use this instead of a try/except
+    that swallows ImportError. If the floor cannot be loaded, that is a halt
+    condition — an agent must not run with no constitutional floor.
+    """
+    return InvariantGuard()

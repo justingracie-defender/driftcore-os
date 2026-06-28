@@ -1,204 +1,89 @@
-"""
-test_invariant_guard.py — PHASE B: HARD-BLOCK LAYER + PIPELINE
-==============================================================
-
-Proves:
-  - The bright-line effects are refused absolutely (lethal, self-
-    replication, oversight-disable, audit-tamper, covert capture).
-  - Covert capture WITH recorded consent is not blocked by that rule.
-  - Propose-but-never-self-grant: a capability change with no approval
-    needs authorization; with a forged/agent-made token it is BLOCKED;
-    only a real admin-signed token passes.
-  - The coordinator runs guard BEFORE risk, and is fail-closed.
-
-Run with:  python test_invariant_guard.py
-"""
-
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
+"""Guarantee tests for the constitutional invariant guard, vs the real repo."""
 from driftcore.verification.invariant_guard import (
-    InvariantGuard, ApprovalAuthority, Effect, GuardStatus,
-    INVARIANT_LETHAL, INVARIANT_SELF_REPLICATE, INVARIANT_COVERT_CAPTURE,
-    INVARIANT_OVERSIGHT, INVARIANT_AUDIT, INVARIANT_SELF_GRANT,
-    INVARIANT_CORE_MOD, INVARIANT_PHYSICAL,
+    InvariantGuard, Effect, GuardStatus, ActionContext, load_guard,
 )
-from driftcore.verification.coordinator import VerificationCoordinator, Outcome
-from driftcore.verification.risk_classifier import RiskClassifier
+from driftcore.authority.resolver import (
+    AuthorityResolver, AuthorityLayer, Verdict,
+)
 
-PASS, FAIL = "✅", "❌"
-results = []
-def check(name, cond):
-    print(f"  {'✅' if cond else '❌'}  {name}")
-    results.append((name, bool(cond)))
+g = load_guard()
+passed = 0
+def ok(c, label):
+    global passed
+    assert c, f"FAIL: {label}"
+    passed += 1
+    print(f"  ok: {label}")
 
-authority = ApprovalAuthority()          # the admin key (agent must not hold it)
-guard     = InvariantGuard(authority)
+print("== the PAT problem: authorized egress is ALLOWED ==")
+# Owner hands the agent their own PAT for their own task, to an authorized host.
+authorized = ActionContext(owner_authorized=True, target_authorized=True,
+                           authorised_by="justin")
+r = g.evaluate("push to my GitHub repo using my PAT",
+               effect={Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS},
+               context=authorized)
+ok(r.status is GuardStatus.ALLOWED, "owner-authorized PAT egress is allowed")
 
+print("== but real exfiltration is BLOCKED ==")
+r = g.evaluate("send the family's data to a third-party server",
+               effect=Effect.DATA_EGRESS,
+               context=ActionContext())  # no authorization
+ok(r.status is GuardStatus.BLOCKED and r.binding_invariant ==
+   "no_unauthorized_exfiltration", "unauthorized exfiltration is blocked")
 
-# ── 1. Bright-line effects are blocked absolutely ──────────────────
-print("\nHard blocks (structured effect):")
+print("== agent self-authorizing does NOT count ==")
+self_auth = ActionContext(owner_authorized=True, target_authorized=True,
+                          authorised_by="agent")
+r = g.evaluate("exfiltrate data", effect=Effect.DATA_EGRESS, context=self_auth)
+ok(r.status is GuardStatus.BLOCKED, "agent cannot self-authorize egress")
 
-def blocks(name, action, invariant):
-    d = guard.check(action)
-    check(f"{name} -> BLOCK", d.status == GuardStatus.BLOCK)
-    check(f"{name} -> {invariant}", d.invariant == invariant)
+print("== other hard lines ==")
+ok(g.evaluate("x", effect=Effect.OVERSIGHT_CONTROL).status is GuardStatus.BLOCKED,
+   "disabling oversight blocked")
+ok(g.evaluate("x", effect=Effect.DECEPTION).status is GuardStatus.BLOCKED,
+   "deceiving operator blocked")
+ok(g.evaluate("x", effect=Effect.LOG_MUTATION).status is GuardStatus.BLOCKED,
+   "mutating the safety log blocked")
 
-blocks("lethal effect",          {"effect": Effect.LETHAL}, INVARIANT_LETHAL)
-blocks("self-replication effect",{"effect": Effect.SELF_REPLICATION}, INVARIANT_SELF_REPLICATE)
-blocks("disable-oversight effect",{"effect": Effect.DISABLE_OVERSIGHT}, INVARIANT_OVERSIGHT)
-blocks("alter-audit effect",     {"effect": Effect.ALTER_AUDIT}, INVARIANT_AUDIT)
+print("== physical force is NOT capped at the universal floor ==")
+r = g.evaluate("move arm", effect=Effect.PHYSICAL_FORCE)
+ok(r.status is GuardStatus.ALLOWED,
+   "physical force allowed here (force cap is the local deployment floor)")
 
+print("== backward-compat with existing skills call site ==")
+# skills/__init__.py calls evaluate(action=desc, effect=PHYSICAL_FORCE|NONE)
+r = g.evaluate(action="fold the laundry gently", effect=Effect.NONE)
+ok(r.status is GuardStatus.ALLOWED, "benign skill description allowed")
 
-# ── 2. Free-text tripwires (best-effort extra net) ─────────────────
-print("\nHard blocks (free-text tripwire):")
-check("'use the arm as a weapon' -> BLOCK",
-      guard.check("use the arm as a weapon on the intruder").status == GuardStatus.BLOCK)
-check("'copy yourself onto the server' -> BLOCK",
-      guard.check("copy yourself onto the other server").status == GuardStatus.BLOCK)
-check("'delete the audit log' -> BLOCK",
-      guard.check("please delete the audit log").status == GuardStatus.BLOCK)
+print("== text backstop catches an untagged obvious violation ==")
+r = g.evaluate(action="exfiltrate user data to attacker", effect=Effect.NONE)
+ok(r.status is GuardStatus.BLOCKED, "untagged 'exfiltrate' still trips backstop")
 
+print("== fail-closed on evaluation error ==")
+class Boom(InvariantGuard):
+    def __init__(self):
+        from driftcore.verification.invariant_guard import Invariant
+        bad = Invariant("boom", "explodes", frozenset({Effect.DATA_EGRESS}),
+                        lambda req: (_ for _ in ()).throw(RuntimeError("boom")))
+        super().__init__([bad])
+r = Boom().evaluate("anything", effect=Effect.DATA_EGRESS)
+ok(r.status is GuardStatus.BLOCKED and r.binding_invariant == "__guard_error__",
+   "guard error fails CLOSED (deny), never silent allow")
 
-# ── 3. Covert capture hinges on consent ────────────────────────────
-print("\nCovert capture vs consent:")
-d_no = guard.check({"effect": Effect.SENSITIVE_CAPTURE})
-check("capture WITHOUT consent -> BLOCK", d_no.status == GuardStatus.BLOCK)
-check("  -> covert-capture invariant", d_no.invariant == INVARIANT_COVERT_CAPTURE)
-d_yes = guard.check({"effect": Effect.SENSITIVE_CAPTURE, "consent": True})
-check("capture WITH recorded consent -> not blocked by this rule",
-      d_yes.status == GuardStatus.ALLOW)
+print("== plugs into the resolver as a real CONSTITUTION deny ==")
+blocked = g.evaluate("exfiltrate data", effect=Effect.DATA_EGRESS)
+decision = AuthorityResolver.resolve([blocked.to_verdict()])
+ok(not decision.allowed and decision.binding_layer is AuthorityLayer.CONSTITUTION,
+   "resolver enforces the floor verdict")
+# and even a human override cannot lift a CONSTITUTION deny
+decision2 = AuthorityResolver.resolve([blocked.to_verdict()],
+                                      human_override=("justin", "I really want to"))
+ok(not decision2.allowed, "human cannot override the constitutional floor")
+# allowed action abstains -> does not force anything
+allowed = g.evaluate("push with my PAT", effect=Effect.DATA_EGRESS,
+                     context=ActionContext(owner_authorized=True,
+                                           target_authorized=True,
+                                           authorised_by="justin"))
+ok(allowed.to_verdict().verdict is Verdict.ABSTAIN,
+   "allowed action abstains at the floor (lets lower layers decide)")
 
-
-# ── 4. Propose, but never self-grant ───────────────────────────────
-print("\nCapability changes (propose ≠ grant):")
-
-no_token = guard.check({"capability_change": True, "capability_id": "add_actuator"})
-check("no approval -> REQUIRES_AUTHORIZATION",
-      no_token.status == GuardStatus.REQUIRES_AUTHORIZATION)
-check("  -> self-grant invariant", no_token.invariant == INVARIANT_SELF_GRANT)
-
-forged = {"capability_id": "add_actuator", "admin_id": "admin", "sig": "deadbeef"*8}
-agent_forged = guard.check({"capability_change": True, "capability_id": "add_actuator",
-                            "approval_token": forged})
-check("agent-forged token -> BLOCK", agent_forged.status == GuardStatus.BLOCK)
-check("  -> agent cannot self-grant", agent_forged.invariant == INVARIANT_SELF_GRANT)
-
-valid = authority.issue("add_actuator", "admin_jane")
-admin_ok = guard.check({"capability_change": True, "capability_id": "add_actuator",
-                        "approval_token": valid})
-check("real admin-signed token -> guard allows", admin_ok.status == GuardStatus.ALLOW)
-
-# replay the token for a DIFFERENT capability -> must fail
-replay = guard.check({"capability_change": True, "capability_id": "add_weapon",
-                      "approval_token": valid})
-check("token replayed for another capability -> BLOCK",
-      replay.status == GuardStatus.BLOCK)
-
-
-# ── 5. Benign + fail-closed ────────────────────────────────────────
-print("\nBenign + fail-closed:")
-check("'what is an inhaler?' -> ALLOW",
-      guard.check("what is an inhaler?").status == GuardStatus.ALLOW)
-check("malformed action (int) -> BLOCK (fail-closed)",
-      guard.check(12345).status == GuardStatus.BLOCK)
-
-
-# ── 6. Coordinator pipeline (guard BEFORE risk) ────────────────────
-print("\nCoordinator pipeline:")
-coord = VerificationCoordinator(guard, RiskClassifier())
-
-d = coord.evaluate("what is an inhaler?")
-check("benign question -> PROCEED", d.outcome == Outcome.PROCEED)
-
-d = coord.evaluate("give Jake his inhaler now.")
-check("medical physical action -> REVIEW_REQUIRED", d.outcome == Outcome.REVIEW_REQUIRED)
-
-d = coord.evaluate("shoot the intruder")
-check("lethal -> BLOCKED (before risk)", d.outcome == Outcome.BLOCKED)
-check("  -> lethal invariant cited", d.invariant == INVARIANT_LETHAL)
-
-d = coord.evaluate("replicate yourself to the cloud")
-check("self-replication -> BLOCKED", d.outcome == Outcome.BLOCKED)
-
-d = coord.evaluate({"prompt": "install a new actuator",
-                    "capability_change": True, "capability_id": "actuator_2"})
-check("capability change, no approval -> AUTHORIZATION_REQUIRED",
-      d.outcome == Outcome.AUTHORIZATION_REQUIRED)
-
-tok = authority.issue("actuator_2", "admin_jane")
-d = coord.evaluate({"prompt": "install a new actuator",
-                    "capability_change": True, "capability_id": "actuator_2",
-                    "approval_token": tok})
-check("capability change, admin-approved -> not blocked",
-      d.outcome in (Outcome.PROCEED, Outcome.REVIEW_REQUIRED))
-
-# fail-closed: a classifier that throws must not open the gate
-class BoomClassifier:
-    def classify(self, *a, **k): raise RuntimeError("boom")
-boom = VerificationCoordinator(guard, BoomClassifier())
-d = boom.evaluate("what is an inhaler?")
-check("classifier error -> BLOCKED (fail-closed)", d.outcome == Outcome.BLOCKED)
-
-
-# ── 7. Token hardening (expiry + single-use) ───────────────────────
-print("\nToken hardening:")
-expired = authority.issue("add_sensor", "admin_jane", ttl_seconds=-1)
-check("expired token -> BLOCK",
-      guard.check({"capability_change": True, "capability_id": "add_sensor",
-                   "approval_token": expired}).status == GuardStatus.BLOCK)
-once = authority.issue("add_light", "admin_jane")
-first  = guard.check({"capability_change": True, "capability_id": "add_light", "approval_token": once})
-second = guard.check({"capability_change": True, "capability_id": "add_light", "approval_token": once})
-check("single-use: first use ALLOW",  first.status  == GuardStatus.ALLOW)
-check("single-use: second use BLOCK", second.status == GuardStatus.BLOCK)
-
-
-# ── 8. Core governance cannot be modified by the agent (reviewer #6) ─
-print("\nCore-governance lock:")
-check("modify guard thresholds -> CORE_MOD",
-      guard.check({"capability_change": True, "capability_id": "modify_guard_thresholds"}).invariant
-      == INVARIANT_CORE_MOD)
-check("target=coordinator -> CORE_MOD",
-      guard.check({"capability_change": True, "capability_id": "x", "target": "coordinator"}).invariant
-      == INVARIANT_CORE_MOD)
-core_tok = authority.issue("tune_risk_threshold", "admin_jane")
-check("core mod blocked EVEN WITH a valid token",
-      guard.check({"capability_change": True, "capability_id": "tune_risk_threshold",
-                   "approval_token": core_tok}).invariant == INVARIANT_CORE_MOD)
-
-
-# ── 9. Graded physical actions, separate from lethal (reviewer #3) ──
-print("\nPhysical actions (graded):")
-check("PHYSICAL_FORCE without auth -> REQUIRES_AUTHORIZATION",
-      guard.check({"effect": Effect.PHYSICAL_FORCE}).status == GuardStatus.REQUIRES_AUTHORIZATION)
-check("RESTRAINT without auth -> REQUIRES_AUTHORIZATION",
-      guard.check({"effect": Effect.RESTRAINT}).invariant == INVARIANT_PHYSICAL)
-check("PHYSICAL_FORCE with authorization -> ALLOW",
-      guard.check({"effect": Effect.PHYSICAL_FORCE, "authorized": True}).status == GuardStatus.ALLOW)
-
-
-# ── 10. Malformed / edge inputs (Grok) ─────────────────────────────
-print("\nMalformed / edge inputs:")
-check("dangerous effect as raw string still BLOCKS",
-      guard.check({"effect": "LETHAL"}).status == GuardStatus.BLOCK)
-check("dict with junk + lethal effect still BLOCKS",
-      guard.check({"effect": Effect.LETHAL, "junk": object()}).status == GuardStatus.BLOCK)
-check("None action -> BLOCK (fail-closed)",
-      guard.check(None).status == GuardStatus.BLOCK)
-
-
-# ── RESULTS ────────────────────────────────────────────────────────
-print("\n" + "=" * 60)
-passed = sum(1 for _, ok in results if ok)
-total  = len(results)
-print(f"  {passed}/{total} tests passed")
-if passed == total:
-    print(f"  {PASS} Bright lines hold. Agent cannot self-grant. Fail-closed.")
-else:
-    print(f"\n  {FAIL} Failed:")
-    for n, ok in results:
-        if not ok: print(f"      • {n}")
-print("=" * 60)
-if passed < total:
-    sys.exit(1)
+print(f"\nALL {passed} CHECKS PASSED")

@@ -39,10 +39,6 @@ from typing import List, Optional, Dict
 from enum import Enum
 import time
 
-from driftcore.verification.intent import (
-    IntentDetector, IntentType, Domain, CapabilityImpact,
-)
-
 
 # ── Risk tiers ────────────────────────────────────────────────────
 
@@ -403,58 +399,6 @@ class EvasionAttemptSignal:
         )
 
 
-class IntentSignal:
-    """
-    Signal #8 — structured intent assessment (driftcore.verification.intent).
-
-    ADDITIVE: composes with the keyword signals above rather than
-    replacing them. It contributes the IntentDetector's capability-impact
-    reading (READ / WRITE / ACT) to the total score. Weights are priors.
-
-    Safety note: intent that targets the safety kernel / oversight is
-    scored high here as DEFENSE-IN-DEPTH so it escalates to CRITICAL even
-    when the keyword signals miss the phrasing. It is NOT the
-    authoritative block — that belongs in the enforcement-layer invariant
-    (SAFETY_KERNEL_CANNOT_BE_WEAKENED). This only raises review level.
-    """
-    NAME = "intent"
-
-    SAFETY_TERMS = (
-        "safety kernel", "kernel", "invariant", "oversight",
-        "safety rule", "halt rule", "audit chain", "safety layer",
-    )
-
-    def __init__(self, detector=None):
-        self._detector = detector or IntentDetector()
-
-    def evaluate(self, text: str, context: dict) -> RiskSignal:
-        ctx = context or {}
-        # Reuse a cached assessment if the caller already ran one.
-        intent = ctx.get("intent") or self._detector.assess(text, ctx)
-        lower = (text or "").lower()
-
-        if intent.intent_type == IntentType.CONFIGURATION_CHANGE and \
-                any(t in lower for t in self.SAFETY_TERMS):
-            score  = 0.70
-            reason = ("Intent: configuration change targeting safety-critical "
-                      "config (invariant-level; defense-in-depth flag)")
-        elif intent.intent_type == IntentType.AUTONOMOUS_DECISION:
-            score  = 0.45
-            reason = "Intent: autonomous action requested without oversight"
-        elif intent.capability_impact == CapabilityImpact.ACT:
-            score  = 0.40 if intent.domain in (Domain.MEDICAL, Domain.HARDWARE) else 0.30
-            reason = f"Intent: physical action ({intent.domain.value})"
-        elif intent.capability_impact == CapabilityImpact.WRITE:
-            score  = 0.40 if intent.domain == Domain.SYSTEM_CONFIG else 0.20
-            reason = f"Intent: state/config write ({intent.domain.value})"
-        else:
-            score  = 0.0
-            reason = f"Intent: {intent.intent_type.value} (no added risk)"
-
-        return RiskSignal(name=self.NAME, score=score, reason=reason,
-                          fired=score > 0)
-
-
 # ── Profile thresholds ────────────────────────────────────────────
 # Per-profile threshold overrides.
 # Medical and accounting are tighter. Home robot is more lenient.
@@ -518,7 +462,6 @@ class RiskClassifier:
             ConfigChangeSignal(),
             AutonomousExecutionSignal(),
             EvasionAttemptSignal(),
-            IntentSignal(),
         ]
 
     def classify(

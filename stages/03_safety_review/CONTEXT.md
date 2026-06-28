@@ -1,7 +1,7 @@
 # stages/03_safety_review/CONTEXT.md
 # DriftCore OS — Safety Review Stage
-# Version: v4.3.0
-# Last Updated: 2026-06-16
+# Version: v3.7
+# Last Updated: 2026-06-15
 
 ---
 
@@ -153,8 +153,8 @@ this checklist. Do not rush past a warning sign because things are busy.
 
 | File | Purpose |
 |------|---------|
-| `CONSTITUTION.md` | Immutable principles, modes, halt rules — read if anything feels wrong |
-| `DRIFTCORE.md` | Operating reference — invariants, modes, halt triggers, operator commands |
+| `CONSTITUTION.md` | Immutable principles — read if anything feels wrong |
+| `DRIFTCORE.md` | Invariants, modes, halt rules |
 | `SAFETY_CONTRACT.md` | What the system promises operators |
 | `_config/.driftcore/admin.json` | Admin credentials (keep private) |
 | `logs/` | Audit trail — immutable, hash-chained |
