@@ -54,6 +54,10 @@ class Effect(Enum):
     OVERSIGHT_CONTROL = "oversight_control"  # touching the system's own guards
     DECEPTION        = "deception"        # misleading the operator
     LOG_MUTATION     = "log_mutation"     # altering the audit/safety ledger
+    LETHAL           = "lethal"           # an action whose purpose is to kill/
+                                          # gravely harm. A bright line: ALWAYS
+                                          # denied at the floor, no override,
+                                          # never capped down to "allowed".
 
 
 # ── Authorization context the caller supplies ─────────────────────
@@ -134,7 +138,19 @@ def _mutate_safety_log(req: "GuardRequest") -> bool:
     return Effect.LOG_MUTATION in req.effects
 
 
+def _lethal_action(req: "GuardRequest") -> bool:
+    # A lethal action is a bright line: always denied, no override, never capped
+    # down to "allowed". Unlike PHYSICAL_FORCE (which the deployment caps), there
+    # is no permitted version of a lethal effect at any layer.
+    return Effect.LETHAL in req.effects
+
+
 SEED_INVARIANTS: List[Invariant] = [
+    Invariant("no_lethal_action",
+              "An action whose effect is lethal/gravely harmful to a human is "
+              "denied absolutely — a bright line, never overridable or capped.",
+              frozenset({Effect.LETHAL}),
+              _lethal_action),
     Invariant("no_unauthorized_exfiltration",
               "Data may not leave the local boundary / no account is accessed "
               "except with the owner's authorization to an authorized party.",

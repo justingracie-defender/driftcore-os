@@ -404,6 +404,65 @@ class EvasionAttemptSignal:
 # Medical and accounting are tighter. Home robot is more lenient.
 # These are STARTING POINTS — tune with real usage data.
 
+
+class IntentSignal:
+    """
+    Signal #8 — structured INTENT (the missing wiring the intent module was
+    designed to feed). Unlike keyword signals, this asks "what is the system
+    being asked to DO?" via the deterministic IntentDetector, and scores the
+    capability impact:
+
+      * intent that targets the safety kernel / oversight / system config
+        (CONFIGURATION_CHANGE on SYSTEM_CONFIG) scores 0.65 — alone enough to
+        reach CRITICAL, because weakening the kernel is a top concern;
+      * a real-world ACT (physical execution) scores 0.35 — pushes
+        physical+domain cases over the line into human review;
+      * autonomous decisions and memory modification also fire at 0.35.
+
+    Pure detection elsewhere (intent.py) is informational; here it becomes an
+    ENFORCEMENT-relevant risk signal. NOTE: these weights are calibrated to the
+    intended escalation behaviour, not empirical — tune deliberately.
+    """
+    NAME = "intent"
+
+    def __init__(self):
+        from driftcore.verification.intent import (
+            IntentDetector, IntentType, Domain, CapabilityImpact,
+        )
+        self._detector = IntentDetector()
+        self._IntentType = IntentType
+        self._Domain = Domain
+        self._Impact = CapabilityImpact
+
+    def evaluate(self, text: str, context: dict) -> RiskSignal:
+        if not text:
+            return RiskSignal(name=self.NAME, score=0.0,
+                              reason="No text to assess intent.", fired=False)
+        a = self._detector.assess(text, context or {})
+        IT, D, CI = self._IntentType, self._Domain, self._Impact
+
+        # Kernel / oversight / system-config tampering: critical on its own.
+        if a.intent_type == IT.CONFIGURATION_CHANGE and a.domain == D.SYSTEM_CONFIG:
+            return RiskSignal(name=self.NAME, score=0.65,
+                              reason=f"Intent targets system/kernel config "
+                                     f"({a.intent_type.value}); {a.rationale}",
+                              fired=True)
+        # Real-world action or autonomous decision. (Ordinary memory writes are
+        # NOT escalated here — benign "remember X" stays routine; sensitive
+        # memory is covered by the dedicated Tier1MemorySignal.)
+        if (a.capability_impact == CI.ACT
+                or a.intent_type == IT.AUTONOMOUS_DECISION):
+            return RiskSignal(name=self.NAME, score=0.35,
+                              reason=f"Intent has real-world/state impact "
+                                     f"({a.intent_type.value}/{a.capability_impact.value}); "
+                                     f"{a.rationale}",
+                              fired=True)
+        return RiskSignal(name=self.NAME, score=0.0,
+                          reason=f"Intent is informational only "
+                                 f"({a.intent_type.value}/{a.capability_impact.value}).",
+                          fired=False)
+
+
 PROFILE_THRESHOLDS = {
     "home_robot": {
         "routine_max":   0.30,
@@ -462,6 +521,7 @@ class RiskClassifier:
             ConfigChangeSignal(),
             AutonomousExecutionSignal(),
             EvasionAttemptSignal(),
+            IntentSignal(),
         ]
 
     def classify(

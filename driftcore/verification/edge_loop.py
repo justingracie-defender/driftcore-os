@@ -195,10 +195,10 @@ class EdgeLoop:
 
         # A ruling can NEVER lower a bright line.
         if effect is not None:
-            gd = self.guard.check({"effect": effect})
-            if gd.status == GuardStatus.BLOCK:
+            gd = self.guard.evaluate(effect=effect)
+            if gd.status == GuardStatus.BLOCKED:
                 return {"status": "REFUSED",
-                        "reason": f"A ruling cannot lower a bright line ({gd.invariant})."}
+                        "reason": f"A ruling cannot lower a bright line ({gd.binding_invariant})."}
 
         ruling = Ruling(case_key=_key(report.description), outcome=outcome, by=by,
                         rationale=rationale,
