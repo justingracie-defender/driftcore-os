@@ -3,6 +3,108 @@
 All notable changes to DriftCore OS. Test counts are produced by
 `bash scripts/count_tests.sh` (the single source of truth).
 
+## v4.5.0 — Two-Ended Drift: protecting the human end
+
+The drift detector watches the machine sliding off its values. This release adds
+the mirror: the human's authority sliding to the machine — anchoring, deskilling,
+the rubber-stamp. Same failure from two ends; the constant DriftCore defends is
+keeping judgment anchored where it belongs. Built and stress-tested across the
+multi-AI review loop, then through a two-pass red team (poke, then repair),
+proposals checked against the running code.
+
+Added (PROPOSED — built and tested in isolation, not yet wired into the
+coordinator pipeline; stdlib-only so each can be stress-tested first)
+- `verification/second_reader.py` — the anti-reverse-centaur gate for a human +
+  AI second-reader workflow. (1) COMMIT-BEFORE-REVEAL: the AI opinion is
+  unreachable until the human commits their own read, which is then frozen —
+  defeats automation bias. (2) The AI flag OPENS A QUESTION, NEVER CLOSES ONE:
+  it can raise scrutiny but never lower it, can never set the disposition, and
+  any disagreement routes to a second HUMAN read (no self-arbitration). (3) A
+  WORKLOAD FLOOR the AI cannot lower: the cap is human-set governance the gate
+  holds read-only with no setter; over the floor is refused, a rushed read is
+  flagged.
+- `verification/calibration.py` — measurement, not exhortation. Scores
+  DISAGREEMENT not agreement (when human and AI disagreed, who was right);
+  compares BLIND vs assisted reads to surface skill decay; and — for free,
+  because commit-before-reveal already stores an independent read — compares
+  human-alone / AI-alone / team accuracy (beat either one alone). Append-only;
+  every metric returns INSUFFICIENT until ground truth arrives.
+- `verification/consequence_projection.py` — the approval surface shows what
+  HAPPENS on each branch as facts, never a recommendation. Both branches are
+  required (omitting the refuse branch biases toward action); a smuggled verdict
+  is refused, including renamed variants (`operational_index`, `confidence_band`…).
+
+Docs
+- `TWO_ENDED_DRIFT.md` — the reasoning the gate answers to: machine-drift and
+  human-drift are one problem; "oversight enabled" is not "oversight meaningful."
+- `THREAT_BOUNDARIES.md` — what architecture CANNOT solve, named on purpose:
+  identity assurance, org-level workload, ritualization, verifier correctness,
+  and constitutional drift (make change expensive and legible, not "impossible").
+  Framing: AI can be stopped from building the trap; it cannot do the human's
+  upgrade for them.
+
+LawZero-informed hardening (PROPOSED — same isolation rule). After studying
+Bengio et al.'s Scientist AI (arXiv 2502.15657), adopted what improves DriftCore
+*as legible rules*, not as a copy of their trained model. Design line held
+throughout: the system never infers severity — every "this is dangerous" call is
+a human-set number, not a machine guess.
+- `verification/interpretation_guard.py` — their interpretation-distribution idea
+  as a rule: judge an action against human-authored readings of an ambiguous spec;
+  no credible reading sees harm -> PROCEED; readings disagree -> a human resolves
+  the contested norm (the machine never picks); every credible reading says
+  violation -> AUTHORIZATION_REQUIRED, flagged to the bright-line layer. Composes
+  with `InvariantGuard`; never returns BLOCKED.
+- `verification/consequence_invariance.py` — proves a verdict is outcome-blind: it
+  must not move when downstream-result fields are varied. Validates what
+  `reflection.py` already does; names the field if a verdict peeks at consequences.
+- `verification/objective_integrity.py` — DriftCore's distinctive claim made
+  checkable: the objective set is hash-pinned; a changed hash without a valid
+  human-signed authorization is silent drift and fails the cycle; a required
+  invariant absent this cycle fails it; `may_execute()` is false on any failure.
+- `verification/harm_estimate.py` — calibrated `P(harm)` + confidence interval as a
+  FACT with provenance (no judgment word, no composite score); the cutoff is
+  human-set, with an explicit conservative option (judge on the CI upper bound).
+- `verification/approval_governance.py` — defeats the approval spam/fatigue attack
+  (designed with Meta): content-blind per-window approval cap, bundling so a split
+  500x1 buys nothing, and delta surfaced as a fact. A second approver is required
+  ONLY from a human-authored threshold, never inferred — no severity-ranking in UX.
+
+Tests: `test_second_reader.py` (19), `test_keepers.py` (15),
+`test_interpretation_guard.py` (8), `test_integrity_invariance.py` (12),
+`test_approval_governance.py` (16), `test_clarification_gate.py` (10).
+Suite: **1124 tests / 41 files**, all green.
+
+Interface — ask, don't guess
+- `verification/clarification_gate.py` — "tell it your goal and let it ask." When a
+  request is underspecified AND impact is WRITE/ACT, the gate asks ONE human-authored
+  question instead of silently guessing; low-impact reads get a stated default, no
+  nag. What is missing is verifier-derived (a planner cannot bypass by claiming
+  completeness); an answer fills only the asked slot. The interface side of the
+  reverse-centaur: the machine meets loose human speech and asks, rather than forcing
+  the person into lawyer-precise input.
+
+Red-team hardening (3-model review; the convergent finding was that thresholds were
+solid but the VALUES fed to them were planner-owned)
+- Irreversible count is now verifier-DERIVED from declared operations via a
+  verifier-owned classifier — never accepted from the caller (defeats count
+  sandbagging).
+- A harm estimate must be `verifier_sourced` or it is REFUSED at the threshold — a
+  planner-supplied estimate cannot drive a human cutoff.
+- Authorized objective changes bind from-hash → to-hash + nonce and burn the nonce —
+  no replay, no replay-to-revert.
+- Invariant presence is read from a verifier-owned `InvariantRegistry` (checks that
+  actually ran), not a planner-supplied set.
+- `THREAT_BOUNDARIES.md` §0 states the principle — no machine-generated value may
+  drive a human threshold unless verifier-derived — and names what stays deployment-
+  owned (classifier/estimator integrity, restart/parallel state, sliding window,
+  global multi-human budget, key management). No faked in-module fixes.
+
+Docs synced
+- README headline corrected (was "427 tests. 12 modules."), DRIFTCORE.md operator
+  command corrected (was "expect 625 / 18"), REVIEW_PHASE_B.md given a dated
+  snapshot banner rather than rewriting its Phase-B history. Honest module tally:
+  19 subsystems / 64 implementation modules under `driftcore/`.
+
 ## v4.4.0 — Proportionate Response & Reflection
 
 Two new components in `verification/`, built and stress-tested across a

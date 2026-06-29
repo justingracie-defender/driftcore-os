@@ -18,7 +18,7 @@ Requires Python 3.10+. No external dependencies for core modules.
 git clone https://github.com/justingracie-defender/driftcore-os
 cd driftcore-os
 
-# Run the full test suite — 427 tests
+# Run the full test suite — 1124 tests across 41 files
 python test_memory_core.py
 python test_memory_extended.py
 python test_enforcement.py
@@ -83,7 +83,7 @@ driftcore/
 └── feedback/          Bottom-up feedback loop
 ```
 
-**427 tests. 12 modules. All green.**
+**1124 tests across 41 files. 19 subsystems. All green.**
 
 ---
 

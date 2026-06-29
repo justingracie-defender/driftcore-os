@@ -1,12 +1,18 @@
 # Phase B — Review Notes (for external review)
 
-**Status:** built, all tests passing. Suite is **625 tests / 18 files**.
+> **Snapshot note (updated 2026-06-29):** the figures below are a Phase-B
+> point-in-time record and have not been rewritten. The suite has since grown;
+> the live count is **1078 tests / 37 files**. Always treat
+> `bash scripts/count_tests.sh` as the single source of truth — run it for the
+> current number rather than trusting any figure written into a doc.
+
+**Status:** built, all tests passing. Suite is **625 tests / 18 files** *(at Phase B; see snapshot note above)*.
 Run `python test_invariant_guard.py` (expect 42/42),
 `python test_governed_actuator.py` (expect 16/16),
 `python test_uncertainty_engine.py` (expect 25/25),
 `python test_edge_loop.py` (expect 21/21),
 `python test_ledger.py` (expect 10/10), and
-`bash scripts/count_tests.sh` (expect 625 across 18 files) to confirm.
+`bash scripts/count_tests.sh` (Phase-B figure was 625/18; see snapshot note — run it for the live count) to confirm.
 
 ## Phase D — Edge-resolution learning loop
 

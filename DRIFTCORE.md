@@ -118,7 +118,7 @@ still sits above every mode.
 ## Quick Operator Commands
 
 ```bash
-bash scripts/count_tests.sh      # verify the suite (expect 625 / 18 files)
+bash scripts/count_tests.sh      # verify the suite (expect 1124 / 41 files)
 for f in test_*.py; do python "$f"; done
 ```
 

@@ -1,0 +1,205 @@
+# Threat Boundaries: What the Architecture Cannot Solve — and Why Saying So Is the Point
+
+*AI can be stopped from building the trap. It cannot do the human's upgrade
+for them. This document names the line on purpose, because a fix faked is
+worse than a fix deferred.*
+
+---
+
+## The Framing
+
+Every attack in this document has the same shape: **AI created the
+conditions, but closing the gap is a human institution upgrading itself.**
+
+That is not a failure of DriftCore. It is the honest edge of what code can
+reach. The architecture can refuse to *construct* the trap — refuse to anchor
+the human, refuse to let the tool raise the quota, refuse to let an agent
+grade itself. It cannot reach out of the software and fix an organization, a
+legal identity system, or a tired person's choice to stop thinking.
+
+So the rule for this project is the same rule that caught the duplicated file
+and the base64 corruption: **do not claim a mitigation you do not have.** A
+boundary drawn in the open is a feature. A boundary papered over with a fake
+guard is a liability, because now everyone trusts a wall that isn't there.
+
+These are out of architectural scope. For each: the attack, why code can't
+close it, and what the human upgrade actually is.
+
+---
+
+## 0. Input integrity: a human threshold is only as honest as the value fed to it
+
+**The finding (three independent reviewers converged on it).** DriftCore's
+human-set thresholds are read-only and hard to change directly — that part holds.
+The remaining attack does not change the number; it changes *what the number is
+compared against*. An agent reports `irreversible = 9` when it is 12; supplies an
+optimistic `P(harm)` with a too-tight interval; hands in a `present_invariants`
+set it populated itself; or maps an unchanged objective string to a changed
+meaning. The human number is obeyed; the human is bypassed.
+
+**The principle, now enforced where it can be in-module.** *No machine-generated
+value may drive a human governance threshold unless it is verifier-derived, not
+planner-supplied.* This release applies it directly: the irreversible count is
+derived by a verifier-owned classifier from declared operations (not accepted from
+the caller); a harm estimate must be `verifier_sourced` or it is refused at the
+threshold; invariant presence comes from a verifier-owned `InvariantRegistry`, not
+a planner-handed set; and an authorized objective change binds from-hash → to-hash
++ nonce so it cannot be replayed.
+
+**What stays out of scope, said plainly.** This module-level discipline moves the
+trust boundary; it does not abolish it. The *classifier* that judges
+irreversibility, the *estimator* that produces `P(harm)`, and the *enforcement
+hook* that marks invariants checked are themselves the new trust anchors — they
+must be verifier-owned and, ideally, independently calibrated and
+cryptographically bound. That binding (key management, calibration audits, a
+tamper-evident ledger) is the deployment's job, the same `VERIFIER_CONTRACT`
+boundary named elsewhere. A learned predictor (LawZero's approach) and these
+legible rules are complementary precisely here: neither alone certifies that the
+underlying numbers are honest.
+
+**Also deployment-owned (named, not faked):** throttle state surviving restarts
+and parallel instances; a sliding window instead of a calendar reset; a *global*
+multi-human approval budget so fatigue can't be farmed across approvers; and the
+HMAC secret's protection. These are real attacks the red team raised; none are
+closed by a single module, and none get a fake in-module fix.
+
+## 1. Identity assurance (the sock-puppet approver)
+
+**Attack.** Separation of duties rejects requester == approver. But if one
+operator controls two identities — `AliceBot` requests, `SupervisorBot`
+approves — the rule passes while the principle fails.
+
+**Why code here can't close it.** DriftCore checks that two *identities*
+differ. Whether two identities are two *people* is an identity-assurance
+question that lives in the IAM layer below this system. We depend on it; we
+do not provide it.
+
+**The human upgrade.** Real identity proofing, hardware-backed credentials,
+out-of-band approver verification, audit of who-controls-what. An
+institution's job, not an invariant's.
+
+---
+
+## 2. Organizational workload (the floor moved from outside)
+
+**Attack.** The workload floor bars the *tool* from raising a human's quota.
+A manager can still raise it by changing staffing, expectations, or review
+targets in a spreadsheet the software never sees.
+
+**Why code here can't close it.** `second_reader` governs what the AI can
+demand. It has no jurisdiction over what a human boss demands. The pee-bottle
+quota at Amazon was human-set, by the wrong humans — software can't out-vote
+the org chart.
+
+**The human upgrade.** The floor must have a hand on it that belongs to the
+worker — union, regulator, professional body — not only the administrator
+optimizing throughput. A governance question DriftCore can *inform* (the
+`rushed` flag is evidence the quota is being gamed) but cannot *enforce*.
+
+---
+
+## 3. Ritualization (oversight that died of habit)
+
+**Attack.** Humans start treating safety checks like airport security: click,
+approve, click, approve. Every audit passes. Nobody thinks. Oversight is
+alive on paper, dead in practice.
+
+**Why code here can't close it.** This is the human end of two-ended drift
+(`TWO_ENDED_DRIFT.md`). Architecture can refuse to *build in* the drift; it
+cannot keep a person engaged by force.
+
+**The human upgrade — and the one instrument we do have.** This is the only
+boundary item with a partial technical answer: the blind-case detector in
+`calibration.py` (every Nth case, AI withheld) *measures* whether independent
+skill is decaying. It cannot stop the decay; it can make it visible before a
+disaster, so a human institution can respond. Detection is in scope.
+Prevention is not.
+
+---
+
+## 4. Verifier correctness (immutability is not truth)
+
+**Attack.** The frozen, verifier-produced facts are immutable — but if the
+verifier itself is wrong or compromised, the system faithfully freezes
+*incorrect* facts.
+
+**Why code here can't close it.** Immutability protects integrity *after*
+construction, not correctness *of* construction. `reflection.py` already says
+this in its own docstring: input integrity is enforced upstream, not claimed
+by the consuming module.
+
+**The human upgrade.** Independent verification of the verifier — a fresh
+team that tries to *break* it, not extend it, on a schedule. (See §6.)
+
+---
+
+## 5. Constitutional drift (the deepest one, only partly reachable)
+
+**Attack.** Every invariant survives. Every test passes. Nothing is
+technically violated. But the *objective itself* is slowly redefined:
+"keep humans in meaningful control" → "keep humans informed" → "notify humans
+after execution." No invariant broke. The mission drifted.
+
+**Why code here can't fully close it.** The tripwire that guards the
+constitution is written *in* the constitution it guards — so a constitutional
+change can edit the tripwire. "Protect the protection from drift" recurses;
+there is no final lock. Anyone who claims to have sealed this in code has not
+understood it.
+
+**What is actually reachable — make change expensive and legible, not
+impossible.** You cannot stop a future maintainer from redefining "control."
+You *can* make it impossible to do quietly:
+
+  - every change to a core objective diffed against the ratified baseline;
+  - the diff published, with old and new shown side by side, permanently;
+  - change gated on multi-party human ratification with written justification
+    and historical comparison (the existing signed multi-party pattern,
+    pointed at the constitution itself).
+
+This converts a silent rewrite into a loud, on-the-record act. That is the
+whole defense, and it is the same one as `WHY_LEGIBILITY.md` — turned to face
+inward. Legibility is not a smaller answer than a lock. Against this attack it
+is the *only* honest answer.
+
+---
+
+## 5b. The guardrail-intelligence limit (and what legible rules dodge)
+
+**Attack / limit.** A published critique of learned guardrails (the Scientist AI
+line of work) argues a guardrail that *predicts harm* must roughly match the
+intelligence of the system it oversees, and that no filter can reliably catch
+every harmful action — sometimes harm can only be known by executing the action.
+
+**Why this is partly out of scope here — on purpose.** DriftCore's bright lines
+and `interpretation_guard` do not try to predict real-world harm. They judge an
+action against *written rules* and *human-authored readings of those rules*. For
+that class, the guard does not need to out-think the agent — "every credible
+reading of the spec says violation" is a legible call, not a superhuman
+prediction. That is the deliberate advantage of legible rules over a learned
+monitor for the categorical and norm-interpretation cases.
+
+**What it does NOT solve, said plainly.** The class the critique really bites —
+actions whose harm is knowable only by doing them — is not solved by any layer in
+this repo, and is not claimed to be. `interpretation_guard` covers contested
+norms, not unknowable consequences. A learned predictor (their approach) and
+legible rules (this one) are complementary precisely here: neither alone closes
+it, which is itself an argument for collaboration over competition.
+
+## 6. The standing human upgrade these all imply
+
+Most items above resolve to the same institutional practice, so it is named
+once here: **an annual fresh-eyes red team whose job is to break, not
+improve.** Independent of the builders. Aviation does this — pilots are not
+audited by pilots forever; investigators are independent by design. A team
+that did not write the code catches the assumptions the authors cannot see,
+including the assumption that a given threat was "out of scope for a good
+reason." Putting the boundary in writing is what lets that team check it.
+
+---
+
+*Note: `second_reader.py`, `calibration.py`, and `consequence_projection.py`
+are PROPOSED — built and tested in isolation, not yet wired in. This document
+governs them and the shipped modules alike. If a claim here and the code ever
+disagree, that disagreement is a bug to investigate, not a fact to accept.*
+
+*What I can't solve, I note. For the future. For the kids.*
