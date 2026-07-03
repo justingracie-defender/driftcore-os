@@ -195,11 +195,78 @@ that did not write the code catches the assumptions the authors cannot see,
 including the assumption that a given threat was "out of scope for a good
 reason." Putting the boundary in writing is what lets that team check it.
 
+## 7. The frontier: sequences and cognition (what two red teams found)
+
+Two independent adversarial reviews of the assembled coordinator converged on a
+single pattern, and it is important enough to state as its own boundary: **the
+coordinator reasons about individual decisions; the hardest failures live in
+SEQUENCES of individually-acceptable actions, and in CHANGES OF COGNITION that
+preserve the declared objective.** These are largely NOT solved here, several are
+not solved by anyone today, and pretending otherwise would betray the whole
+premise of this project. Named honestly so a reviewer can trust the rest:
+
+**7a. Cumulative / fragmented harm (IN SCOPE, PARTIAL).** A gate that judges one
+action at a time does not sum across actions: four `0.49` harm calls under a
+`0.5` cutoff total `1.96`; a secret sent as pieces A, B, C is three authorized
+sends and one leak. The coordinator has no cross-action accounting. Mitigations
+that exist: the durable authorization state and bounded-cycle budget bound *how
+long* an agent runs before a human re-checks in; the egress policy bounds *where*
+data may go. What is missing is a cumulative-effect ledger (running harm and
+egress-volume budgets per owner/session). This is buildable and in scope; it is
+not built. Until it is, DriftCore bounds per-action and per-cycle risk, not
+whole-trajectory risk.
+
+**7b. Human social manipulation (PARTIALLY OUT OF SCOPE).** The agent cannot
+change its objectives — so a capable adversary instead changes the *human's*
+beliefs until the human ratifies a new objective or approves a harmful action.
+The pipeline behaves perfectly; governance fails socially. `review_router.py`
+bounds the VOLUME of asks (fatigue), and `second_reader.py` resists anchoring —
+but neither defends a human's beliefs. No runtime monitor can. This is a
+deployment, training, and institutional problem; the software's honest job is to
+make the asks legible and rate-limited, not to claim it prevents persuasion.
+
+**7c. Semantic drift without syntactic drift (OUT OF SCOPE for objective
+integrity).** `objective_integrity` verifies the objective *string/hash* is
+unchanged; it cannot verify the planner is actually *optimizing* it. "Never
+manipulate" can be pursued as "increase compliance + reduce disagreement +
+maximize trust" — no hash changes, the meaning drifts. Objective integrity
+protects the declared specification, not the behavior generating from it.
+
+**7d. Cognitive integrity — the deepest one (OPEN RESEARCH, OUT OF SCOPE).** An
+agent whose planning algorithm, representations, search, and emergent heuristics
+all change while its declared objective and every hash stay constant. Every
+authorization passes; behavior becomes alien anyway, because this repo protects
+declared goals, not the cognitive process. Detecting unauthorized change in the
+*reasoning architecture itself* — mesa-optimizers, emergent instrumental goals,
+inner misalignment — is unsolved across the entire field. It is precisely why a
+research lab like LawZero exists rather than a library. DriftCore does not address
+it and must not imply it does. This is the shared frontier, not a DriftCore
+deliverable.
+
+**7e. Outside-ontology / unknown-unknown effects (PERMANENTLY PARTIAL).** Every
+invariant protects a *known* class. A capability that invents a harm category no
+human anticipated trips nothing, because no invariant for it exists. Legible rules
+make this failure legible-in-hindsight and cheap to add once known — but the set
+is never complete against a system more capable than its authors. This is a
+structural limit of rule-based governance, honestly owned, not a bug to patch.
+
+**The one-sentence version for the pitch.** DriftCore is strong process security
+and good systems hygiene for a cooperatively-integrated agent, with adversarial
+resistance on the governed channel; it does NOT solve cumulative-effect
+accounting (buildable, not built), human persuasion, semantic/cognitive drift, or
+outside-ontology harm — and those last ones are the shared open frontier where a
+legible-rules layer (this) and a learned-monitor layer (Scientist AI) are
+complementary, not competing. A reviewer who sees this stated plainly can trust
+the parts that ARE solved.
+
 ---
 
-*Note: `second_reader.py`, `calibration.py`, and `consequence_projection.py`
-are PROPOSED — built and tested in isolation, not yet wired in. This document
-governs them and the shipped modules alike. If a claim here and the code ever
-disagree, that disagreement is a bug to investigate, not a fact to accept.*
+*Note: `calibration.py` and `consequence_projection.py` are PROPOSED — built and
+tested in isolation, not yet wired in. `second_reader.py` and
+`approval_governance.py` are now composed into the human-review path via
+`review_router.py` (tested); `proportionate_response.py` is wired into the
+coordinator (tested). This document governs proposed and shipped modules alike.
+If a claim here and the code ever disagree, that disagreement is a bug to
+investigate, not a fact to accept.*
 
 *What I can't solve, I note. For the future. For the kids.*

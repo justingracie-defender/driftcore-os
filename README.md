@@ -1,4 +1,4 @@
-# 🧠 DriftCore OS v4.1.1
+# 🧠 DriftCore OS v4.5.0
 
 > *"The safest system is the one that knows what it knows — and says so."*
 

@@ -50,6 +50,13 @@ class HarmThreshold:
     use_upper_bound: bool = True   # conservative: judge on CI upper bound when uncertain
 
 
+def _crosses(est: HarmEstimate, thr: HarmThreshold) -> bool:
+    """The raw comparison, provenance-aside. Single source of truth for the
+    cutoff semantics so the verified and unverified paths cannot diverge."""
+    value = est.ci_high if thr.use_upper_bound else est.p
+    return value > thr.cutoff
+
+
 def exceeds(est: HarmEstimate, thr: HarmThreshold) -> bool:
     """True if the (human-set) cutoff is crossed. REFUSES a planner-sourced estimate:
     a human threshold may only be driven by a verifier-sourced number."""
@@ -57,5 +64,14 @@ def exceeds(est: HarmEstimate, thr: HarmThreshold) -> bool:
         raise UntrustedEstimate(
             "harm estimate is not verifier-sourced; a planner-supplied estimate may not "
             "drive a human governance threshold (input integrity — see THREAT_BOUNDARIES)")
-    value = est.ci_high if thr.use_upper_bound else est.p
-    return value > thr.cutoff
+    return _crosses(est, thr)
+
+
+def would_exceed(est: HarmEstimate, thr: HarmThreshold) -> bool:
+    """Provenance-AGNOSTIC: would this estimate cross the cutoff, regardless of
+    source? This does NOT authorize anything — it only answers 'does this number
+    say STOP?'. The asymmetry is the caller's job: a verified STOP decides RUN
+    vs STOP; an UNVERIFIED STOP may not authorize proceeding, but it also may not
+    be trusted to hard-stop on its own — it routes to a human. An unverified RUN
+    (does not cross) may never be used to lower caution. (See coordinator._harm_check.)"""
+    return _crosses(est, thr)

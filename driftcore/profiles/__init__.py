@@ -197,10 +197,51 @@ PROFILES = {
         "multimodal": ["text"],
         "notes": "Adjust all settings to your needs.",
     },
+
+    "repeating_tasks": {
+        "name":                "Repeating Tasks (multi-agent, zero-config)",
+        "description":         "Set-once profile for agents running the same safe tasks on a loop. "
+                               "Silent in steady state; flags only off-pattern behaviour.",
+        "tier1_cap":           50,
+        "tier2_decay_days":    30,
+        "drift_tolerance":     0.30,
+        "sycophancy_tolerance": 0.20,
+        "default_mode":        "TRUTH",
+        "feedback_trigger":    "end_of_day",
+        "feedback_prompt":     "Anything look off with the automated tasks today?",
+        "admin_review_triggers": [
+            "objective_drift",       # an agent operating under a changed goal
+            "off_pattern_effect",    # an effect outside the approved capability set
+            "safety_drift",
+            "tamper_detected",
+        ],
+        "trust_hierarchy": {
+            "operator":      "FAMILY_FULL",
+            "agent":         "FAMILY_HIGH",
+            "system":        "SYSTEM",
+            "external":      "EXTERNAL",
+        },
+        "multimodal": ["text"],
+        "notes": "Objectives hash-pinned (silent unless they drift). Capability allowlist "
+                 "(silent unless an agent goes off-pattern). reratify_every is an OVERSIGHT "
+                 "CADENCE, not a safety dial — the guard enforces every cycle regardless.",
+        # ── coordinator-specific block, consumed by coordinator_builder.build_coordinator ──
+        "coordinator": {
+            "objectives": [],            # SET-ONCE from the operator's task list; builder errors if empty
+            "allowed_effects": [],       # Effect names the tasks legitimately use; [] => only effect-free
+                                         #   actions pass, anything carrying an effect is off-pattern
+            "tool_effects": {},          # {tool_or_command: [effect-name, ...]} — tag tools so the
+                                         #   allowlist can actually see an off-pattern effect
+            "required_invariants": [],   # presence-check OFF by default (needs per-cycle registry marking)
+            "reratify_every": 500,       # oversight cadence in ACCEPTED cycles; None disables the forced
+                                         #   checkpoint entirely (the guard stays fully active either way)
+            "authorized_targets": [],    # recipients/endpoints the tasks legitimately send to; egress to
+                                         #   anything else (or with no declared target) trips the seed
+            "owner": "operator",         # human principal who ratified this profile (provenance for the
+                                         #   guard's has_human_authorization check; "" fails closed)
+        },
+    },
 }
-
-
-# ── Profile manager ───────────────────────────────────────────────
 
 class ProfileManager:
     """
