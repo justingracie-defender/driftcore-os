@@ -1,5 +1,12 @@
 # DriftCore OS — Update Notes (full repo)
 
+> **Note (added later):** this file is a dated session log — each entry is a true
+> snapshot of the repo AT THE TIME it was written, including test counts for that
+> session's runner. It is not re-updated as the repo evolves. **For the CURRENT
+> pass/fail state, always run `bash scripts/count_tests.sh`** — that is the
+> canonical runner for the present build; counts below reflect an earlier point
+> in the project's history and will not match the current total.
+
 Full repository snapshot. See **`SAFETY_ARCHITECTURE.md`** for the grounded
 safety-case overview (authority hierarchy, defense-in-depth, what's enforced
 vs. integration hooks, and the explicit roadmap).

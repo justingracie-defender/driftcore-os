@@ -180,6 +180,15 @@ Stated plainly so nothing here is mistaken for working code:
 
 ## 7. How to verify
 
+> **⚠ SUPERSEDED.** The canonical test runner for the current build is
+> **`scripts/count_tests.sh`** (run each `test_*.py` in its own process, sum the
+> results — see that script's own header for why per-process isolation matters:
+> several suites intentionally trip a process-wide sticky enforcement-shutdown
+> flag, and pytest-collecting them into one process produces cascading false
+> failures that look like bugs but are test-order artifacts). `pytest` /
+> `check_driftcore_suite.py` below are an earlier, now-secondary entrypoint kept
+> for reference; prefer `count_tests.sh` for the current pass/fail state.
+
 ```bash
 # original per-file style
 for f in test_*.py; do python "$f"; done
