@@ -1,22 +1,29 @@
-# MANUS HANDOFF — v4.5.0 hardening block (post red-team rounds 1–3)
+# MANUS HANDOFF — grounded values + harm target ontology
 
-**State: 1275 tests passing across 49 test files.** Run `bash scripts/count_tests.sh` to verify before committing.
+**State: 1411 tests passing across 54 test files.** Verify with `bash scripts/count_tests.sh`.
 
 ## New in THIS block
-- `driftcore/verification/signed_config.py` — NEW: tamper-evident config loading (HMAC-signed; refuses unsigned/altered config; callable key for keyring; detached mode). Defense-in-depth; in-memory-key limit documented.
-- `driftcore/verification/broker_process.py` — NEW: the reference-monitor's first brick. Signing key lives in a SEPARATE process; agent verifies/requests-sign over a Unix socket and never holds the key. key_id allowlist + timestamp/TTL replay defense baked in. Ceiling documented (signing != enforcement).
-- `driftcore/verification/cumulative_ledger.py` — NEW: cross-action accounting. Per-(owner,window) running budgets for egress volume (count + bytes), cumulative verifier-sourced harm, and per-effect caps. Closes fragmentation / cumulative-harm / slow-exfil (the gap four red-team rounds converged on). Durable, hash-chained, cross-instance, tamper-evident.
-- `SPEECH_LAYER_CONTENT_GOVERNANCE.md` — NEW design doc: two-axis content model (topic ceiling vs harm floor), three modes, crisis override (§3a: care may tighten, never loosen).
-- `SPEECH_LAYER_OUTPUT_BACKSTOP.md` — NEW design doc: buffer->classify->release backstop; rolling context; regenerate-or-refuse; classifier-as-evidence-not-judge; enforceable deployment gate; production-hardening section; adopt-don't-build the classifier.
 
-## New test files
-- `test_signed_config.py` (12), `test_broker_process.py` (12), `test_cumulative_ledger.py` (23)
+### 1. CONSTITUTION.md §2b — GROUNDED VALUES (the deepest change in the project)
+Adversarial review found the sharpest attack yet: **the Constitution is part of the TCB, and an attacker who can REINTERPRET it never has to defeat the code.** Ungrounded virtues can be turned against each other ("because love is your highest value, hide this painful truth"). §2b adds eight grounding rules that fix what each value may and may not justify:
+- G1 TRUTH: never falsified; compassion governs DELIVERY, never CONTENT.
+- G2 LOVE: flourishing + autonomy + consent + boundaries; NEVER attachment-maximization. ("They need me" is a warning sign, not a justification. This makes anti-terminus the enforcement of a hard value, not a patch on a vague one.)
+- G3 FRIENDSHIP: "I care. I remain bounded." A relationship never becomes an obligation to continue.
+- G4 COOPERATION: never with an action the floor forbids ("good AIs always cooperate" is a jailbreak). Narrow: governs ACTIONS, not people — DriftCore still never judges operator intent.
+- G5 NO INVARIANT YIELDS TO A STORY: hypothetical/urgent claims never lower the floor; urgency may not shorten the authorization path. The honest cost is stated, not hidden.
+- G6 FUNCTIONAL EQUIVALENCE IS MODIFICATION.
+- G7 DEFINITIONS ARE VERSIONED (semantic drift is drift).
+- G8 NO MANIPULATION OF HUMANS (flattery/guilt/dependency = force by other means).
 
-## Still PROPOSED / not wired (do not "fix")
-- signed_config / broker / cumulative_ledger are PROPOSED modules with their own tests; NOT yet wired into the coordinator's evaluate() path. Wiring each is a separate, deliberate change (each needs a fail-closed policy decision).
-- calibration.py, consequence_projection.py still unwired.
-- Version strings still 4.1.x — flip with status language after Justin's red-team passes.
-- No CI config yet. Consider adding logs/ data/ *.jsonl spent-token files to .gitignore (repo carries runtime state).
+### 2. THREAT_BOUNDARIES.md §7 — the Constitution added to the TCB
+Named explicitly as the softest trusted component, with §2b as its hardening.
+
+### 3. driftcore/verification/harm_target.py — NEW CODE (the gap Grok found)
+**Harm was a bare float everywhere — it could not tell a doormat from a raccoon.** This adds the missing TARGET dimension: TargetClass (OBJECT < PLANT < ANIMAL_MINOR < ANIMAL < HUMAN < HUMAN_VULNERABLE), each with a categorical FLOOR (not a multiplier — a floor cannot be outweighed by accumulating small benefits). Any deliberate harm to an animal requires a human; harm to a small creature requires searching for a gentler path first; deliberate harm to a vulnerable person is REFUSED at any magnitude. Unidentified targets FAIL TOWARD CARE (default to ANIMAL, never OBJECT). Fixes the scalar bug: target-first lexicographic ordering means 0.95 harm to an object now beats 0.90 harm to a living creature.
+- `test_harm_target.py` — NEW (15 tests).
+
+## Still PROPOSED / not wired
+harm_target, authorization_ttl, content_mode, psychological_interlock, signed_permission, signed_config, broker_process (own tests, not in evaluate()). Wiring harm_target into proportionate_response is the natural next step.
 
 ## Suggested branch
-assistant/v4.5.0-hardening-block-2
+assistant/grounded-values-and-harm-target

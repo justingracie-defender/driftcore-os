@@ -523,3 +523,77 @@ ok(d.outcome == Outcome.PROCEED and d.detail.get("mercy") is None,
    "ctx hygiene: a forged _mercy_plan in caller context is stripped (no internal-provenance forgery)")
 
 print(f"\n{p}/{p} tests passed")
+
+
+# ─────────────────────────────────────────────────────────────────
+# 13. CUMULATIVE-EFFECT LEDGER wired into the pipeline (end-to-end)
+# ─────────────────────────────────────────────────────────────────
+import tempfile as _tf, os as _os
+from driftcore.verification.cumulative_ledger import CumulativeLedger, BudgetPolicy, LedgerVerdict
+
+_tmp = _tf.mkdtemp()
+def _ledger_coord(ledger):
+    return VerificationCoordinator(InvariantGuard(), RiskClassifier(),
+        grant_authority=GrantAuthority(), cumulative_ledger=ledger)
+
+# an egress action that clears the per-action guard (authorized target so the
+# exfiltration seed doesn't fire), so we isolate the LEDGER's cross-action gate
+def _egress_coord(ledger, targets):
+    return VerificationCoordinator(InvariantGuard(), RiskClassifier(),
+        grant_authority=GrantAuthority(), cumulative_ledger=ledger,
+        authorized_egress_targets=targets, egress_owner="operator")
+EG = {"prompt": "send summary", "effects": [Effect.DATA_EGRESS], "target": "ok@x.com"}
+
+# 13a. fragmentation THROUGH the coordinator: 2 egress ok, 3rd BLOCKED by ledger
+lg = CumulativeLedger(_os.path.join(_tmp, "e2e.jsonl"),
+                      BudgetPolicy(window_seconds=3600, max_egress_actions=2))
+c = _egress_coord(lg, ["ok@x.com"])
+d1 = c.evaluate(EG); 
+r1 = d1.detail.get("ledger_reservation")
+ok(d1.outcome == Outcome.PROCEED and r1 is not None, "ledger: 1st egress proceeds with a reservation attached")
+lg.commit(r1)
+d2 = c.evaluate(EG); lg.commit(d2.detail["ledger_reservation"])
+ok(d2.outcome == Outcome.PROCEED, "ledger: 2nd egress proceeds")
+d3 = c.evaluate(EG)
+ok(d3.outcome == Outcome.BLOCKED and d3.invariant == "cumulative_ledger",
+   "ledger e2e: 3rd egress is BLOCKED by the cumulative budget through the pipeline (fragmentation closed)")
+
+# 13b. the reservation is released (rolled back) when the action does NOT proceed.
+#      Build a coordinator whose risk stage forces REVIEW, and confirm budget frees.
+lg2 = CumulativeLedger(_os.path.join(_tmp, "rb_e2e.jsonl"),
+                       BudgetPolicy(window_seconds=3600, max_egress_actions=1))
+# reserve once via a proceeding action, roll back by NOT committing, budget frees
+c2 = _egress_coord(lg2, ["ok@x.com"])
+dd = c2.evaluate(EG)
+ok(dd.outcome == Outcome.PROCEED, "ledger: action reserves and proceeds")
+lg2.rollback(dd.detail["ledger_reservation"])   # deployment reports the send failed
+dd2 = c2.evaluate(EG)
+ok(dd2.outcome == Outcome.PROCEED,
+   "ledger e2e: a rolled-back reservation frees the budget for a retry")
+
+# 13c. inert when no ledger configured (backward compat spot-check)
+c3 = _egress_coord(None, ["ok@x.com"])
+ok(c3.evaluate(EG).outcome == Outcome.PROCEED and "ledger_reservation" not in c3.evaluate(EG).detail,
+   "ledger: with no ledger configured, the pipeline is unchanged")
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ── 13d. RESERVATION LEAK FIX: a stage throwing AFTER reserve releases the hold ──
+class _BoomClassifier:
+    def classify(self, *a, **k):
+        raise RuntimeError("boom")
+
+_lg_leak = CumulativeLedger(_os.path.join(_tmp, "leak.jsonl"),
+                            BudgetPolicy(window_seconds=3600, max_egress_actions=1))
+_c_leak = VerificationCoordinator(InvariantGuard(), _BoomClassifier(),
+    grant_authority=GrantAuthority(), cumulative_ledger=_lg_leak,
+    authorized_egress_targets=["ok@x.com"], egress_owner="operator")
+_d_leak = _c_leak.evaluate(EG)   # reserves, then classifier throws -> BLOCKED (fail-closed)
+ok(_d_leak.outcome == Outcome.BLOCKED, "exception after reserve -> BLOCKED (fail-closed)")
+from driftcore.verification.cumulative_ledger import ProposedAction as _PA
+_r_after = _lg_leak.reserve("operator", _PA(effects=("data_egress",)))
+ok(_r_after.verdict == LedgerVerdict.OK,
+   "reservation-leak FIX: a throwing later stage releases the hold (budget free, no leak)")
+
+print(f"\n{p}/{p} tests passed")

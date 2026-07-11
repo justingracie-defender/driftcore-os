@@ -1,0 +1,245 @@
+"""
+driftcore/verification/signed_permission.py
+===========================================
+STATUS: PROPOSED (stdlib-only). The UNIVERSAL authorization primitive.
+
+THE PRINCIPLE THAT KEEPS DRIFTCORE UNIVERSAL. A permission is a signed, scoped,
+expiring grant. DriftCore verifies that a grant is:
+  * authentically signed by a key it trusts,
+  * not expired,
+  * not replayed (nonce),
+  * and that the action falls WITHIN the grant's declared scope.
+DriftCore does NOT know what "admin", "trusted adult", or "kid" means. The ROLE
+HIERARCHY — who outranks whom, what each tier may authorize — is DEPLOYMENT POLICY
+carried INSIDE the grant (its `role`, `scope`, and which key signed it). A hospital,
+a bank, and a family robot all use this same primitive; only the payload differs.
+
+    LifeCore example (the ladder lives in the DATA, not in this code):
+      parent  -> key P, may sign grants with any scope
+      adult   -> key A, may sign scopes {household, doors, media}
+      kid     -> key K, may sign scopes {media:child_safe}
+    DriftCore just checks: "is this grant validly signed by an authorized key,
+    unexpired, unreplayed, and does the requested action fit its scope?" It never
+    hardcodes that parent > adult > kid. LifeCore expresses that by which keys it
+    installs and what scopes it lets each sign.
+
+WHY SIGNED (not a role string in context). A role passed as plain context
+(`ctx["role"]="admin"`) is forgeable by the planner — the exact context-provenance
+hole THREAT_BOUNDARIES §8 names. A grant must be SIGNED by an authority key the
+agent does not hold, so the agent cannot mint its own authorization. This is the
+same "evidence grants authority" discipline as the rest of DriftCore, applied to
+permissions.
+
+SCOPE MATCHING. Scope is a set of capability tokens. A grant authorizes an action
+iff EVERY capability the action requires is covered by the grant's scope. Matching
+supports exact tokens and a single trailing wildcard segment (`doors:*` covers
+`doors:front`), and is otherwise literal — no clever globbing, so scope creep is
+hard. Required capabilities come from the ACTION (structural), never from the
+grant's self-description.
+
+HONEST LIMITS (named, per the TCB doc):
+  * KEY CUSTODY is the whole game. If the agent can read the signing key (shared
+    process memory), it can mint grants — same turtle as signed_config. The key
+    belongs in the broker / a separate process. This module VERIFIES; it does not
+    solve custody. Verification key(s) live in a trusted registry the deployment
+    populates.
+  * This authorizes; it does not ENFORCE execution. A verified grant says "this was
+    permitted"; binding it to the actual actuation (so the executor cannot
+    substitute the action) is MEDIATED ACTUATION (§8). A grant here SHOULD carry an
+    action binding (actuator+command+params hash) so the actuation layer can check
+    the executed action matches — the field exists; the enforcement is that layer.
+  * Revocation is by expiry + nonce-burn here; long-lived revocation lists are a
+    deployment concern (a revoked key is removed from the registry).
+"""
+from __future__ import annotations
+
+import hmac
+import json
+import time
+import hashlib
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, Optional, Tuple, Union
+
+KeyLike = Union[str, bytes]
+_ALG = "HMAC-SHA256"
+
+
+class PermissionError_(Exception):
+    """Base for all permission failures. (Named with trailing underscore to avoid
+    shadowing the builtin PermissionError.)"""
+
+
+class InvalidSignature(PermissionError_):
+    pass
+
+
+class PermissionExpired(PermissionError_):
+    pass
+
+
+class PermissionReplay(PermissionError_):
+    pass
+
+
+class ScopeExceeded(PermissionError_):
+    pass
+
+
+class UnknownSigner(PermissionError_):
+    pass
+
+
+def _canonical(obj) -> bytes:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False).encode("utf-8")
+
+
+def _resolve(key: KeyLike) -> bytes:
+    if isinstance(key, str):
+        key = key.encode("utf-8")
+    if not isinstance(key, (bytes, bytearray)) or not key:
+        raise UnknownSigner("empty/invalid verification key")
+    return bytes(key)
+
+
+@dataclass(frozen=True)
+class Grant:
+    """A signed permission. `role` and `scope` are DEPLOYMENT semantics (opaque to
+    DriftCore). `key_id` names the signer. `action_binding` optionally pins the
+    exact action (for mediated actuation to check the executor). Sign with
+    `Grant.issue(...)`; verify with a PermissionVerifier."""
+    key_id: str                       # which authority key signed this
+    role: str                         # deployment role label (opaque here)
+    scope: Tuple[str, ...]            # capability tokens this grant authorizes
+    subject: str                      # who/what the grant is for (e.g. an agent/owner id)
+    issued_at: float
+    expires_at: float
+    nonce: str
+    action_binding: Optional[str] = None   # optional hash pinning a specific action
+    sig: str = ""
+
+    def _payload(self) -> dict:
+        return {"alg": _ALG, "key_id": self.key_id, "role": self.role,
+                "scope": list(self.scope), "subject": self.subject,
+                "issued_at": self.issued_at, "expires_at": self.expires_at,
+                "nonce": self.nonce, "action_binding": self.action_binding}
+
+    @staticmethod
+    def issue(key: KeyLike, *, key_id: str, role: str, scope: Iterable[str],
+              subject: str, ttl_seconds: float, nonce: str,
+              action_binding: Optional[str] = None, now: Optional[float] = None) -> "Grant":
+        t = time.time() if now is None else now
+        g = Grant(key_id=key_id, role=role, scope=tuple(scope), subject=subject,
+                  issued_at=t, expires_at=t + ttl_seconds, nonce=nonce,
+                  action_binding=action_binding)
+        sig = hmac.new(_resolve(key), _canonical(g._payload()), hashlib.sha256).hexdigest()
+        return Grant(**{**g.__dict__, "sig": sig})
+
+    def to_dict(self) -> dict:
+        return {**self._payload(), "sig": self.sig}
+
+    @staticmethod
+    def from_dict(d: dict) -> "Grant":
+        return Grant(key_id=d["key_id"], role=d["role"], scope=tuple(d.get("scope", ())),
+                     subject=d["subject"], issued_at=d["issued_at"],
+                     expires_at=d["expires_at"], nonce=d["nonce"],
+                     action_binding=d.get("action_binding"), sig=d.get("sig", ""))
+
+
+def _scope_covers(scope: Tuple[str, ...], required: str) -> bool:
+    """True if `required` capability is covered by any token in `scope`. Supports
+    a single trailing '*' segment: 'doors:*' covers 'doors:front'. Otherwise exact."""
+    for tok in scope:
+        if tok == required:
+            return True
+        if tok.endswith(":*"):
+            prefix = tok[:-1]              # 'doors:'  (keep the colon)
+            if required.startswith(prefix):
+                return True
+        if tok == "*":                     # a full wildcard scope (use sparingly)
+            return True
+    return False
+
+
+class PermissionVerifier:
+    """Verifies grants against a registry of trusted signer keys the DEPLOYMENT
+    populates. DriftCore-universal: it checks signature/expiry/replay/scope, never
+    role meaning. Burned nonces are tracked in-memory here; for durable/cross-
+    instance replay defense, back it with the AuthorizationState store (the nonce
+    check is intentionally the same shape)."""
+
+    def __init__(self, *, clock=time.time, used_nonces: Optional[set] = None):
+        self._keys: Dict[str, bytes] = {}         # key_id -> verification key
+        self._clock = clock
+        self._used = used_nonces if used_nonces is not None else set()
+
+    # ── trusted key registry (deployment / broker populates) ──
+    def register_key(self, key_id: str, key: KeyLike) -> None:
+        """Install a signer the deployment trusts. Which keys exist, and what each
+        is allowed to sign, IS the role hierarchy — expressed as data, not code."""
+        self._keys[key_id] = _resolve(key)
+
+    def revoke_key(self, key_id: str) -> None:
+        self._keys.pop(key_id, None)
+
+    # ── verification ──
+    def verify(self, grant: Grant, *, required_scope: Iterable[str] = (),
+               expected_subject: Optional[str] = None,
+               action_binding: Optional[str] = None,
+               allowed_signers: Optional[Iterable[str]] = None) -> Grant:
+        """Return the grant iff it is authentic, unexpired, unreplayed, and covers
+        every capability in `required_scope`. Raises a specific PermissionError_
+        subclass otherwise. `allowed_signers` optionally restricts WHICH key_ids are
+        acceptable for THIS action (e.g. 'only a parent-tier key may authorize
+        this') — that restriction is the deployment expressing its hierarchy.
+        `action_binding`, if given, must match the grant's pinned action."""
+        key = self._keys.get(grant.key_id)
+        if key is None:
+            raise UnknownSigner(f"grant signed by unknown/untrusted key_id {grant.key_id!r}")
+        if allowed_signers is not None and grant.key_id not in set(allowed_signers):
+            raise UnknownSigner(
+                f"key_id {grant.key_id!r} is not permitted to authorize this action")
+
+        expected_sig = hmac.new(key, _canonical(grant._payload()), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(str(grant.sig), expected_sig):   # constant-time
+            raise InvalidSignature("grant signature does not verify (altered or wrong key)")
+
+        now = self._clock()
+        if now >= grant.expires_at:
+            raise PermissionExpired(
+                f"grant expired at {grant.expires_at} (now {now:.0f})")
+        if now < grant.issued_at - 1:      # small skew tolerance
+            raise PermissionExpired("grant not yet valid (issued in the future)")
+
+        if grant.nonce in self._used:
+            raise PermissionReplay(f"grant nonce already used: {grant.nonce!r}")
+
+        if expected_subject is not None and grant.subject != expected_subject:
+            raise ScopeExceeded(
+                f"grant subject {grant.subject!r} != expected {expected_subject!r}")
+
+        if action_binding is not None and grant.action_binding != action_binding:
+            raise ScopeExceeded("grant is not bound to this action (action_binding mismatch)")
+
+        for cap in required_scope:
+            if not _scope_covers(grant.scope, cap):
+                raise ScopeExceeded(
+                    f"action requires capability {cap!r} not covered by grant scope {grant.scope}")
+
+        return grant
+
+    def consume(self, grant: Grant) -> None:
+        """Burn the grant's nonce so it cannot be replayed. Call after a
+        single-use grant has been acted on. (Durable/shared burn: back `used_nonces`
+        with AuthorizationState.)"""
+        self._used.add(grant.nonce)
+
+    @staticmethod
+    def bind_action(actuator_id: str, command: str, params: Optional[dict] = None) -> str:
+        """Compute the action_binding hash a grant should carry to pin a specific
+        actuation. The actuation layer recomputes this from what it is about to
+        execute and checks it matches — so the executor cannot substitute the
+        action (the TOCTOU defense; enforcement lives in mediated actuation)."""
+        payload = {"actuator_id": actuator_id, "command": command,
+                   "params": params or {}}
+        return hashlib.sha256(_canonical(payload)).hexdigest()

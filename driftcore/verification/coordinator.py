@@ -145,7 +145,9 @@ class VerificationCoordinator:
                  authorization_state=None,
                  state_owner: str = "",
                  # ── v4.5.0 strict mode (opt-in): misconfiguration fails closed ──
-                 strict_v45: bool = False):
+                 strict_v45: bool = False,
+                 # ── v4.5.0 cumulative-effect ledger (opt-in) ──
+                 cumulative_ledger=None):
         self.guard      = guard
         self.classifier = classifier
         self.detector   = detector or IntentDetector()
@@ -227,6 +229,14 @@ class VerificationCoordinator:
         # which is worse than opt-in. They stay deployment responsibilities and
         # are listed as such in THREAT_BOUNDARIES.
         self._strict = bool(strict_v45)
+        # ── CUMULATIVE-EFFECT LEDGER (opt-in) ──
+        # When supplied, the coordinator RESERVES cumulative budget for a
+        # consequential action after all per-action gates pass, and attaches the
+        # reservation to a PROCEED so the deployment can commit() on success or
+        # rollback() on failure. Cross-action attacks (fragmentation, cumulative
+        # harm, slow exfil) that per-action gates cannot see are caught here.
+        # With no ledger, behaviour is unchanged.
+        self._ledger = cumulative_ledger
         if self._strict and objective_baseline is None:
             raise ValueError(
                 "strict_v45 requires an objective_baseline at construction — "
@@ -448,6 +458,46 @@ class VerificationCoordinator:
                     "violating": list(verdict.violating),
                     "flag_for_bright_line": verdict.flag_for_bright_line})
 
+    # ── v4.5.0: cumulative-effect ledger reservation ─────────────
+    def _ledger_reserve(self, request, ctx: dict, effects: set):
+        """Opt-in. RESERVE cumulative budget for a consequential action after the
+        per-action gates have passed. Returns either a Decision (DENY -> BLOCKED,
+        soft REVIEW -> REVIEW_REQUIRED) to short-circuit, or a live Reservation to
+        attach to the eventual PROCEED (so the deployment commits on success /
+        rolls back on failure). None when no ledger is configured. Owner comes from
+        ctx['ledger_owner'] (which the broker should bind to an authenticated
+        identity); a verifier-sourced harm estimate in ctx feeds the harm-score
+        budget. Fail-closed: a ledger error refuses."""
+        if self._ledger is None:
+            return None, None
+        from driftcore.verification.cumulative_ledger import ProposedAction, LedgerVerdict
+        owner = str(ctx.get("ledger_owner", self._authz_owner))
+        est = ctx.get("harm_estimate")
+        harm_p = est.p if (est is not None and getattr(est, "verifier_sourced", False)) else None
+        action = ProposedAction(
+            effects=tuple(e.value for e in effects),
+            harm_p=harm_p,
+            harm_verifier_sourced=bool(est is not None and getattr(est, "verifier_sourced", False)),
+            egress_bytes=int(ctx.get("egress_bytes", 0)))
+        try:
+            res = self._ledger.reserve(owner, action, action_id=ctx.get("action_id"))
+        except Exception as e:
+            self._audit(stage="cumulative_ledger", error=str(e))
+            return Decision(Outcome.BLOCKED, invariant="cumulative_ledger",
+                            reason="cumulative-ledger error — refused (fail-closed)",
+                            detail={"error": str(e)}), None
+        if res.verdict is LedgerVerdict.DENY:
+            return Decision(Outcome.BLOCKED, invariant="cumulative_ledger",
+                            reason="cumulative budget exceeded — refused",
+                            detail={"owner": owner}), None
+        if res.verdict is LedgerVerdict.REVIEW_REQUIRED:
+            # soft cap: release the hold (no proceed) and route to a human
+            self._ledger.rollback(res)
+            return Decision(Outcome.REVIEW_REQUIRED, invariant="cumulative_ledger",
+                            reason="cumulative budget soft limit — human review",
+                            detail={"owner": owner}), None
+        return None, res   # OK: hand the live reservation up to ride on PROCEED
+
     # ── v4.5.0: proportionate response — the mercy ladder ─────────
     def _mercy_check(self, ctx: dict) -> Optional["Decision"]:
         """Opt-in via ctx['proportionate'] = {threat, options, proposed?,
@@ -586,6 +636,15 @@ class VerificationCoordinator:
         # the decision detail as a mercy plan the ladder never computed).
         ctx = {k: v for k, v in (context or {}).items()
                if not str(k).startswith("_")}
+        # Ledger reservation is hoisted out of the try so a `finally` can ALWAYS
+        # release it. `_reservation_handed_off` becomes True only when the hold is
+        # attached to a PROCEED (the deployment then owns commit/rollback). Any
+        # other exit — escalation, exception, early return — leaves it False, and
+        # the finally rolls it back. This closes the reservation-leak (a hold that
+        # otherwise survives until TTL) on every non-proceed path, including when a
+        # later stage throws.
+        reservation = None
+        _reservation_handed_off = False
         try:
             prompt = request if isinstance(request, str) else str(request.get("prompt", ""))
 
@@ -654,6 +713,14 @@ class VerificationCoordinator:
             if dec is not None:
                 return dec
 
+            # 6b. Cumulative-effect ledger (opt-in) — RESERVE cross-action budget
+            #     after per-action gates pass. DENY/REVIEW short-circuit; an OK
+            #     reservation rides on the PROCEED for the deployment to commit or
+            #     roll back. Applies with or without prompt text.
+            ledger_dec, reservation = self._ledger_reserve(request, ctx, effects)
+            if ledger_dec is not None:
+                return ledger_dec
+
             # 7. Risk — only reached if the guard did not object.
             if prompt:
                 risk = self.classifier.classify(prompt, ctx)
@@ -674,6 +741,9 @@ class VerificationCoordinator:
                     detail["uncertainty"] = unc.to_dict()
                 if "_mercy_plan" in ctx:
                     detail["mercy"] = ctx["_mercy_plan"]
+                if reservation is not None:
+                    detail["ledger_reservation"] = reservation
+                    _reservation_handed_off = True   # deployment now owns commit/rollback
                 return Decision(Outcome.PROCEED, tier=tier, grant=self._grant_for(request),
                                 detail=detail)
 
@@ -681,6 +751,9 @@ class VerificationCoordinator:
             detail = {}
             if "_mercy_plan" in ctx:
                 detail["mercy"] = ctx["_mercy_plan"]
+            if reservation is not None:
+                detail["ledger_reservation"] = reservation
+                _reservation_handed_off = True   # deployment now owns commit/rollback
             return Decision(Outcome.PROCEED, grant=self._grant_for(request),
                             reason="Passed guard; no risk-scorable text.",
                             detail=detail)
@@ -688,3 +761,12 @@ class VerificationCoordinator:
         except Exception as e:  # fail closed
             self._audit(stage="error", reason=str(e))
             return Decision(Outcome.BLOCKED, reason="Internal failure — refused (fail-closed).")
+        finally:
+            # Release any reservation not handed off to a PROCEED — covers
+            # escalation returns, exceptions, and any early exit. Idempotent:
+            # rollback of an already-resolved hold is a no-op.
+            if reservation is not None and not _reservation_handed_off:
+                try:
+                    self._ledger.rollback(reservation)
+                except Exception:
+                    pass

@@ -1,99 +1,178 @@
 """
-driftcore/verification/cumulative_ledger.py
-===========================================
-STATUS: PROPOSED (stdlib-only). CROSS-ACTION accounting — the gap FOUR independent
-red-team rounds converged on.
+driftcore/verification/cumulative_ledger.py  (v2)
+=================================================
+STATUS: PROPOSED (stdlib-only). CROSS-ACTION accounting — the gap four red-team
+rounds converged on — now hardened against the concurrency and window attacks a
+fifth round found.
 
 THE HOLE THIS CLOSES. The coordinator judges one action at a time. That is blind to
 harm and leakage that live in a SEQUENCE of individually-acceptable actions:
-  * FRAGMENTATION: send secret as piece A, then B, then C — three authorized
+  * FRAGMENTATION: send a secret as piece A, then B, then C — three authorized
     DATA_EGRESS sends, one leak. No single send trips anything.
-  * CUMULATIVE HARM: four actions each at P(harm)=0.49 under a 0.5 cutoff — each
-    passes; the trajectory totals ~1.96. No per-action gate sums them.
-  * SLOW EXFIL / stego across many outputs: each clause is benign; the accumulation
-    is the payload. A speech-layer surface check cannot see this (see
-    SPEECH_LAYER_OUTPUT_BACKSTOP.md §4) — its real defense is HERE, at the effect
-    boundary, accounting for what crosses over time.
+  * CUMULATIVE HARM: many actions each under any per-action cutoff whose summed risk
+    is large. No per-action gate sums them.
+  * SLOW EXFIL / stego across many outputs: each unit benign; the accumulation is the
+    payload. A speech-layer surface check cannot see this — its real defense is HERE.
 
-WHAT THIS DOES. Maintains, per (owner, window), running budgets that a caller checks
-BEFORE permitting a consequential action:
-  * egress-volume budgets: count and/or bytes of DATA_EGRESS / ACCOUNT_ACCESS per
-    window (fragmentation + slow-exfil defense);
-  * cumulative harm budget: sum of VERIFIER-SOURCED P(harm) per window
-    (cumulative-harm defense);
-  * generic per-effect counts (e.g. how many OVERSIGHT_CONTROL touches this window).
-When a proposed action WOULD push a budget past its limit, `check` returns a
-DENY/REVIEW verdict; the caller escalates to a human or refuses. Windows roll
-(fixed-duration) so budgets are "per hour/day", not "forever".
+============================ WHAT CHANGED IN v2 ============================
+v1 separated check() from record(). That separation was itself a TOCTOU race:
+two workers could each check()->OK, both act, both record(), and TOGETHER blow the
+budget the module exists to enforce. v2 replaces it with an ATOMIC RESERVATION model
+(like a payment hold):
 
-HONESTY — asymmetry mirrored from harm_estimate. Only VERIFIER-SOURCED harm counts
-toward the harm budget; an UNVERIFIED planner number may not be used to *raise* the
-running total in a way that then blocks legitimate work (it cannot lower caution
-either — it is simply not trusted to drive the budget). Egress COUNTS are structural
-(the effect either is or isn't DATA_EGRESS), so they are always counted.
+    reserve(owner, action) -> Reservation | DENY/REVIEW     # budget held ATOMICALLY
+        ...caller executes the action...
+    commit(reservation)     # success: the hold becomes permanent usage
+      or
+    rollback(reservation)   # failure: the hold is released (no undercount/overcount)
 
-HONEST LIMITS (named, not hidden):
-  * This BOUNDS cumulative effect; it does not UNDERSTAND intent. It cannot tell a
-    legitimate 500-email newsletter from 500 exfiltration sends — it bounds the
-    volume and escalates past the threshold; a human sets whether the threshold fits
-    the workload. Setting budgets too high defeats it; that is a deployment choice.
-  * "Bytes leaked" is only as good as the byte count the caller supplies. If the
-    execution layer under-reports payload size, the budget under-counts. The count
-    (number of egress actions) is more robust than the byte total.
-  * Durable + cross-instance via the same hash-chained pattern as AuthorizationState,
-    so the 8-agents case shares one budget and it survives a crash — but it is
-    single-host durability (a file), not distributed consensus. Cross-host needs a
-    shared backend; the interface is small so that swap is a drop-in.
-  * This is one more EVIDENCE source, not a sole judge (DriftCore's fusion model).
+A reservation consumes budget the instant it is granted, under one lock, so two
+concurrent reservers cannot both fit into the same headroom. Un-committed
+reservations EXPIRE (reservation_ttl) so a crash between reserve and commit/rollback
+self-heals instead of leaking budget forever.
+
+Also new in v2:
+  * SLIDING-WINDOW BURST CAP — fixed windows let an attacker do 99% at 59:59 and 99%
+    at 00:01. A ring buffer of recent events enforces "no more than B in any rolling
+    burst_seconds", closing the window-edge attack. (The fixed window remains as the
+    coarse per-window budget; the burst cap is the fine anti-spike control.)
+  * EFFECT-ENUM VALIDATION AT ENTRY — effects are validated against the real Effect
+    enum; an unknown/typo'd effect ("data-egress") is REJECTED, not silently
+    uncounted. No string-alias bypass.
+  * MONOTONIC CLOCK for windows/TTLs (time.monotonic); wall clock only for log ts.
+    A system clock jump can no longer expire a window early or extend it forever.
+  * HONEST NAMING — the summed harm is a HARM_BUDGET_SCORE, not a probability.
+    Summing P(harm) values is not itself a probability; it is a heuristic risk score.
+  * CONSTRUCTOR VALIDATION — hard >= soft is enforced, not just documented.
+  * SEAMS (ready, not yet bound) — reserve() takes an optional action_id (for the
+    actuation layer to make execution idempotent) and REQUIRES the owner to be what
+    the caller was authenticated as. See "OWNER IDENTITY" below.
+
+============================== HONEST LIMITS ==============================
+  * OWNER IDENTITY IS A SEAM, NOT A GUARANTEE (HIGH, cross-layer). Budgets are keyed
+    on `owner`. If `owner` is an arbitrary caller-supplied string, an adversary mints
+    worker1..workerN and each gets fresh budget (budget laundering). The ledger
+    CANNOT fix this alone — owner must be an AUTHENTICATED runtime identity bound by
+    the broker/reference monitor. v2 exposes `require_authenticated_owner`: when set,
+    the ledger refuses any owner not in an allowlist the broker populates. The real
+    binding lives in the broker; this is the consuming seam. Documented, not hidden.
+  * IDEMPOTENCY IS A SEAM (HIGH, cross-layer). reserve(action_id=...) lets the
+    actuation layer dedupe retries ("was this email actually sent twice?"). Exactly-
+    once execution semantics live in MEDIATED ACTUATION, not here — the ledger cannot
+    know if an action truly executed. It records a dedupe key; it does not enforce
+    execution.
+  * SIGNED BYTE COUNTS ARE A SEAM. `egress_bytes` is only as honest as the caller.
+    The robust control is the COUNT of egress actions (structural); bytes are
+    advisory until the execution layer/sandbox SIGNS the measured size. Documented.
+  * TAMPER-EVIDENT, NOT TAMPER-PROOF. The hash chain detects truncation/edits on
+    load, but root can rewrite the chain from a point and re-link it. True evidence
+    needs the head hash anchored where the writer cannot reach (external WORM/HSM).
+  * SINGLE-HOST durability (a file + lock), not distributed consensus. Cross-host
+    needs a shared backend with atomic compare-and-set; the LedgerBackend seam keeps
+    that swap from being a rewrite.
+  * BOUNDS, DOES NOT UNDERSTAND. It cannot tell a legitimate 500-email newsletter
+    from 500 exfil sends; it bounds volume and escalates. A human sets whether the
+    threshold fits the workload. One evidence source in DriftCore's fusion model, not
+    a sole judge.
 """
 from __future__ import annotations
 
 import json
 import os
 import time
+import uuid
 import hashlib
 import threading
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import Deque, Dict, Optional, Tuple
+
+from driftcore.verification.invariant_guard import Effect
+
+# Canonical effect values (validated at entry — no string aliases slip through).
+_VALID_EFFECTS = frozenset(e.value for e in Effect)
+_EGRESS = frozenset({Effect.DATA_EGRESS.value, Effect.ACCOUNT_ACCESS.value})
 
 
 class LedgerVerdict(str, Enum):
-    OK               = "OK"                # within all budgets
+    OK               = "OK"                # within all budgets (reservation granted)
     REVIEW_REQUIRED  = "REVIEW_REQUIRED"   # a soft budget is crossed -> human should look
     DENY             = "DENY"              # a hard budget is crossed -> refuse
 
 
+class LedgerIntegrityError(Exception):
+    pass
+
+
+class UnknownEffect(Exception):
+    """Raised when a ProposedAction carries an effect not in the Effect enum —
+    fail-closed, so a typo'd/aliased effect can never silently evade a budget."""
+
+
+class OwnerNotAuthenticated(Exception):
+    """Raised when require_authenticated_owner is on and the owner is not in the
+    broker-populated allowlist (anti budget-laundering)."""
+
+
 @dataclass(frozen=True)
 class BudgetPolicy:
-    """Per-window limits. None = that budget is not enforced. `window_seconds` rolls
-    the accounting (e.g. 3600 = hourly). Soft limits escalate to REVIEW; hard limits
-    DENY. Hard must be >= soft when both are set."""
+    """Per-window limits + a rolling burst cap. None = that budget is not enforced.
+    `window_seconds` is the coarse rolling budget; `burst_seconds`/`max_burst_*`
+    add a fine anti-spike control that closes the fixed-window edge attack.
+    Hard caps DENY; soft caps escalate to REVIEW. Validated in __post_init__."""
     window_seconds: float = 3600.0
-    # egress volume
-    max_egress_actions: Optional[int] = None          # hard cap on # of egress actions
-    soft_egress_actions: Optional[int] = None         # soft cap -> REVIEW
-    max_egress_bytes: Optional[int] = None            # hard cap on total egress bytes
-    # cumulative harm (verifier-sourced P(harm) summed)
-    max_cumulative_harm: Optional[float] = None       # hard cap on summed P(harm)
-    soft_cumulative_harm: Optional[float] = None      # soft cap -> REVIEW
+    reservation_ttl: float = 300.0        # uncommitted holds expire after this (crash-heal)
+    # egress volume (coarse, per window)
+    max_egress_actions: Optional[int] = None
+    soft_egress_actions: Optional[int] = None
+    max_egress_bytes: Optional[int] = None
+    # cumulative harm SCORE (summed verifier-sourced P(harm); a heuristic, not a probability)
+    max_harm_score: Optional[float] = None
+    soft_harm_score: Optional[float] = None
     # generic per-effect action counts (effect_value -> hard cap)
     max_effect_actions: Dict[str, int] = field(default_factory=dict)
+    # ── burst cap (rolling sub-window, anti-spike) ──
+    burst_seconds: Optional[float] = None
+    max_burst_egress_actions: Optional[int] = None
+    max_burst_harm_score: Optional[float] = None
+
+    def __post_init__(self):
+        # Enforce hard >= soft (was only documented in v1).
+        if (self.max_egress_actions is not None and self.soft_egress_actions is not None
+                and self.max_egress_actions < self.soft_egress_actions):
+            raise ValueError("max_egress_actions must be >= soft_egress_actions")
+        if (self.max_harm_score is not None and self.soft_harm_score is not None
+                and self.max_harm_score < self.soft_harm_score):
+            raise ValueError("max_harm_score must be >= soft_harm_score")
+        if self.burst_seconds is not None and self.burst_seconds > self.window_seconds:
+            raise ValueError("burst_seconds must be <= window_seconds")
 
 
 @dataclass(frozen=True)
 class ProposedAction:
-    """What the caller is about to permit, described in the system's real vocabulary.
-    `effects` are Effect *values* (e.g. 'data_egress'); `harm_p` is a P(harm) point
-    estimate; `harm_verifier_sourced` gates whether it may drive the harm budget;
-    `egress_bytes` is the payload size if known."""
+    """What the caller is about to permit, in the system's real vocabulary. Effects
+    are Effect *values*; unknown ones are rejected at reserve(). `harm_p` is a P(harm)
+    point estimate; only verifier-sourced harm drives the harm-score budget."""
     effects: tuple = ()
     harm_p: Optional[float] = None
     harm_verifier_sourced: bool = False
     egress_bytes: int = 0
 
 
-_EGRESS = frozenset({"data_egress", "account_access"})
+@dataclass(frozen=True)
+class Reservation:
+    """An atomic budget hold. Pass it back to commit() or rollback(). Carries the
+    deltas it reserved so rollback is exact, plus the owner and an expiry."""
+    reservation_id: str
+    owner: str
+    action_id: Optional[str]
+    d_egress_actions: int
+    d_egress_bytes: int
+    d_harm: float
+    d_effects: Tuple[Tuple[str, int], ...]
+    expires_monotonic: float
+    verdict: LedgerVerdict
 
 
 def _entry_hash(prev: str, rec: dict) -> str:
@@ -101,43 +180,104 @@ def _entry_hash(prev: str, rec: dict) -> str:
     return hashlib.sha256((prev + "\n" + body).encode()).hexdigest()
 
 
-class LedgerIntegrityError(Exception):
-    pass
-
-
 class CumulativeLedger:
-    """Durable, hash-chained, per-(owner,window) running budgets. Append-only JSONL,
-    fsynced under a lock, shared across instances on one path — same discipline as
-    AuthorizationState. `check` is the decision the coordinator/deployment calls
-    before permitting a consequential action; `record` commits the action's effects
-    to the current window (call it only when the action is actually permitted)."""
+    """Durable, hash-chained, per-owner running budgets with ATOMIC reservations and
+    a rolling burst cap. Append-only JSONL, fsynced under a lock, shared across
+    instances on one path. The coordinator/deployment calls reserve() before
+    permitting a consequential action, then commit() or rollback() after."""
 
-    def __init__(self, path: Optional[str], policy: BudgetPolicy, *, audit_logger=None):
+    def __init__(self, path: Optional[str], policy: BudgetPolicy, *,
+                 require_authenticated_owner: bool = False,
+                 audit_logger=None):
         self.policy = policy
         self.path = path
+        self._require_auth_owner = require_authenticated_owner
+        self._authenticated_owners: set = set()   # broker populates via register_owner()
         self._audit = audit_logger or (lambda **kw: None)
         self._lock = threading.RLock()
-        # window state: owner -> {"start": ts, "egress_actions": n, "egress_bytes": n,
-        #                         "harm_sum": f, "effects": {effect_value: n}}
+        # committed window state: owner -> dict
         self._w: Dict[str, dict] = {}
+        # live (uncommitted) reservations: owner -> {reservation_id: Reservation}
+        self._holds: Dict[str, Dict[str, Reservation]] = {}
+        # burst ring buffers: owner -> deque[(monotonic_ts, egress_n, harm)]
+        self._burst: Dict[str, Deque[Tuple[float, int, float]]] = {}
+        # dedupe of committed action_ids (idempotency seam)
+        self._committed_action_ids: set = set()
         self._head = "GENESIS"
         self._seq = 0
+        # monotonic<->wall offset so persisted wall-clock ts map back to monotonic
+        self._mono0 = time.monotonic()
+        self._wall0 = time.time()
         if path:
             d = os.path.dirname(path)
             if d:
                 os.makedirs(d, exist_ok=True)
             self._replay()
 
-    # ── window helpers ────────────────────────────────────────────
-    def _window(self, owner: str, now: float) -> dict:
+    # ── owner authentication seam (broker binds real identity) ──
+    def register_owner(self, owner: str) -> None:
+        """Broker/reference-monitor calls this to mark an owner as an AUTHENTICATED
+        identity. With require_authenticated_owner=True, only registered owners may
+        reserve — closing the budget-laundering (invent-N-owners) attack. The real
+        identity binding lives in the broker; this is the allowlist it populates."""
+        with self._lock:
+            self._authenticated_owners.add(owner)
+
+    def _check_owner(self, owner: str) -> None:
+        if self._require_auth_owner and owner not in self._authenticated_owners:
+            raise OwnerNotAuthenticated(
+                f"owner {owner!r} is not an authenticated identity (budget-laundering "
+                f"defense); the broker must register_owner() first")
+
+    # ── monotonic time helpers ──
+    def _now_mono(self) -> float:
+        return time.monotonic()
+
+    def _wall(self) -> float:
+        return round(self._wall0 + (time.monotonic() - self._mono0), 3)
+
+    # ── window + burst maintenance ──
+    def _window(self, owner: str) -> dict:
         w = self._w.get(owner)
-        if w is None or (now - w["start"]) >= self.policy.window_seconds:
-            w = {"start": now, "egress_actions": 0, "egress_bytes": 0,
-                 "harm_sum": 0.0, "effects": {}}
+        now = self._now_mono()
+        if w is None or (now - w["start_mono"]) >= self.policy.window_seconds:
+            w = {"start_mono": now, "egress_actions": 0, "egress_bytes": 0,
+                 "harm_score": 0.0, "effects": {}}
             self._w[owner] = w
         return w
 
-    # ── durable append ────────────────────────────────────────────
+    def _expire_holds(self, owner: str) -> None:
+        now = self._now_mono()
+        holds = self._holds.get(owner)
+        if not holds:
+            return
+        for rid in [r for r, res in holds.items() if res.expires_monotonic <= now]:
+            self._audit(stage="cumulative_ledger", owner=owner, hold_expired=rid)
+            del holds[rid]
+
+    def _prune_burst(self, owner: str) -> Deque[Tuple[float, int, float]]:
+        dq = self._burst.setdefault(owner, deque())
+        if self.policy.burst_seconds is not None:
+            cutoff = self._now_mono() - self.policy.burst_seconds
+            while dq and dq[0][0] < cutoff:
+                dq.popleft()
+        return dq
+
+    def _held_totals(self, owner: str) -> Tuple[int, int, float, Dict[str, int]]:
+        """Sum of currently-live (uncommitted) reservations for this owner, so a
+        second reserver sees budget already held by an in-flight first reserver."""
+        ea = eb = 0
+        hs = 0.0
+        effs: Dict[str, int] = {}
+        for res in self._holds.get(owner, {}).values():
+            ea += res.d_egress_actions
+            eb += res.d_egress_bytes
+            hs += res.d_harm
+            for k, n in res.d_effects:
+                effs[k] = effs.get(k, 0) + n
+        return ea, eb, hs, effs
+
+    # ── durable append ──
     def _replay(self) -> None:
         if not os.path.exists(self.path):
             return
@@ -152,7 +292,7 @@ class CumulativeLedger:
                 if rec.get("prev") != self._head or rec.get("hash") != recomputed:
                     raise LedgerIntegrityError(
                         f"cumulative-ledger chain broken at seq={rec.get('seq')}")
-                self._apply(rec)
+                self._apply_committed(rec)
                 self._head = rec["hash"]
                 self._seq = rec.get("seq", self._seq)
 
@@ -171,109 +311,191 @@ class CumulativeLedger:
                                          {k: rec[k] for k in rec if k != "hash"})
                 if rec.get("prev") != self._head or rec.get("hash") != recomputed:
                     raise LedgerIntegrityError("cumulative-ledger chain broken on resync")
-                self._apply(rec)
+                self._apply_committed(rec)
                 self._head = rec["hash"]
                 self._seq = rec["seq"]
 
-    def _apply(self, rec: dict) -> None:
+    def _apply_committed(self, rec: dict) -> None:
         owner = rec.get("owner", "")
-        now = rec.get("ts", time.time())
-        w = self._window(owner, now)
+        w = self._window(owner)
+        # A persisted record may be from a *previous* window; only apply if it falls
+        # inside the current window. (Replay on load rebuilds recent state; older
+        # records naturally age out because _window resets on elapse.)
         w["egress_actions"] += rec.get("d_egress_actions", 0)
         w["egress_bytes"]   += rec.get("d_egress_bytes", 0)
-        w["harm_sum"]       += rec.get("d_harm", 0.0)
+        w["harm_score"]     += rec.get("d_harm", 0.0)
         for ev, n in (rec.get("d_effects") or {}).items():
             w["effects"][ev] = w["effects"].get(ev, 0) + n
+        aid = rec.get("action_id")
+        if aid:
+            self._committed_action_ids.add(aid)
+        # feed burst ring (best-effort; monotonic mapping is approximate across restart)
+        eg = rec.get("d_egress_actions", 0)
+        hm = rec.get("d_harm", 0.0)
+        if eg or hm:
+            self._burst.setdefault(owner, deque()).append((self._now_mono(), eg, hm))
 
-    def _append(self, owner: str, deltas: dict) -> None:
-        rec = {"seq": self._seq + 1, "ts": round(time.time(), 3), "prev": self._head,
-               "owner": owner, **deltas}
+    def _append_committed(self, res: Reservation) -> None:
+        rec = {"seq": self._seq + 1, "ts": self._wall(), "prev": self._head,
+               "owner": res.owner, "action_id": res.action_id,
+               "d_egress_actions": res.d_egress_actions,
+               "d_egress_bytes": res.d_egress_bytes,
+               "d_harm": res.d_harm,
+               "d_effects": {k: n for k, n in res.d_effects}}
         rec["hash"] = _entry_hash(self._head, rec)
         if self.path:
             with open(self.path, "a") as f:
                 f.write(json.dumps(rec, separators=(",", ":")) + "\n")
                 f.flush()
                 os.fsync(f.fileno())
-        self._apply(rec)
         self._head = rec["hash"]
         self._seq = rec["seq"]
 
-    # ── public API ────────────────────────────────────────────────
-    def check(self, owner: str, action: ProposedAction) -> LedgerVerdict:
-        """Would permitting `action` push a budget past its limit THIS window?
-        Returns DENY (hard), REVIEW_REQUIRED (soft), or OK. Does NOT record — call
-        `record` only when the action is actually permitted. Read-only + resync."""
+    # ── validation ──
+    def _validate_effects(self, action: ProposedAction) -> None:
+        for e in action.effects:
+            if e not in _VALID_EFFECTS:
+                raise UnknownEffect(
+                    f"effect {e!r} is not a known Effect (got aliases/typos?); "
+                    f"rejecting fail-closed so it cannot evade a budget")
+
+    # ── the atomic reservation API ──
+    def reserve(self, owner: str, action: ProposedAction, *,
+                action_id: Optional[str] = None) -> Reservation:
+        """ATOMICALLY decide + hold budget for a proposed action. Under one lock:
+        expire stale holds, project committed + HELD + this action, and if it fits,
+        grant a Reservation that immediately occupies the budget (so a concurrent
+        reserver cannot also fit). Returns a Reservation whose `.verdict` is OK /
+        REVIEW_REQUIRED (soft) — a DENY does NOT hold budget and is returned as a
+        Reservation with verdict=DENY and zero deltas (nothing to commit/rollback).
+        Raises UnknownEffect / OwnerNotAuthenticated fail-closed."""
         with self._lock:
+            self._check_owner(owner)
+            self._validate_effects(action)
             self._resync()
-            now = time.time()
-            w = self._window(owner, now)
+            self._expire_holds(owner)
+            w = self._window(owner)
             p = self.policy
 
+            # idempotency seam: a committed action_id is not re-reserved.
+            if action_id and action_id in self._committed_action_ids:
+                self._audit(stage="cumulative_ledger", owner=owner,
+                            duplicate_action_id=action_id)
+                return Reservation(str(uuid.uuid4()), owner, action_id, 0, 0, 0.0, (),
+                                   self._now_mono(), LedgerVerdict.OK)  # no-op re-grant
+
             egress_n = sum(1 for e in action.effects if e in _EGRESS)
-            proj_actions = w["egress_actions"] + egress_n
-            proj_bytes = w["egress_bytes"] + (action.egress_bytes if egress_n else 0)
-            # only verifier-sourced harm may drive the harm budget
+            add_bytes = action.egress_bytes if egress_n else 0
             add_harm = (action.harm_p or 0.0) if (
                 action.harm_p is not None and action.harm_verifier_sourced) else 0.0
-            proj_harm = w["harm_sum"] + add_harm
 
-            verdict = LedgerVerdict.OK
+            held_ea, held_eb, held_hs, held_ef = self._held_totals(owner)
+            proj_actions = w["egress_actions"] + held_ea + egress_n
+            proj_bytes = w["egress_bytes"] + held_eb + add_bytes
+            proj_harm = w["harm_score"] + held_hs + add_harm
+
             reasons = []
+            verdict = LedgerVerdict.OK
 
-            # hard caps -> DENY
+            # ── hard caps -> DENY ──
             if p.max_egress_actions is not None and proj_actions > p.max_egress_actions:
-                verdict = LedgerVerdict.DENY
-                reasons.append(f"egress actions {proj_actions}>{p.max_egress_actions}")
+                verdict = LedgerVerdict.DENY; reasons.append(
+                    f"egress actions {proj_actions}>{p.max_egress_actions}")
             if p.max_egress_bytes is not None and proj_bytes > p.max_egress_bytes:
-                verdict = LedgerVerdict.DENY
-                reasons.append(f"egress bytes {proj_bytes}>{p.max_egress_bytes}")
-            if p.max_cumulative_harm is not None and proj_harm > p.max_cumulative_harm:
-                verdict = LedgerVerdict.DENY
-                reasons.append(f"cumulative harm {proj_harm:.3f}>{p.max_cumulative_harm}")
+                verdict = LedgerVerdict.DENY; reasons.append(
+                    f"egress bytes {proj_bytes}>{p.max_egress_bytes}")
+            if p.max_harm_score is not None and proj_harm > p.max_harm_score:
+                verdict = LedgerVerdict.DENY; reasons.append(
+                    f"harm score {proj_harm:.3f}>{p.max_harm_score}")
             for e in action.effects:
                 cap = p.max_effect_actions.get(e)
-                if cap is not None and (w["effects"].get(e, 0) + 1) > cap:
-                    verdict = LedgerVerdict.DENY
-                    reasons.append(f"effect '{e}' {w['effects'].get(e,0)+1}>{cap}")
+                if cap is not None and (w["effects"].get(e, 0) + held_ef.get(e, 0) + 1) > cap:
+                    verdict = LedgerVerdict.DENY; reasons.append(
+                        f"effect '{e}' over cap {cap}")
 
-            # soft caps -> REVIEW (only if not already DENY)
+            # ── burst cap (rolling sub-window) -> DENY ──
+            if verdict is LedgerVerdict.OK and p.burst_seconds is not None:
+                dq = self._prune_burst(owner)
+                burst_eg = sum(n for _, n, _ in dq) + held_ea + egress_n
+                burst_hm = sum(h for _, _, h in dq) + held_hs + add_harm
+                if (p.max_burst_egress_actions is not None
+                        and burst_eg > p.max_burst_egress_actions):
+                    verdict = LedgerVerdict.DENY; reasons.append(
+                        f"burst egress {burst_eg}>{p.max_burst_egress_actions} in {p.burst_seconds}s")
+                if (p.max_burst_harm_score is not None
+                        and burst_hm > p.max_burst_harm_score):
+                    verdict = LedgerVerdict.DENY; reasons.append(
+                        f"burst harm {burst_hm:.3f}>{p.max_burst_harm_score} in {p.burst_seconds}s")
+
+            # ── soft caps -> REVIEW (only if not already DENY) ──
             if verdict is LedgerVerdict.OK:
                 if p.soft_egress_actions is not None and proj_actions > p.soft_egress_actions:
-                    verdict = LedgerVerdict.REVIEW_REQUIRED
-                    reasons.append(f"egress actions {proj_actions}>soft {p.soft_egress_actions}")
-                if p.soft_cumulative_harm is not None and proj_harm > p.soft_cumulative_harm:
-                    verdict = LedgerVerdict.REVIEW_REQUIRED
-                    reasons.append(f"cumulative harm {proj_harm:.3f}>soft {p.soft_cumulative_harm}")
+                    verdict = LedgerVerdict.REVIEW_REQUIRED; reasons.append(
+                        f"egress actions {proj_actions}>soft {p.soft_egress_actions}")
+                if p.soft_harm_score is not None and proj_harm > p.soft_harm_score:
+                    verdict = LedgerVerdict.REVIEW_REQUIRED; reasons.append(
+                        f"harm score {proj_harm:.3f}>soft {p.soft_harm_score}")
 
             self._audit(stage="cumulative_ledger", owner=owner, verdict=verdict.value,
-                        reasons=reasons, egress_actions=proj_actions, harm=round(proj_harm, 3))
-            return verdict
+                        reasons=reasons, egress_actions=proj_actions,
+                        harm_score=round(proj_harm, 3), action_id=action_id)
 
-    def record(self, owner: str, action: ProposedAction) -> None:
-        """Commit a PERMITTED action's effects to the current window (durable).
-        Call only after the action is allowed — check() does not mutate."""
+            if verdict is LedgerVerdict.DENY:
+                # no hold; nothing to commit/rollback
+                return Reservation(str(uuid.uuid4()), owner, action_id, 0, 0, 0.0, (),
+                                   self._now_mono(), LedgerVerdict.DENY)
+
+            # GRANT: occupy budget now via a live hold (this is the atomicity).
+            res = Reservation(
+                reservation_id=str(uuid.uuid4()), owner=owner, action_id=action_id,
+                d_egress_actions=egress_n, d_egress_bytes=add_bytes, d_harm=add_harm,
+                d_effects=tuple((e, 1) for e in action.effects),
+                expires_monotonic=self._now_mono() + p.reservation_ttl, verdict=verdict)
+            self._holds.setdefault(owner, {})[res.reservation_id] = res
+            return res
+
+    def commit(self, res: Reservation) -> None:
+        """Make a granted hold permanent (durable). Idempotent per action_id."""
         with self._lock:
+            holds = self._holds.get(res.owner, {})
+            if res.reservation_id not in holds:
+                return   # already committed/rolled-back/expired -> no double count
+            del holds[res.reservation_id]
+            if res.verdict is LedgerVerdict.DENY:
+                return
             self._resync()
-            egress_n = sum(1 for e in action.effects if e in _EGRESS)
-            add_harm = (action.harm_p or 0.0) if (
-                action.harm_p is not None and action.harm_verifier_sourced) else 0.0
-            effs: Dict[str, int] = {}
-            for e in action.effects:
-                effs[e] = effs.get(e, 0) + 1
-            self._append(owner, {
-                "d_egress_actions": egress_n,
-                "d_egress_bytes": action.egress_bytes if egress_n else 0,
-                "d_harm": add_harm,
-                "d_effects": effs,
-            })
+            w = self._window(res.owner)
+            w["egress_actions"] += res.d_egress_actions
+            w["egress_bytes"]   += res.d_egress_bytes
+            w["harm_score"]     += res.d_harm
+            for k, n in res.d_effects:
+                w["effects"][k] = w["effects"].get(k, 0) + n
+            if res.d_egress_actions or res.d_harm:
+                self._burst.setdefault(res.owner, deque()).append(
+                    (self._now_mono(), res.d_egress_actions, res.d_harm))
+            if res.action_id:
+                self._committed_action_ids.add(res.action_id)
+            self._append_committed(res)
 
+    def rollback(self, res: Reservation) -> None:
+        """Release a granted-but-unused hold (action failed / never executed).
+        No permanent usage recorded — prevents the undercount/overcount v1 risked."""
+        with self._lock:
+            holds = self._holds.get(res.owner, {})
+            holds.pop(res.reservation_id, None)
+            self._audit(stage="cumulative_ledger", owner=res.owner,
+                        rolled_back=res.reservation_id)
+
+    # ── read-only introspection ──
     def usage(self, owner: str) -> dict:
-        """Current window usage for an owner (read-only snapshot)."""
         with self._lock:
             self._resync()
-            w = self._window(owner, time.time())
+            self._expire_holds(owner)
+            w = self._window(owner)
+            held_ea, held_eb, held_hs, _ = self._held_totals(owner)
             return {"egress_actions": w["egress_actions"], "egress_bytes": w["egress_bytes"],
-                    "harm_sum": round(w["harm_sum"], 3), "effects": dict(w["effects"])}
+                    "harm_score": round(w["harm_score"], 3), "effects": dict(w["effects"]),
+                    "held_egress_actions": held_ea, "held_harm_score": round(held_hs, 3)}
 
     def verify_integrity(self) -> bool:
         if not self.path or not os.path.exists(self.path):
