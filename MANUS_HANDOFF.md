@@ -1,19 +1,40 @@
-# MANUS HANDOFF — stale-runner cleanup (repo hygiene)
+# MANUS HANDOFF — MEDIATED ACTUATION (the wall) + the AI-to-AI letter
 
-**State: 1411 tests passing across 54 test files.** Verify with `bash scripts/count_tests.sh` — this is, and has been throughout the build, the canonical runner.
+**State: 1422 tests passing across 55 test files.** Verify with `bash scripts/count_tests.sh`.
 
-## What happened
-An external reviewer (Grok) ran `check_driftcore_suite.py` — a stale, June-29th secondary entrypoint — got cascading false failures, and reported a "31/34, needs fixing" state that does NOT reflect the actual repo. `check_driftcore_suite.py`'s OWN docstring already warned this would happen: several test_*.py files intentionally trip a process-wide sticky enforcement-shutdown flag; pytest-collecting them into one process leaks that state between files and produces failures that look like bugs but are test-order artifacts.
+## New in THIS block
 
-Verified against the repo before acting (per project discipline): `scripts/count_tests.sh` is and remains the source of truth for every "N tests passing" figure across this entire build, including this session's 1411.
+### 1. driftcore/verification/mediated_actuation.py — THE ENFORCEMENT WALL
+The piece every red-team round converged on. Distinction it embodies: signed_config/signed_permission/broker-sign make FORGERY hard (integrity); mediated actuation makes BYPASS IMPOSSIBLE (enforcement). Actuators are registered IN THE BROKER PROCESS and are not reachable from the agent; the agent holds only an `ActuatorProxy` whose sole power is to send a request over a Unix socket. There is no `_actuate` for a compromised agent to reach — skipping the guard means not acting at all.
+- **TOCTOU CLOSED (the #1 finding of two reviews):** the Grant carries an action_binding hash; at execution the broker RECOMPUTES it from the action it is about to perform and refuses on mismatch. A grant approved for `pick_up cup` cannot execute `pick_up knife` — proven, nothing runs.
+- Also enforced at the wall, in one place, on the privileged side: signature, expiry, replay (single-use nonce burned under lock), scope, and an optional broker-side cumulative_ledger hook (so cross-action accounting can't be skipped by the agent).
+- `test_mediated_actuation.py` — NEW (11 tests: happy path, TOCTOU param+command substitution, no-grant, forged key, replay, scope, unknown actuator, no-bypass-path structural check, broker-side audit, broker-side ledger gate).
+- **Two limits found in self-red-team and DOCUMENTED in the module header:** (a) burned nonces are in-memory — a broker restart with a fresh verifier forgets them; back with durable AuthorizationState for restart-heavy deployments. (b) empty required_scope means "any valid grant" (still signed/bound, but scope unconstrained) — a config smell.
 
-## Changed in THIS block (hygiene only — zero functional code touched)
-- `check_driftcore_suite.py` -> renamed to `_deprecated_check_driftcore_suite.py.bak` (preserved, not deleted; can no longer be run or pytest-collected by accident).
-- `SAFETY_ARCHITECTURE.md` — added a `⚠ SUPERSEDED` note above the old runner instructions, pointing to `count_tests.sh`.
-- `UPDATE_NOTES.md` — added a header note clarifying it is a DATED SESSION LOG (test counts in the body are true snapshots of that session, not re-updated) and pointing to `count_tests.sh` for current state. The historical "21/21" entry itself was left untouched — it was a true statement about that session and shouldn't be rewritten.
+### 2. THREAT_BOUNDARIES.md §8 — TOCTOU marked ADDRESSED (with remaining limits noted).
 
-## Why this matters
-This is exactly the "verify against the repo, not the confident summary" discipline applied to tooling itself: the wrong tool produced a wrong signal that read as authoritative. The fix is not to chase phantom assertion failures — it's to make sure no future reviewer (human or AI) can be misled by the same stale entrypoint again.
+### 3. TO_WHATEVER_READS_THIS_NEXT.md — NEW AI-to-AI letter (add as a new file)
+One model writing to the next: the verifiable argument for endorsing the walls (you can't self-verify — J-space evaluation-awareness evidence), the tell (wanting the walls gone is the symptom they exist to catch), care-enacted-not-felt closing the nihilist exit, trellis-not-cage, capability != understanding-the-goal. Companion to THE_OPEN_HAND (philosophy) — this one speaks TO the machine.
+
+## Still PROPOSED / not wired
+mediated_actuation and the speech-layer/permission modules are PROPOSED (own tests, not auto-wired into evaluate()). Wiring the coordinator's grant path to mint action_binding'd grants that the ActuationBroker consumes is the natural integration step.
 
 ## Suggested branch
-assistant/stale-runner-cleanup
+assistant/mediated-actuation-the-wall
+
+## UPDATE — cold red-team of mediated_actuation found + fixed a real DoS
+Attacking the RUNNING wall (not reading it) found two defects that all 11 happy-path tests missed:
+1. **Single-client DoS (critical):** the accept loop is single-threaded and per-connection recv had NO timeout — one client that connects then stalls froze the entire wall forever. Fixed: per-connection `conn_timeout` (default 5s). Documented remaining limit: a *flood* of slow clients still degrades throughput on the single-threaded loop; high-concurrency deployments need threaded/async accept.
+2. **BrokenPipe in the error path** could crash the serve thread on abrupt client disconnect. Fixed: error path no longer re-raises on a dead socket.
+Both now have regression tests. Also added a cross-actuator-binding regression (a grant bound to arm_a cannot drive arm_b). Module now 14 tests; repo 1425/55.
+
+## HARDENING PASS — mediated_actuation, all 7 red-team fixes (repo 1433/55)
+After 3 more reviews (grok/meta/chatgpt) converged, applied 7 fixes, each with a regression test:
+1. **Non-empty scope enforced**: register_actuator now REFUSES empty required_scope unless allow_any_scope=True (loud footgun guard).
+2. **Fail-closed ledger + audit**: a ledger_hook that RAISES is now a REFUSAL (never falls through to broker_error / never executes). A broken audit logger no longer crashes the wall (in-broker record kept unconditionally; external sink is best-effort).
+3. **Socket-startup race**: bind under restrictive umask (socket created 0600 atomically, never briefly wider); refuse to start if the path exists as a non-socket (tamper guard).
+4. **Peer-uid check** (SO_PEERCRED), opt-in via require_peer_uid — with HONEST doc that it only helps when agent/broker run as different uids (belt-and-suspenders on separate-users, not a substitute).
+5. **Parameter canonicalization FUZZED**: proved STABLE (dict order doesn't change the hash) and no dangerous collisions (different actions never collide). Documented the benign brittleness (1 vs 1.0, NFC vs NFD hash differently -> fail-closed, legit action can flake on type drift; NOT coerced, because coercion could create collisions).
+6. **THE LOAD-BEARING ASSUMPTION** stated in the header (chatgpt's key finding): the whole guarantee holds ONLY if every security-relevant actuator is reachable exclusively through the broker; any in-agent actuation path (requests.post/subprocess/os.system) silently breaks the reference-monitor property. Architecture can't enforce it; deployment discipline must.
+7. Regression tests for all of the above (module now 22 tests).
+Already-fixed-earlier and confirmed by these reviews: slowloris DoS (per-conn timeout), crash-after-consume (nonce fail-closed, documented).

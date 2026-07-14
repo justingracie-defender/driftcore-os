@@ -249,13 +249,17 @@ Two independent red-teams put the same items as their #1 remaining risk. All con
 on one missing layer — mediated actuation — and are named here so they are not
 mistaken for solved:
 
-- **TOCTOU: verification vs execution (HIGHEST).** The coordinator verifies
-  `command="pick_up_cup"`; nothing guarantees the executor does not run
-  `pick_up_knife`, or substitute `target=attacker@evil.com` for an approved
-  recipient. The fix is a grant that **cryptographically binds** actuator + command +
-  parameters + target + effects + expiry + nonce, so the execution layer cannot
-  deviate from what was approved. This CANNOT live in the coordinator (which does not
-  execute); it is the enforcement layer.
+- **TOCTOU: verification vs execution (HIGHEST) — NOW ADDRESSED by
+  `mediated_actuation.py`.** The coordinator verifies `command="pick_up_cup"`;
+  nothing *used to* guarantee the executor did not run `pick_up_knife`. This is now
+  closed: actuators live in the broker process (not the agent's), the agent holds
+  only an `ActuatorProxy` with no direct actuation path, and at the moment of
+  execution the broker recomputes the action_binding hash from the action it is about
+  to perform and refuses if it does not match the grant. The bytes executed are the
+  bytes approved, or nothing executes — proven against substitution, replay, forged
+  keys, and direct-bypass attempts. Remaining actuation limits (nonce durability
+  across broker restart; the broker itself becoming the TCB) are documented in that
+  module's header.
 - **Context provenance (HIGH).** The coordinator trusts context objects
   (`harm_estimate`, `interpretations`, `ledger_owner`, ...). A malicious planner could
   forge `HarmEstimate(verifier_sourced=True, p=0.0)` to *lower* caution. The fix is
