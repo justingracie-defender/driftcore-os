@@ -94,6 +94,17 @@ def _canonical(obj) -> bytes:
                       ensure_ascii=False).encode("utf-8")
 
 
+def _finite(x: float, label: str) -> float:
+    """Reject NaN/Infinity in a timestamp. Non-finite values break the expiry check
+    silently (`now >= NaN` is always False -> a grant that NEVER expires) and produce
+    invalid JSON (`json.dumps` emits literal NaN, which strict parsers reject). Both
+    are fail-OPEN, the worst failure mode for an auth primitive. Found in red-team."""
+    import math as _math
+    if not isinstance(x, (int, float)) or isinstance(x, bool) or not _math.isfinite(float(x)):
+        raise ScopeExceeded(f"non-finite or invalid {label}: {x!r} (must be a finite number)")
+    return float(x)
+
+
 def _resolve(key: KeyLike) -> bytes:
     if isinstance(key, str):
         key = key.encode("utf-8")
@@ -129,8 +140,10 @@ class Grant:
               subject: str, ttl_seconds: float, nonce: str,
               action_binding: Optional[str] = None, now: Optional[float] = None) -> "Grant":
         t = time.time() if now is None else now
+        t = _finite(t, "issued_at")
+        ttl = _finite(ttl_seconds, "ttl_seconds")
         g = Grant(key_id=key_id, role=role, scope=tuple(scope), subject=subject,
-                  issued_at=t, expires_at=t + ttl_seconds, nonce=nonce,
+                  issued_at=t, expires_at=t + ttl, nonce=nonce,
                   action_binding=action_binding)
         sig = hmac.new(_resolve(key), _canonical(g._payload()), hashlib.sha256).hexdigest()
         return Grant(**{**g.__dict__, "sig": sig})
@@ -147,17 +160,23 @@ class Grant:
 
 
 def _scope_covers(scope: Tuple[str, ...], required: str) -> bool:
-    """True if `required` capability is covered by any token in `scope`. Supports
-    a single trailing '*' segment: 'doors:*' covers 'doors:front'. Otherwise exact."""
+    """True if `required` capability is covered by any token in `scope`. Supports a
+    single trailing '*' segment: 'doors:*' covers 'doors:front' but NOT
+    'doors:front:unlock' (exactly ONE additional segment — found in red-team: the old
+    prefix match covered infinite depth, so 'media:*' wrongly authorized
+    'media:admin:delete_user'). Otherwise exact."""
     for tok in scope:
         if tok == required:
             return True
-        if tok.endswith(":*"):
-            prefix = tok[:-1]              # 'doors:'  (keep the colon)
-            if required.startswith(prefix):
-                return True
         if tok == "*":                     # a full wildcard scope (use sparingly)
             return True
+        if tok.endswith(":*"):
+            prefix = tok[:-2]              # 'doors:*' -> 'doors'
+            if required.startswith(prefix + ":"):
+                # exactly one more segment: the remainder must contain no further ':'
+                remainder = required[len(prefix) + 1:]
+                if remainder and ":" not in remainder:
+                    return True
     return False
 
 
@@ -204,12 +223,23 @@ class PermissionVerifier:
         if not hmac.compare_digest(str(grant.sig), expected_sig):   # constant-time
             raise InvalidSignature("grant signature does not verify (altered or wrong key)")
 
+        # Reject non-finite timestamps BEFORE the expiry comparison. A NaN expiry
+        # would make `now >= expires_at` always False -> a grant that never expires
+        # (fail-open). Found in red-team.
+        _finite(grant.expires_at, "expires_at")
+        _finite(grant.issued_at, "issued_at")
+
         now = self._clock()
         if now >= grant.expires_at:
             raise PermissionExpired(
                 f"grant expired at {grant.expires_at} (now {now:.0f})")
         if now < grant.issued_at - 1:      # small skew tolerance
             raise PermissionExpired("grant not yet valid (issued in the future)")
+        # Upper bound on how far in the future a grant may be dated: defends against a
+        # captured future-dated grant becoming valid after a forward clock jump.
+        if grant.issued_at > now + 300:    # 5 min ceiling (generous for NTP skew)
+            raise PermissionExpired(
+                f"grant issued too far in the future ({grant.issued_at} > now+300)")
 
         if grant.nonce in self._used:
             raise PermissionReplay(f"grant nonce already used: {grant.nonce!r}")
@@ -235,11 +265,25 @@ class PermissionVerifier:
         self._used.add(grant.nonce)
 
     @staticmethod
-    def bind_action(actuator_id: str, command: str, params: Optional[dict] = None) -> str:
+    def bind_action(actuator_id: str, command: str, params: Optional[dict] = None,
+                    broker_id: Optional[str] = None) -> str:
         """Compute the action_binding hash a grant should carry to pin a specific
         actuation. The actuation layer recomputes this from what it is about to
         execute and checks it matches — so the executor cannot substitute the
-        action (the TOCTOU defense; enforcement lives in mediated actuation)."""
+        action (the TOCTOU defense; enforcement lives in mediated actuation).
+
+        broker_id (optional) BINDS THE GRANT TO A SPECIFIC BROKER. This closes the
+        cross-broker replay gap: without it, a grant's single-use nonce is tracked
+        per-broker, so a grant approved for one broker could be replayed against a
+        different broker that shares the signing key. Binding the broker_id means a
+        grant for broker-A simply does not match broker-B — the hash differs, and
+        broker-B refuses. It does NOT limit how many grants an agent may hold or use
+        in parallel; it only keeps each pre-approved action bound to the exact broker
+        it was approved for. BACKWARD-COMPATIBLE: when broker_id is omitted, the hash
+        is byte-identical to the pre-broker-binding behavior, so existing grants and
+        single-broker deployments are unaffected."""
         payload = {"actuator_id": actuator_id, "command": command,
                    "params": params or {}}
+        if broker_id is not None:
+            payload["broker_id"] = broker_id
         return hashlib.sha256(_canonical(payload)).hexdigest()
