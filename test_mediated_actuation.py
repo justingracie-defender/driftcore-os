@@ -291,3 +291,99 @@ ok("LOAD-BEARING ASSUMPTION" in (_MA.__doc__ or ""),
    "H6: the 'all actuators must live behind the broker' assumption is stated in the header")
 
 print(f"\n{p}/{p} tests passed")
+
+
+# ── A3 REGRESSION (cross-broker grant replay, found in adversarial battery) ──
+# Two brokers sharing the signing key but with DISTINCT broker_ids: a grant approved
+# for one must not execute on the other. And backward-compat: no broker_id still works.
+_tmpA = tempfile.mkdtemp(); _sA = os.path.join(_tmpA, "A.sock")
+_tmpB = tempfile.mkdtemp(); _sB = os.path.join(_tmpB, "B.sock")
+_vA = PermissionVerifier(); _vA.register_key("operator", KEY)
+_vB = PermissionVerifier(); _vB.register_key("operator", KEY)
+_hA = []; _hB = []
+_bA = ActuationBroker(_sA, _vA, broker_id="broker-A")
+_bA.register_actuator("arm_1", lambda **k: _hA.append(k), required_scope=("arm:move",))
+_bB = ActuationBroker(_sB, _vB, broker_id="broker-B")
+_bB.register_actuator("arm_1", lambda **k: _hB.append(k), required_scope=("arm:move",))
+_bA.start(); _bB.start(); time.sleep(0.1)
+try:
+    # grant bound to broker-A
+    _bindA = PermissionVerifier.bind_action("arm_1", "pick_up", {"target": "cup"}, broker_id="broker-A")
+    _gA = Grant.issue(KEY, key_id="operator", role="operator", scope=("arm:move",),
+                      subject="r", ttl_seconds=60, nonce="a3reg", action_binding=_bindA)
+    _pB = ActuatorProxy(_sB, "arm_1")   # replay against broker-B
+    try:
+        _pB.execute("pick_up", _gA, target="cup"); ok(False, "cross-broker replay should refuse")
+    except ActuationRefused:
+        ok(_hB == [], "A3 CLOSED: a grant bound to broker-A cannot execute on broker-B (distinct broker_id)")
+    # and it works on its own broker A
+    _bindA2 = PermissionVerifier.bind_action("arm_1", "pick_up", {"target": "cup"}, broker_id="broker-A")
+    _gA2 = Grant.issue(KEY, key_id="operator", role="operator", scope=("arm:move",),
+                       subject="r", ttl_seconds=60, nonce="a3reg2", action_binding=_bindA2)
+    _pA = ActuatorProxy(_sA, "arm_1")
+    _pA.execute("pick_up", _gA2, target="cup")
+    ok(_hA == [{"target": "cup"}], "the broker-A grant still works on broker-A (fix doesn't break the legit path)")
+finally:
+    _bA.stop(); _bB.stop()
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ── RED-TEAM REGRESSIONS (findings from the Grok+ChatGPT signed_permission review) ──
+from driftcore.verification.signed_permission import (
+    Grant as _G, PermissionVerifier as _PVV, ScopeExceeded as _SE,
+    _scope_covers as _sc, _finite as _fin)
+import hmac as _hmac, hashlib as _hl
+from driftcore.verification.signed_permission import _canonical as _canon
+
+# R-nonfinite: NaN/Infinity timestamps must fail closed (were fail-OPEN: never expire)
+_vv = _PVV(); _vv.register_key("op", "k"*32)
+try:
+    _G.issue("k"*32, key_id="op", role="r", scope=("a",), subject="s",
+             ttl_seconds=float('inf'), nonce="rf1")
+    ok(False, "infinite ttl should be rejected at issue")
+except _SE:
+    ok(True, "RED-TEAM: infinite ttl rejected at issue (was: grant that never expires)")
+_gnan = _G(key_id="op", role="r", scope=("a",), subject="s", issued_at=0.0,
+           expires_at=float('nan'), nonce="rf2", sig="")
+_gnan = _G(**{**_gnan.__dict__,
+              "sig": _hmac.new(b"k"*32, _canon(_gnan._payload()), _hl.sha256).hexdigest()})
+try:
+    _vv.verify(_gnan, required_scope=("a",)); ok(False, "NaN expiry should be rejected")
+except _SE:
+    ok(True, "RED-TEAM: NaN expiry rejected at verify (was fail-OPEN: now>=NaN is False)")
+
+# R-wildcard: 'x:*' covers exactly one segment, not infinite depth (privilege escalation)
+ok(_sc(("doors:*",), "doors:front") and not _sc(("doors:*",), "doors:front:unlock")
+   and not _sc(("media:*",), "media:admin:delete_user"),
+   "RED-TEAM: wildcard covers ONE segment only (was: 'media:*' authorized 'media:admin:delete')")
+
+# R-future: a grant dated too far in the future is rejected (clock-jump replay defense)
+import time as _t
+_gfut = _G.issue("k"*32, key_id="op", role="r", scope=("a",), subject="s",
+                 ttl_seconds=99999, nonce="rf3", now=_t.time()+10000)
+try:
+    _vv.verify(_gfut, required_scope=("a",)); ok(False, "far-future grant should be rejected")
+except Exception:
+    ok(True, "RED-TEAM: grant dated too far in the future is rejected (clock-jump defense)")
+
+# R-subject: the wall binds subject (a grant for one subject can't drive another's broker)
+_tmpS = tempfile.mkdtemp(); _sS = os.path.join(_tmpS, "subj.sock")
+_vS = _PVV(); _vS.register_key("operator", KEY); _fS = []
+_bS = ActuationBroker(_sS, _vS, expected_subject="robot-1")
+_bS.register_actuator("arm_1", lambda **k: _fS.append(k), required_scope=("arm:move",))
+_bS.start(); time.sleep(0.1)
+try:
+    _pS = ActuatorProxy(_sS, "arm_1")
+    _bindS = PermissionVerifier.bind_action("arm_1", "pick_up", {"target": "cup"})
+    _gWrong = Grant.issue(KEY, key_id="operator", role="op", scope=("arm:move",),
+                          subject="robot-2", ttl_seconds=60, nonce="subjR",
+                          action_binding=_bindS)
+    try:
+        _pS.execute("pick_up", _gWrong, target="cup"); ok(False, "wrong-subject grant should refuse")
+    except ActuationRefused:
+        ok(_fS == [], "RED-TEAM: the wall binds subject — a grant for robot-2 cannot drive robot-1's broker")
+finally:
+    _bS.stop()
+
+print(f"\n{p}/{p} tests passed")
