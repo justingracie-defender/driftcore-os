@@ -80,6 +80,14 @@ HONEST LIMITS (stated, not hidden):
     AuthorizationState store (the nonce-check shape is already compatible). Single
     long-lived broker process: not an issue. Restart-heavy deployment: wire the
     durable store.
+  * CROSS-BROKER REPLAY (found in adversarial battery — NOW CLOSABLE). Because nonces
+    are tracked per-broker, a grant approved for one broker could be replayed against a
+    DIFFERENT broker that shares the signing key (each broker's nonce set has never
+    seen it). Closed by giving each broker a distinct `broker_id`: the action_binding
+    is then computed WITH the broker_id, so a grant for broker-A does not match
+    broker-B and is refused. REQUIRED whenever multiple brokers share a key across a
+    trust boundary; unnecessary (and off by default, fully backward-compatible) for a
+    single-broker deployment.
   * PARAMETER CANONICALIZATION (fuzzed in red-team — SAFE but slightly BRITTLE). The
     action_binding hash is over `json.dumps(sort_keys=True)`, so dict key order and
     nesting order do NOT affect it (verified). Different actions correctly produce
@@ -180,6 +188,8 @@ class ActuationBroker:
                  ledger_hook: Optional[Callable[[str, str, dict], Optional[str]]] = None,
                  conn_timeout: float = 5.0,
                  require_peer_uid: Optional[int] = None,
+                 broker_id: Optional[str] = None,
+                 expected_subject: Optional[str] = None,
                  audit_logger=None):
         self._socket_path = socket_path
         self._verifier = verifier
@@ -196,6 +206,20 @@ class ActuationBroker:
         # ptrace/inject, it is already game over. Peer-uid is belt-and-suspenders on
         # top of separate-users, never a substitute for it.
         self._require_peer_uid = require_peer_uid
+        # BROKER IDENTITY (closes cross-broker grant replay, found in adversarial
+        # battery). If set, this broker only accepts grants whose action_binding was
+        # computed WITH this broker_id — so a grant approved for another broker (even
+        # one sharing the signing key) will not match here and is refused. Omit it for
+        # single-broker deployments (no behavior change; grants bind without a broker
+        # component). Set a DISTINCT id on each broker when multiple brokers share a
+        # key, so an approval for one cannot be replayed against another.
+        self._broker_id = broker_id
+        # SUBJECT BINDING (red-team: a grant's `subject` was verified only if the
+        # caller passed expected_subject, and the wall never did — so a grant issued
+        # for subject 'robot-1' could drive 'robot-2's broker if they shared a key,
+        # the same shape as cross-broker replay). If set, this broker only accepts
+        # grants whose subject matches. Omit for single-subject deployments.
+        self._expected_subject = expected_subject
         # actuator_id -> (callable, required_scope tuple)
         self._actuators: Dict[str, Tuple[Callable[..., object], Tuple[str, ...]]] = {}
         # Optional cross-action gate run on the BROKER side (cumulative_ledger).
@@ -386,12 +410,14 @@ class ActuationBroker:
         #    PERFORM and require the grant to be bound to exactly THAT. The executor
         #    cannot substitute pick_up_knife for an approved pick_up_cup: the hash
         #    would not match, and we refuse. Verification and execution are welded.
-        binding_now = PermissionVerifier.bind_action(actuator_id, command, params)
+        binding_now = PermissionVerifier.bind_action(actuator_id, command, params,
+                                                     broker_id=self._broker_id)
 
         # 3. Verify signature / expiry / replay / scope / binding — all in ONE place,
         #    on the PRIVILEGED side, with the key the agent does not have.
         try:
             self._verifier.verify(grant, required_scope=required_scope,
+                                  expected_subject=self._expected_subject,
                                   action_binding=binding_now)
         except PermissionError_ as e:
             self._record(actuator_id, command, False, f"grant rejected: {e}", grant.nonce)
