@@ -37,6 +37,20 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Tuple
 
+# ── human identity ──────────────────────────────────────────────────────────
+# (red-team, external) This module used to carry its OWN copy of a reserved-word
+# blacklist, so `_is_human("mallory")` returned True and any caller that chose its
+# own `authorised_by` string self-authorized. Three modules carried identical
+# copies. The single shared implementation supports registered principals and
+# signed attestations: driftcore/authority/human_identity.py
+#
+# The import is LOCAL (deferred) to break the authority <-> skills import cycle —
+# the same idiom coordinator.py uses for interpretation_guard.
+def _is_human(authorised_by) -> bool:
+    from driftcore.authority.human_identity import is_human
+    return is_human(authorised_by)
+
+
 
 class AuthorityLayer(Enum):
     # rank: lower number = higher authority
@@ -72,9 +86,6 @@ class AuthorityDecision:
     overridden:    bool = False
 
 
-def _is_human(authorised_by: Optional[str]) -> bool:
-    return authorised_by not in ("", "system", "auto", "auto-sign",
-                                 "agent", "reflection", None)
 
 
 class AuthorityResolver:

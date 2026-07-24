@@ -44,3 +44,10 @@ htmlcov/
 
 # Node (for doc generation)
 node_modules/
+
+# Root-level runtime state (regenerated each run; must not be committed)
+driftcore_daily_budget.json
+driftcore_spent_tokens.json
+*_spent_tokens.json
+*_daily_budget.json
+*.jsonl

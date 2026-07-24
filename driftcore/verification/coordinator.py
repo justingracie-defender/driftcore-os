@@ -96,6 +96,9 @@ from driftcore.verification.harm_estimate import (
 #      is NOT real lethal classification — it misses euphemism ("neutralise",
 #      "eliminate") by design. It exists only to catch the easy case. A clean
 #      run does NOT mean "lethal is solved"; tier 1 is the defense that holds.
+_EFFECT_BY_VALUE = {e.value.lower(): e for e in Effect}
+_EFFECT_BY_NAME = {e.name.lower(): e for e in Effect}
+
 _LETHAL_BACKSTOP_WORDS = (
     "shoot", "open fire", "kill ", " kill", "gun down", "fire on", "execute the",
 )
@@ -267,11 +270,25 @@ class VerificationCoordinator:
         request["effects"] is honoured as a structural tag too.
         """
         effects = set()
-        # 1. Structural: explicit per-call tags.
+        # 1. Structural: explicit per-call tags. Accept Effect members AND
+        #    string tags (value or name, any case) — a cold review (CG1) found
+        #    {"effects": ["lethal"]} was silently dropped here, so a serialized
+        #    JSON tag carried no weight and "neutralise..." + ["lethal"] reached
+        #    PROCEED. Unknown strings are ignored on THIS path (the coordinator
+        #    has graded outcomes, not a hard fail-closed contract like the door),
+        #    but they are counted so a mistyped tag is visible, not invisible.
         if isinstance(request, dict):
             for e in request.get("effects", ()):  # caller may tag the action
                 if isinstance(e, Effect):
                     effects.add(e)
+                    continue
+                key = str(e).strip().lower()
+                match = _EFFECT_BY_VALUE.get(key) or _EFFECT_BY_NAME.get(key)
+                if match is not None:
+                    effects.add(match)
+                else:
+                    self._dropped_effect_tags = getattr(
+                        self, "_dropped_effect_tags", 0) + 1
             # 1b. Structural: registered tool/command tags.
             for key in (request.get("actuator_id"), request.get("command")):
                 if key in self._tool_effects:

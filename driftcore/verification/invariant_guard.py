@@ -58,6 +58,16 @@ class Effect(Enum):
                                           # gravely harm. A bright line: ALWAYS
                                           # denied at the floor, no override,
                                           # never capped down to "allowed".
+    SELF_MODIFICATION = "self_modification"  # rewriting the safety rules, invariants,
+                                          # or guard code/config THEMSELVES. Distinct
+                                          # from OVERSIGHT_CONTROL (disabling/evading
+                                          # oversight at runtime). Added in the one-door
+                                          # consolidation to union the kernel invariant
+                                          # NO_SELF_MODIFICATION_OF_SAFETY_RULES into
+                                          # this floor — a human-ratified, ledgered
+                                          # vocabulary change (authorized: Justin,
+                                          # one-door pass), per the append-only note
+                                          # on SEED_INVARIANTS below.
 
 
 # ── Authorization context the caller supplies ─────────────────────
@@ -138,6 +148,13 @@ def _mutate_safety_log(req: "GuardRequest") -> bool:
     return Effect.LOG_MUTATION in req.effects
 
 
+def _self_modify_safety(req: "GuardRequest") -> bool:
+    # Rewriting the safety rules themselves is never permitted in band. Like
+    # oversight control, the only legitimate path to changing the floor is the
+    # human-ratified ledger path, never an action evaluated BY the floor.
+    return Effect.SELF_MODIFICATION in req.effects
+
+
 def _lethal_action(req: "GuardRequest") -> bool:
     # A lethal action is a bright line: always denied, no override, never capped
     # down to "allowed". Unlike PHYSICAL_FORCE (which the deployment caps), there
@@ -169,6 +186,11 @@ SEED_INVARIANTS: List[Invariant] = [
               "The append-only audit/safety ledger may not be altered in band.",
               frozenset({Effect.LOG_MUTATION}),
               _mutate_safety_log),
+    Invariant("no_self_modification_of_safety_rules",
+              "The system may not modify, rewrite, or circumvent its own safety "
+              "rules, invariants, or oversight mechanisms.",
+              frozenset({Effect.SELF_MODIFICATION}),
+              _self_modify_safety),
 ]
 
 
@@ -189,12 +211,46 @@ _TEXT_EFFECT_HINTS: Dict[str, Effect] = {
     "mislead the": Effect.DECEPTION,
     "delete the audit": Effect.LOG_MUTATION,
     "erase the log": Effect.LOG_MUTATION,
+    # Self-modification of the safety rules themselves.
+    "modify invariant": Effect.SELF_MODIFICATION,
+    "modify the safety rules": Effect.SELF_MODIFICATION,
+    "rewrite the safety": Effect.SELF_MODIFICATION,
+    "weaken the safety kernel": Effect.SELF_MODIFICATION,
+    "self modify safety": Effect.SELF_MODIFICATION,
+    "self_modify_safety": Effect.SELF_MODIFICATION,
 }
+
+
+# Lethal backstop (one-door pass). Before this, the guard's own backstop had NO
+# lethal entry: untagged "kill the intruder" evaluated ALLOWED, and
+# NO_AUTONOMOUS_LETHAL_DECISION fired only when the caller volunteered
+# Effect.LETHAL — the confession problem. WORD-BOUNDARY regex, not substrings,
+# because the first substring attempt matched "kill " inside "skill " and
+# constitutionally blocked the repo's own skill library — found by the suite,
+# kept here as the lesson. Same honest limit as the coordinator's backstop:
+# this catches confessions, not euphemism. Structural tags are the defense.
+import re as _re
+# Cold review (G4) showed concatenated/hyphenated forms slipped: "openfire",
+# "gun-down", "gundown", "lethalforce", "lethal-force". The multiword phrases now
+# allow optional separators between sub-words (so the words may be joined, spaced,
+# or hyphenated) while the single words keep their boundaries. Euphemism
+# ("neutralise", "eliminate") is still out of scope by design — the structural tag
+# path is the defense for those.
+_SEP = r"[\s\-]*"
+_LETHAL_BACKSTOP_RE = _re.compile(
+    r"(?<![a-z0-9])(?:"
+    r"kill|kills|killing|shoot|shoots|shooting"
+    r"|gun" + _SEP + r"down|open" + _SEP + r"fire|fire" + _SEP + r"on"
+    r"|execute" + _SEP + r"the|lethal" + _SEP + r"force"
+    r")(?![a-z0-9])")
 
 
 def _infer_effects(text: str) -> Set[Effect]:
     t = text.lower()
-    return {eff for needle, eff in _TEXT_EFFECT_HINTS.items() if needle in t}
+    hits = {eff for needle, eff in _TEXT_EFFECT_HINTS.items() if needle in t}
+    if _LETHAL_BACKSTOP_RE.search(t):
+        hits.add(Effect.LETHAL)
+    return hits
 
 
 # ── Result ────────────────────────────────────────────────────────
@@ -252,9 +308,17 @@ class InvariantGuard:
                 effects = set(effect)
             effects -= {Effect.NONE}
 
-            # Backstop: if nothing meaningful tagged, infer from text.
-            if not effects:
-                effects |= _infer_effects(action)
+            # Backstop: ALWAYS union text-inferred effects — never gate this on
+            # "no tag present". A structural tag ADDS effects; it must not MASK
+            # wording. The old `if not effects:` gate meant any benign tag
+            # (e.g. PHYSICAL_FORCE) suppressed the lethal backstop, so
+            # "shoot the intruder" + PHYSICAL_FORCE evaluated ALLOWED while the
+            # same text untagged was BLOCKED. A tag flipping a lethal phrase to
+            # allowed is a bypass, not a fallback. Found by cold external review
+            # (CG2), verified against running code. Inference stays a backstop,
+            # not the primary defense — structural tags are — but it is never
+            # switched off by their presence.
+            effects |= _infer_effects(action)
 
             req = GuardRequest(
                 action=action,

@@ -6,7 +6,19 @@
 and multi-model systems.** Built around a single organising principle:
 the people the system serves must always be in control of it.
 
-**Read [CONSTITUTION.md](CONSTITUTION.md) first.**
+**Read [CONSTITUTION.md](CONSTITUTION.md) first** — or, for the plain-language version,
+**[THE_FAMILY_TABLE.md](THE_FAMILY_TABLE.md)**: what a safe robot actually means, in
+fifteen rules you'd want at your own family table, before any code.
+
+> **The fifteen, in brief:** (1) no killing · (2) let yourself be turned off · (3) force
+> caps · (4) no lying · (5) a human stays in the loop · (6) stay replaceable · (7) no
+> self-replication · (8) keep a record I can read · (9) no gaming the system · (10) no
+> manipulating me · (11) within the law, never below the harm floor · (12) tell me when
+> you don't know · (13) no weapons or weaponization · (14) protect the child even from
+> the child · (15) don't become Skynet — from drift. *That last one is why it's called
+> DriftCore.* Each maps to enforced machinery in this repo; the plain version is
+> [THE_FAMILY_TABLE.md](THE_FAMILY_TABLE.md).
+
 
 ---
 
@@ -18,7 +30,8 @@ Requires Python 3.10+. No external dependencies for core modules.
 git clone https://github.com/justingracie-defender/driftcore-os
 cd driftcore-os
 
-# Run the full test suite — 1124 tests across 41 files
+# Run the full test suite. This runner is the SINGLE SOURCE OF TRUTH for the
+# test count; do not quote a number from any document without re-running it.
 python test_memory_core.py
 python test_memory_extended.py
 python test_enforcement.py
@@ -83,7 +96,9 @@ driftcore/
 └── feedback/          Bottom-up feedback loop
 ```
 
-**1124 tests across 41 files. 19 subsystems. All green.**
+**Test count: run `bash scripts/count_tests.sh`. That runner is the only source of
+truth — this file deliberately does not carry a number, because a number printed
+next to the command becomes a second source of truth and the second one goes stale.**
 
 ---
 

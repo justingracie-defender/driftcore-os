@@ -120,14 +120,39 @@ class DailyBudget:
             day[area.value] = day.get(area.value, 0.0) + amount
             self._save(data)
 
+    class SpendStateUnavailable(RuntimeError):
+        """The spend ledger could not be read. Callers must REFUSE, not proceed."""
+
     def _load(self) -> Dict:
+        """Read the spend ledger.
+
+        (red-team, external) This used to swallow every exception and return `{}` — so a
+        truncated, corrupted, partially-written or externally-replaced budget file made
+        the system silently FORGET all prior spend and authorize the full daily cap
+        again. That is a fail-open budget reset: an attacker who can damage one file
+        resets the limit, and nothing in the record says it happened.
+
+        A MISSING file is a legitimate first run and still yields an empty ledger. A file
+        that exists but cannot be read is a REFUSAL — an unreadable safety ledger means
+        the system does not know what has been spent, and "I don't know" must never be
+        treated as "nothing".
+        """
         if not os.path.exists(self.path):
             return {}
         try:
             with open(self.path) as f:
-                return json.load(f)
-        except Exception:
-            return {}
+                data = json.load(f)
+        except Exception as e:
+            raise self.SpendStateUnavailable(
+                f"spend ledger at {self.path!r} exists but could not be read: {e}. "
+                f"Refusing rather than resetting the budget — an unreadable ledger is "
+                f"unknown spend, not zero spend. Operator intervention required."
+            ) from e
+        if not isinstance(data, dict):
+            raise self.SpendStateUnavailable(
+                f"spend ledger at {self.path!r} is not a JSON object "
+                f"({type(data).__name__}); refusing rather than resetting the budget.")
+        return data
 
     def _save(self, data: Dict) -> None:
         tmp = self.path + ".tmp"

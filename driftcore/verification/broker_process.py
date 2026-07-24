@@ -48,6 +48,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import stat
 import struct
 import threading
 import time
@@ -99,6 +100,8 @@ class ConfigBroker:
     def __init__(self, socket_path: str, keys: Dict[str, sc.KeyLike], *,
                  default_ttl_seconds: Optional[float] = None,
                  authorize_sign: Optional[Callable[[dict], bool]] = None,
+                 socket_group: Optional[object] = None,
+                 require_peer_uid: Optional[int] = None,
                  audit_logger=None):
         if not keys:
             raise ValueError("ConfigBroker requires at least one {key_id: key}")
@@ -110,6 +113,19 @@ class ConfigBroker:
         # wired an explicit authorization policy. Fail-closed by default.
         self._authorize_sign = authorize_sign or (lambda req: False)
         self._audit = audit_logger or (lambda **kw: None)
+        # (red-team, external) The SAME socket contradiction fixed in mediated_actuation
+        # still lived here: this broker exists to keep signing keys out of the agent's
+        # process, and documents a separate-OS-user deployment — but created a 0600
+        # socket, which only the OWNER uid can connect to. Under the documented
+        # deployment the agent gets EACCES; under the only one that works (same uid) any
+        # local process with that uid can ask the broker to SIGN. That defeats the entire
+        # "the agent cannot forge trusted config" story.
+        #
+        # socket_group: a group BOTH the broker user and the agent user belong to, and
+        # nobody else. Ordering in start() is tighten -> set group -> open.
+        self._socket_group = socket_group
+        # Defence in depth: verify the connecting peer's uid in CODE, not just in prose.
+        self._require_peer_uid = require_peer_uid
         self._srv: Optional[socket.socket] = None
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
@@ -119,8 +135,37 @@ class ConfigBroker:
         if os.path.exists(self._socket_path):
             os.unlink(self._socket_path)
         self._srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self._srv.bind(self._socket_path)
-        os.chmod(self._socket_path, 0o600)            # only our uid may connect
+        old_umask = os.umask(0o177)                   # created rw for OWNER ONLY
+        try:
+            self._srv.bind(self._socket_path)
+        finally:
+            os.umask(old_umask)
+        if self._socket_group is not None:
+            # TIGHTEN -> SET GROUP -> OPEN. chmod before chown would briefly expose the
+            # socket to the broker's PRIMARY group, which is not the group we admit.
+            try:
+                gid = self._socket_group
+                if isinstance(gid, str):
+                    import grp
+                    gid = grp.getgrnam(gid).gr_gid
+                os.chown(self._socket_path, -1, gid)   # still 0600 at this point
+                os.chmod(self._socket_path, 0o660)     # now the shared group may connect
+                st = os.stat(self._socket_path)
+                if stat.S_IMODE(st.st_mode) != 0o660 or st.st_gid != gid:
+                    raise OSError(f"permissions did not take effect "
+                                  f"(mode={oct(stat.S_IMODE(st.st_mode))}, gid={st.st_gid})")
+            except Exception as e:
+                try:
+                    self._srv.close(); os.unlink(self._socket_path)
+                except OSError:
+                    pass
+                raise PermissionError(
+                    f"could not restrict the signing socket to group "
+                    f"{self._socket_group!r}: {e}. Refusing to start — a broker that "
+                    f"holds signing keys does not listen on a socket it could not lock "
+                    f"down.") from e
+        else:
+            os.chmod(self._socket_path, 0o600)        # owner-only: means SAME-UID deployment
         self._srv.listen(16)
         self._srv.settimeout(0.5)
         self._thread = threading.Thread(target=self._serve, daemon=True)

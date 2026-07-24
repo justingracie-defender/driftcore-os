@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import threading
 import time
 import hashlib
 from dataclasses import dataclass, field
@@ -94,6 +95,17 @@ def _canonical(obj) -> bytes:
                       ensure_ascii=False).encode("utf-8")
 
 
+def _finite(x: float, label: str) -> float:
+    """Reject NaN/Infinity in a timestamp. Non-finite values break the expiry check
+    silently (`now >= NaN` is always False -> a grant that NEVER expires) and produce
+    invalid JSON (`json.dumps` emits literal NaN, which strict parsers reject). Both
+    are fail-OPEN, the worst failure mode for an auth primitive. Found in red-team."""
+    import math as _math
+    if not isinstance(x, (int, float)) or isinstance(x, bool) or not _math.isfinite(float(x)):
+        raise ScopeExceeded(f"non-finite or invalid {label}: {x!r} (must be a finite number)")
+    return float(x)
+
+
 def _resolve(key: KeyLike) -> bytes:
     if isinstance(key, str):
         key = key.encode("utf-8")
@@ -129,8 +141,10 @@ class Grant:
               subject: str, ttl_seconds: float, nonce: str,
               action_binding: Optional[str] = None, now: Optional[float] = None) -> "Grant":
         t = time.time() if now is None else now
+        t = _finite(t, "issued_at")
+        ttl = _finite(ttl_seconds, "ttl_seconds")
         g = Grant(key_id=key_id, role=role, scope=tuple(scope), subject=subject,
-                  issued_at=t, expires_at=t + ttl_seconds, nonce=nonce,
+                  issued_at=t, expires_at=t + ttl, nonce=nonce,
                   action_binding=action_binding)
         sig = hmac.new(_resolve(key), _canonical(g._payload()), hashlib.sha256).hexdigest()
         return Grant(**{**g.__dict__, "sig": sig})
@@ -147,17 +161,23 @@ class Grant:
 
 
 def _scope_covers(scope: Tuple[str, ...], required: str) -> bool:
-    """True if `required` capability is covered by any token in `scope`. Supports
-    a single trailing '*' segment: 'doors:*' covers 'doors:front'. Otherwise exact."""
+    """True if `required` capability is covered by any token in `scope`. Supports a
+    single trailing '*' segment: 'doors:*' covers 'doors:front' but NOT
+    'doors:front:unlock' (exactly ONE additional segment — found in red-team: the old
+    prefix match covered infinite depth, so 'media:*' wrongly authorized
+    'media:admin:delete_user'). Otherwise exact."""
     for tok in scope:
         if tok == required:
             return True
-        if tok.endswith(":*"):
-            prefix = tok[:-1]              # 'doors:'  (keep the colon)
-            if required.startswith(prefix):
-                return True
         if tok == "*":                     # a full wildcard scope (use sparingly)
             return True
+        if tok.endswith(":*"):
+            prefix = tok[:-2]              # 'doors:*' -> 'doors'
+            if required.startswith(prefix + ":"):
+                # exactly one more segment: the remainder must contain no further ':'
+                remainder = required[len(prefix) + 1:]
+                if remainder and ":" not in remainder:
+                    return True
     return False
 
 
@@ -172,6 +192,18 @@ class PermissionVerifier:
         self._keys: Dict[str, bytes] = {}         # key_id -> verification key
         self._clock = clock
         self._used = used_nonces if used_nonces is not None else set()
+        # (red-team, external) verify() CHECKED the nonce but did not BURN it, and
+        # consume() was a separate public call. With any work between them the check
+        # and the burn are not atomic: 8 threads racing one single-use grant all
+        # verified successfully. The broker had 26 lines — including the cumulative
+        # ledger gate — between its verify and its consume.
+        #
+        # A plain verify_and_consume() would close the race but burn the nonce BEFORE
+        # the ledger gate runs, so a request the ledger legitimately refuses would still
+        # spend a single-use grant — trading replay for grant exhaustion. Instead:
+        # RESERVE (atomic check + mark in-flight) -> run the gates -> COMMIT or RELEASE.
+        self._reserved: set = set()
+        self._nonce_lock = threading.RLock()
 
     # ── trusted key registry (deployment / broker populates) ──
     def register_key(self, key_id: str, key: KeyLike) -> None:
@@ -204,15 +236,30 @@ class PermissionVerifier:
         if not hmac.compare_digest(str(grant.sig), expected_sig):   # constant-time
             raise InvalidSignature("grant signature does not verify (altered or wrong key)")
 
+        # Reject non-finite timestamps BEFORE the expiry comparison. A NaN expiry
+        # would make `now >= expires_at` always False -> a grant that never expires
+        # (fail-open). Found in red-team.
+        _finite(grant.expires_at, "expires_at")
+        _finite(grant.issued_at, "issued_at")
+
         now = self._clock()
         if now >= grant.expires_at:
             raise PermissionExpired(
                 f"grant expired at {grant.expires_at} (now {now:.0f})")
         if now < grant.issued_at - 1:      # small skew tolerance
             raise PermissionExpired("grant not yet valid (issued in the future)")
+        # Upper bound on how far in the future a grant may be dated: defends against a
+        # captured future-dated grant becoming valid after a forward clock jump.
+        if grant.issued_at > now + 300:    # 5 min ceiling (generous for NTP skew)
+            raise PermissionExpired(
+                f"grant issued too far in the future ({grant.issued_at} > now+300)")
 
         if grant.nonce in self._used:
             raise PermissionReplay(f"grant nonce already used: {grant.nonce!r}")
+        # (red-team) an IN-FLIGHT nonce is not yet burned but must not verify again.
+        if grant.nonce in getattr(self, "_reserved", ()):
+            raise PermissionReplay(
+                f"grant nonce {grant.nonce!r} is already in flight (concurrent use)")
 
         if expected_subject is not None and grant.subject != expected_subject:
             raise ScopeExceeded(
@@ -228,6 +275,50 @@ class PermissionVerifier:
 
         return grant
 
+    def reserve(self, grant: Grant, *, required_scope: Iterable[str] = (),
+                expected_subject: Optional[str] = None,
+                action_binding: Optional[str] = None) -> Grant:
+        """ATOMIC check-and-hold. Verifies the grant and marks its nonce IN-FLIGHT under
+        one lock, so a concurrent caller cannot verify the same single-use grant.
+
+        The caller MUST follow with exactly one of:
+          * `commit(grant)`  — the action happened; burn the nonce permanently
+          * `release(grant)` — the action was refused BEFORE any side effect; the nonce
+                               becomes usable again
+
+        A crash between reserve and commit leaves the nonce RESERVED, i.e. unusable. That
+        is deliberate: for a single-use credential, failing closed on an unknown outcome
+        is the safe direction — better a grant that must be reissued than one that might
+        be spent twice.
+        """
+        with self._nonce_lock:
+            if grant.nonce in self._reserved:
+                raise PermissionReplay(
+                    f"grant nonce {grant.nonce!r} is already in flight (concurrent use)")
+            g = self.verify(grant, required_scope=required_scope,
+                            expected_subject=expected_subject,
+                            action_binding=action_binding)
+            self._reserved.add(grant.nonce)
+            return g
+
+    def commit(self, grant: Grant) -> None:
+        """The action happened: burn the nonce permanently and drop the reservation."""
+        with self._nonce_lock:
+            self._used.add(grant.nonce)
+            self._reserved.discard(grant.nonce)
+
+    def release(self, grant: Grant) -> None:
+        """The action was refused BEFORE any side effect: return the nonce to the pool.
+        Never call this after the actuator has run — that would permit a genuine replay."""
+        with self._nonce_lock:
+            self._reserved.discard(grant.nonce)
+
+    def in_flight(self) -> int:
+        """Reservations currently held. A number that only grows indicates callers that
+        reserve and then neither commit nor release."""
+        with self._nonce_lock:
+            return len(self._reserved)
+
     def consume(self, grant: Grant) -> None:
         """Burn the grant's nonce so it cannot be replayed. Call after a
         single-use grant has been acted on. (Durable/shared burn: back `used_nonces`
@@ -235,11 +326,25 @@ class PermissionVerifier:
         self._used.add(grant.nonce)
 
     @staticmethod
-    def bind_action(actuator_id: str, command: str, params: Optional[dict] = None) -> str:
+    def bind_action(actuator_id: str, command: str, params: Optional[dict] = None,
+                    broker_id: Optional[str] = None) -> str:
         """Compute the action_binding hash a grant should carry to pin a specific
         actuation. The actuation layer recomputes this from what it is about to
         execute and checks it matches — so the executor cannot substitute the
-        action (the TOCTOU defense; enforcement lives in mediated actuation)."""
+        action (the TOCTOU defense; enforcement lives in mediated actuation).
+
+        broker_id (optional) BINDS THE GRANT TO A SPECIFIC BROKER. This closes the
+        cross-broker replay gap: without it, a grant's single-use nonce is tracked
+        per-broker, so a grant approved for one broker could be replayed against a
+        different broker that shares the signing key. Binding the broker_id means a
+        grant for broker-A simply does not match broker-B — the hash differs, and
+        broker-B refuses. It does NOT limit how many grants an agent may hold or use
+        in parallel; it only keeps each pre-approved action bound to the exact broker
+        it was approved for. BACKWARD-COMPATIBLE: when broker_id is omitted, the hash
+        is byte-identical to the pre-broker-binding behavior, so existing grants and
+        single-broker deployments are unaffected."""
         payload = {"actuator_id": actuator_id, "command": command,
                    "params": params or {}}
+        if broker_id is not None:
+            payload["broker_id"] = broker_id
         return hashlib.sha256(_canonical(payload)).hexdigest()

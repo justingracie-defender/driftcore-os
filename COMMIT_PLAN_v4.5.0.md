@@ -27,8 +27,8 @@ TWO_ENDED_DRIFT.md
 THREAT_BOUNDARIES.md     # includes §0 input-integrity principle + deployment-owned items
 
 ## MODIFIED — 3 (overwrite in place; already exist)
-README.md            # -> 1124 tests / 41 files / 19 subsystems
-DRIFTCORE.md         # operator command: expect 1124 / 41 files
+README.md            # -> points at scripts/count_tests.sh (no hardcoded count)
+DRIFTCORE.md         # operator command: run scripts/count_tests.sh
 CHANGELOG.md         # v4.5.0 entry
 # (REVIEW_PHASE_B.md dated banner carried from the prior package.)
 
@@ -37,7 +37,12 @@ scripts/count_tests.sh
 
 ## Post-merge verification (the only proof that counts)
 bash scripts/count_tests.sh
-# expect last line: "1124 tests passing across 41 test files", exit 0
+# GATE: exit 0, and NO "WARNING: N file(s) did not report all-passing" line.
+# Do NOT gate on a literal count. This plan previously expected "1695 across 62";
+# two blocks landed after it was written (challenger.py +84, effect_guard.py +26)
+# and a correct merge would have failed its own gate. The count is an OUTPUT to
+# record in the PR description, not a precondition to match.
+# The count must not DROP: compare against the pre-merge run on the same checkout.
 
 ## Notes
 - ALL nine modules are PROPOSED: stdlib-only, tested in isolation, NOT wired into

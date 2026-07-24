@@ -42,6 +42,7 @@ actuator firmware verifies with the coordinator's public key.
 import hmac
 import hashlib
 import os
+import threading
 import time
 from typing import Optional
 
@@ -54,6 +55,10 @@ class GrantAuthority:
     def __init__(self, secret: Optional[bytes] = None):
         self._secret = secret or os.urandom(32)
         self._consumed = set()
+        # (red-team, external) there was no lock here at all — check and burn
+        # were not atomic, and `consume=False` split them by construction.
+        self._lock = threading.RLock()
+        self._reserved: set = set()
 
     def mint(self, actuator_id: str, command: str, ttl_seconds: float = 5.0) -> dict:
         nonce   = os.urandom(8).hex()
@@ -63,8 +68,54 @@ class GrantAuthority:
         return {"actuator_id": actuator_id, "command": command,
                 "nonce": nonce, "expires": expires, "sig": sig}
 
+    def reserve(self, grant: object, actuator_id: str, command: str) -> bool:
+        """ATOMIC check-and-hold, mirroring `signed_permission.PermissionVerifier`.
+
+        (red-team, external) `verify(consume=False)` is the documented "check now, act
+        later" pattern, and it is RACY: 8 threads verifying one single-use grant all
+        succeeded. `verify(consume=True)` held under test only because the check and the
+        add sit in adjacent bytecode — that is GIL luck, not a guarantee, and there was
+        no lock at all.
+
+        Follow with exactly one of `commit()` or `release()`. A crash in between leaves
+        the nonce reserved and therefore unusable — fail-closed, the safe direction for a
+        single-use credential.
+        """
+        with self._lock:
+            nonce = grant.get("nonce") if isinstance(grant, dict) else None
+            if nonce is not None and nonce in self._reserved:
+                return False                      # already in flight
+            if not self._verify_locked(grant, actuator_id, command, consume=False):
+                return False
+            self._reserved.add(nonce)
+            return True
+
+    def commit(self, grant: object) -> None:
+        """The action happened: burn the nonce permanently."""
+        with self._lock:
+            nonce = grant.get("nonce") if isinstance(grant, dict) else None
+            if nonce is not None:
+                self._consumed.add(nonce)
+                self._reserved.discard(nonce)
+
+    def release(self, grant: object) -> None:
+        """Refused BEFORE any side effect: return the grant to the pool. Never call this
+        after the actuator has run."""
+        with self._lock:
+            nonce = grant.get("nonce") if isinstance(grant, dict) else None
+            if nonce is not None:
+                self._reserved.discard(nonce)
+
     def verify(self, grant: object, actuator_id: str, command: str,
                consume: bool = True) -> bool:
+        """Verify a grant. NOTE: `consume=False` is RACY by construction — it separates
+        the check from the burn, so two callers can both pass. Use reserve/commit/release
+        for any path that runs further gates between verification and actuation."""
+        with self._lock:
+            return self._verify_locked(grant, actuator_id, command, consume=consume)
+
+    def _verify_locked(self, grant: object, actuator_id: str, command: str,
+                       consume: bool = True) -> bool:
         if not isinstance(grant, dict):
             return False
         try:
@@ -79,6 +130,8 @@ class GrantAuthority:
         if time.time() > expires:                  # expired
             return False
         if nonce in self._consumed:                # single-use
+            return False
+        if nonce in self._reserved:                # in flight elsewhere
             return False
         expected = hmac.new(self._secret, f"{aid}|{cmd}|{nonce}|{expires}".encode(),
                             hashlib.sha256).hexdigest()

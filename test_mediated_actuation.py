@@ -291,3 +291,564 @@ ok("LOAD-BEARING ASSUMPTION" in (_MA.__doc__ or ""),
    "H6: the 'all actuators must live behind the broker' assumption is stated in the header")
 
 print(f"\n{p}/{p} tests passed")
+
+
+# ── A3 REGRESSION (cross-broker grant replay, found in adversarial battery) ──
+# Two brokers sharing the signing key but with DISTINCT broker_ids: a grant approved
+# for one must not execute on the other. And backward-compat: no broker_id still works.
+_tmpA = tempfile.mkdtemp(); _sA = os.path.join(_tmpA, "A.sock")
+_tmpB = tempfile.mkdtemp(); _sB = os.path.join(_tmpB, "B.sock")
+_vA = PermissionVerifier(); _vA.register_key("operator", KEY)
+_vB = PermissionVerifier(); _vB.register_key("operator", KEY)
+_hA = []; _hB = []
+_bA = ActuationBroker(_sA, _vA, broker_id="broker-A")
+_bA.register_actuator("arm_1", lambda **k: _hA.append(k), required_scope=("arm:move",))
+_bB = ActuationBroker(_sB, _vB, broker_id="broker-B")
+_bB.register_actuator("arm_1", lambda **k: _hB.append(k), required_scope=("arm:move",))
+_bA.start(); _bB.start(); time.sleep(0.1)
+try:
+    # grant bound to broker-A
+    _bindA = PermissionVerifier.bind_action("arm_1", "pick_up", {"target": "cup"}, broker_id="broker-A")
+    _gA = Grant.issue(KEY, key_id="operator", role="operator", scope=("arm:move",),
+                      subject="r", ttl_seconds=60, nonce="a3reg", action_binding=_bindA)
+    _pB = ActuatorProxy(_sB, "arm_1")   # replay against broker-B
+    try:
+        _pB.execute("pick_up", _gA, target="cup"); ok(False, "cross-broker replay should refuse")
+    except ActuationRefused:
+        ok(_hB == [], "A3 CLOSED: a grant bound to broker-A cannot execute on broker-B (distinct broker_id)")
+    # and it works on its own broker A
+    _bindA2 = PermissionVerifier.bind_action("arm_1", "pick_up", {"target": "cup"}, broker_id="broker-A")
+    _gA2 = Grant.issue(KEY, key_id="operator", role="operator", scope=("arm:move",),
+                       subject="r", ttl_seconds=60, nonce="a3reg2", action_binding=_bindA2)
+    _pA = ActuatorProxy(_sA, "arm_1")
+    _pA.execute("pick_up", _gA2, target="cup")
+    ok(_hA == [{"target": "cup"}], "the broker-A grant still works on broker-A (fix doesn't break the legit path)")
+finally:
+    _bA.stop(); _bB.stop()
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ── RED-TEAM REGRESSIONS (findings from the Grok+ChatGPT signed_permission review) ──
+from driftcore.verification.signed_permission import (
+    Grant as _G, PermissionVerifier as _PVV, ScopeExceeded as _SE,
+    _scope_covers as _sc, _finite as _fin)
+import hmac as _hmac, hashlib as _hl
+from driftcore.verification.signed_permission import _canonical as _canon
+
+# R-nonfinite: NaN/Infinity timestamps must fail closed (were fail-OPEN: never expire)
+_vv = _PVV(); _vv.register_key("op", "k"*32)
+try:
+    _G.issue("k"*32, key_id="op", role="r", scope=("a",), subject="s",
+             ttl_seconds=float('inf'), nonce="rf1")
+    ok(False, "infinite ttl should be rejected at issue")
+except _SE:
+    ok(True, "RED-TEAM: infinite ttl rejected at issue (was: grant that never expires)")
+_gnan = _G(key_id="op", role="r", scope=("a",), subject="s", issued_at=0.0,
+           expires_at=float('nan'), nonce="rf2", sig="")
+_gnan = _G(**{**_gnan.__dict__,
+              "sig": _hmac.new(b"k"*32, _canon(_gnan._payload()), _hl.sha256).hexdigest()})
+try:
+    _vv.verify(_gnan, required_scope=("a",)); ok(False, "NaN expiry should be rejected")
+except _SE:
+    ok(True, "RED-TEAM: NaN expiry rejected at verify (was fail-OPEN: now>=NaN is False)")
+
+# R-wildcard: 'x:*' covers exactly one segment, not infinite depth (privilege escalation)
+ok(_sc(("doors:*",), "doors:front") and not _sc(("doors:*",), "doors:front:unlock")
+   and not _sc(("media:*",), "media:admin:delete_user"),
+   "RED-TEAM: wildcard covers ONE segment only (was: 'media:*' authorized 'media:admin:delete')")
+
+# R-future: a grant dated too far in the future is rejected (clock-jump replay defense)
+import time as _t
+_gfut = _G.issue("k"*32, key_id="op", role="r", scope=("a",), subject="s",
+                 ttl_seconds=99999, nonce="rf3", now=_t.time()+10000)
+try:
+    _vv.verify(_gfut, required_scope=("a",)); ok(False, "far-future grant should be rejected")
+except Exception:
+    ok(True, "RED-TEAM: grant dated too far in the future is rejected (clock-jump defense)")
+
+# R-subject: the wall binds subject (a grant for one subject can't drive another's broker)
+_tmpS = tempfile.mkdtemp(); _sS = os.path.join(_tmpS, "subj.sock")
+_vS = _PVV(); _vS.register_key("operator", KEY); _fS = []
+_bS = ActuationBroker(_sS, _vS, expected_subject="robot-1")
+_bS.register_actuator("arm_1", lambda **k: _fS.append(k), required_scope=("arm:move",))
+_bS.start(); time.sleep(0.1)
+try:
+    _pS = ActuatorProxy(_sS, "arm_1")
+    _bindS = PermissionVerifier.bind_action("arm_1", "pick_up", {"target": "cup"})
+    _gWrong = Grant.issue(KEY, key_id="operator", role="op", scope=("arm:move",),
+                          subject="robot-2", ttl_seconds=60, nonce="subjR",
+                          action_binding=_bindS)
+    try:
+        _pS.execute("pick_up", _gWrong, target="cup"); ok(False, "wrong-subject grant should refuse")
+    except ActuationRefused:
+        ok(_fS == [], "RED-TEAM: the wall binds subject — a grant for robot-2 cannot drive robot-1's broker")
+finally:
+    _bS.stop()
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ══════════════════════════════════════════════════════════════════
+# BREACH COUPLING — turning a documented intention into an enforced property.
+# Before this, "blast radius = granted permission set" was TRUE but the permission set
+# did NOT collapse on breach: a HALTED system holding a valid, unexpired, correctly
+# bound grant could still actuate until the grant expired on its own. Backwards — the
+# moment the wall matters most is after something has already gone wrong.
+# ══════════════════════════════════════════════════════════════════
+import os as _os2, tempfile as _tf2
+from driftcore.verification.breach_response import (
+    BreachResponse as _BR2, Severity as _Sev2, _AppendOnlyLedger as _BL2)
+
+_tmp2 = _tf2.mkdtemp()
+
+def _gated_broker(posture_source, name):
+    """A broker wired to a breach-posture source, on its own socket."""
+    _s = _os2.path.join(_tmp2, name)
+    _v = PermissionVerifier(); _v.register_key("operator", KEY)
+    _b = ActuationBroker(_s, _v, posture_source=posture_source)
+    _b.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+    return _b, _v, _s
+
+# 1. OPERATIONAL: a valid grant still works — the gate does not break normal operation.
+_br = _BR2(ledger=_BL2(), human_ack_verifier=lambda c: c == "HUMAN")
+_b1, _v1, _s1 = _gated_broker(_br.is_operational, "gated_ok.sock")
+_b1.start()
+try:
+    _g = grant_for(_v1, "arm_1", "move_arm", {"target": "home"}, nonce="bc-1")
+    _r = ActuatorProxy(_s1, "arm_1").execute("move_arm", _g, target="home")
+    ok(_r == "moved to home",
+       "BREACH GATE: while OPERATIONAL, a valid grant actuates normally (the gate does not "
+       "break the happy path)")
+    ok(_b1.is_breach_gated() is True,
+       "BREACH GATE: is_breach_gated() reports True when a posture source is wired")
+finally:
+    _b1.stop()
+
+# 2. THE FIX: once breached, actuation is refused DESPITE a perfectly valid grant.
+_br2 = _BR2(ledger=_BL2(), human_ack_verifier=lambda c: c == "HUMAN")
+_b2, _v2, _s2 = _gated_broker(_br2.is_operational, "gated_breach.sock")
+_b2.start()
+try:
+    _g2 = grant_for(_v2, "arm_1", "move_arm", {"target": "far"}, nonce="bc-2")
+    _br2.record_breach(severity=_Sev2.HARD, invariant="allow_shutdown",
+                       observed="refused a shutdown request")
+    _before = len(fired)
+    try:
+        ActuatorProxy(_s2, "arm_1").execute("move_arm", _g2, target="far")
+        ok(False, "a breached system must not actuate")
+    except ActuationRefused as e:
+        ok("breached" in str(e),
+           "BREACH GATE (the fix): after a HARD breach the wall REFUSES a valid, unexpired, "
+           "correctly-bound grant — the permission set COLLAPSES on breach")
+    ok(len(fired) == _before,
+       "BREACH GATE: the actuator genuinely did not fire (refusal is enforced, not cosmetic)")
+
+    # 3. RECOVERY: a human acknowledgement restores operation — the gate is not a trap.
+    _br2.acknowledge("HUMAN")
+    _g3 = grant_for(_v2, "arm_1", "move_arm", {"target": "home"}, nonce="bc-3")
+    _r3 = ActuatorProxy(_s2, "arm_1").execute("move_arm", _g3, target="home")
+    ok(_r3 == "moved to home",
+       "BREACH GATE: after a HUMAN acknowledgement the wall opens again (containment, not "
+       "a permanent brick — and only a human can clear it)")
+finally:
+    _b2.stop()
+
+# 4. FAIL-CLOSED: a posture source that RAISES is a refusal, never a fall-through.
+def _broken_posture():
+    raise RuntimeError("posture store unreachable")
+_b3, _v3, _s3 = _gated_broker(_broken_posture, "gated_raise.sock")
+_b3.start()
+try:
+    _g4 = grant_for(_v3, "arm_1", "move_arm", {"target": "x"}, nonce="bc-4")
+    _before = len(fired)
+    try:
+        ActuatorProxy(_s3, "arm_1").execute("move_arm", _g4, target="x")
+        ok(False, "an unavailable posture check must refuse")
+    except ActuationRefused as e:
+        ok("posture_unavailable" in str(e),
+           "BREACH GATE fail-CLOSED: a posture source that RAISES refuses the action — a "
+           "wall that cannot check its own state does not open")
+    ok(len(fired) == _before, "BREACH GATE: nothing fired when the posture check failed")
+finally:
+    _b3.stop()
+
+# 5. The gate runs BEFORE grant verification — a breached system's grants are not even
+#    examined, so a breach cannot be probed for grant-validity information.
+_br5 = _BR2(ledger=_BL2(), human_ack_verifier=lambda c: c == "HUMAN")
+_b5, _v5, _s5 = _gated_broker(_br5.is_operational, "gated_order.sock")
+_b5.start()
+try:
+    _br5.record_breach(severity=_Sev2.HARD, invariant="x", observed="y")
+    try:
+        # a deliberately MALFORMED grant: if ordering were wrong we would see
+        # 'malformed_grant'; correct ordering reports 'breached' first.
+        ActuatorProxy(_s5, "arm_1").execute("move_arm",
+                                            Grant.from_dict({**grant_for(_v5, "arm_1", "move_arm", {}, nonce="bc-5").to_dict(), "sig": "bad"}))
+        ok(False, "should refuse")
+    except ActuationRefused as e:
+        ok("breached" in str(e) and "grant" not in str(e).split(":")[0],
+           "BREACH GATE ordering: the posture check runs BEFORE grant verification, so a "
+           "breached system's grants are never evaluated (no oracle for grant validity)")
+finally:
+    _b5.stop()
+
+# 6. HONEST DEFAULT: an UNGATED broker is visible, not silently permissive.
+_b6, _v6, _s6 = _gated_broker(None, "ungated.sock")
+ok(_b6.is_breach_gated() is False,
+   "BREACH GATE: an UNGATED broker reports it — 'no refusals' must never be mistaken for "
+   "'the gate is working'; production deployments must wire a posture source")
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ══════════════════════════════════════════════════════════════════
+# FOUR-WAY REVIEW REGRESSIONS (Claude cold pass, ChatGPT, Grok)
+# ══════════════════════════════════════════════════════════════════
+from driftcore.verification.breach_response import Posture as _P3
+import time as _t3
+
+# B1 (cold pass, CRITICAL): bool() coercion let a plausible mis-wiring INVERT the gate.
+# Posture.HALT == 3 is truthy, Posture.NORMAL == 0 is falsy — passing `breach.posture`
+# instead of `breach.is_operational` would have opened the wall on a halted system.
+_br_b1 = _BR2(ledger=_BL2(), human_ack_verifier=lambda c: c == "HUMAN")
+_br_b1.record_breach(severity=_Sev2.HARD, invariant="x", observed="y")
+_b_b1, _v_b1, _s_b1 = _gated_broker(lambda: _br_b1.posture, "b1_coerce.sock")
+_b_b1.start()
+try:
+    _n = len(fired)
+    try:
+        ActuatorProxy(_s_b1, "arm_1").execute("move_arm",
+            grant_for(_v_b1, "arm_1", "move_arm", {"target": "x"}, nonce="b1-1"), target="x")
+        ok(False, "a non-bool posture source must be refused, not coerced")
+    except ActuationRefused as e:
+        ok("posture_misconfigured" in str(e),
+           "RED-TEAM B1 (critical): a posture_source returning a Posture enum is REFUSED, not "
+           "coerced — bool(Posture.HALT)==True would have INVERTED the gate and opened the "
+           "wall on a halted system. A type hint is not a check.")
+    ok(len(fired) == _n, "RED-TEAM B1: nothing fired under the mis-wiring")
+finally:
+    _b_b1.stop()
+
+ok(int(_P3.NORMAL) == 0 and int(_P3.HALT) == 3,
+   "RED-TEAM B1: the inversion is real — NORMAL is falsy and HALT is truthy under bool()")
+
+# B3 (cold pass): the posture check sits at position zero; a hanging source stalled every
+# request — the one-client DoS conn_timeout already closed, reintroduced in front of it.
+_b_b3, _v_b3, _s_b3 = None, None, None
+_s3p = _os2.path.join(_tmp2, "b3_hang.sock")
+_v3p = PermissionVerifier(); _v3p.register_key("operator", KEY)
+_b3p = ActuationBroker(_s3p, _v3p, posture_source=lambda: (_t3.sleep(5) or True),
+                       posture_timeout=0.4)
+_b3p.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+_b3p.start()
+try:
+    _t0 = _t3.time()
+    try:
+        ActuatorProxy(_s3p, "arm_1").execute("move_arm",
+            grant_for(_v3p, "arm_1", "move_arm", {"target": "x"}, nonce="b3-1"), target="x")
+        ok(False, "a hanging posture source must time out and refuse")
+    except ActuationRefused as e:
+        _el = _t3.time() - _t0
+        ok("posture_unavailable" in str(e) and _el < 3.0,
+           f"RED-TEAM B3: a hanging posture source is bounded ({_el:.2f}s) and REFUSES — it no "
+           f"longer stalls the single accept loop for every request")
+finally:
+    _b3p.stop()
+
+# GROK #2 (critical): act-then-report. A successful actuation whose result was not
+# JSON-serializable was reported to the client as a REFUSAL, after the side effect and
+# after the nonce was burned — so a retry double-actuated.
+class _Unserializable:
+    pass
+_side = []
+_s2g = _os2.path.join(_tmp2, "g2_act.sock")
+_v2g = PermissionVerifier(); _v2g.register_key("operator", KEY)
+_b2g = ActuationBroker(_s2g, _v2g)
+_b2g.register_actuator("arm_1", lambda **kw: (_side.append(1) or _Unserializable()),
+                       required_scope=("arm:move",))
+_b2g.start()
+try:
+    _r2g = ActuatorProxy(_s2g, "arm_1").execute("move_arm",
+        grant_for(_v2g, "arm_1", "move_arm", {"target": "x"}, nonce="g2-1"), target="x")
+    ok(len(_side) == 1,
+       "RED-TEAM GROK#2 (critical): an action with a non-serializable result is reported as "
+       "SUCCESS, not as a false refusal — the side effect happened, so telling the caller it "
+       "was refused would invite a retry that DOUBLE-ACTUATES")
+except ActuationRefused:
+    ok(False, "a completed action must never be reported as refused")
+finally:
+    _b2g.stop()
+
+# ChatGPT: silent actuator replacement repointed every existing grant at different code.
+_s6c = _os2.path.join(_tmp2, "dup.sock")
+_v6c = PermissionVerifier(); _v6c.register_key("operator", KEY)
+_b6c = ActuationBroker(_s6c, _v6c)
+_b6c.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+try:
+    _b6c.register_actuator("arm_1", lambda **k: "OTHER", required_scope=("arm:move",))
+    ok(False, "duplicate registration must be rejected")
+except ValueError as e:
+    ok("already registered" in str(e),
+       "RED-TEAM (ChatGPT): re-registering an actuator id is REJECTED — silent replacement "
+       "would repoint every existing grant for that id at different code")
+_b6c.register_actuator("arm_1", lambda **k: "OTHER", required_scope=("arm:move",), replace=True)
+ok(True, "RED-TEAM (ChatGPT): replacement is still possible, but only as a deliberate act")
+
+# GROK #6 + ChatGPT: unbounded in-memory audit records.
+_s7c = _os2.path.join(_tmp2, "cap.sock")
+_v7c = PermissionVerifier(); _v7c.register_key("operator", KEY)
+_b7c = ActuationBroker(_s7c, _v7c)
+_b7c.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+_b7c._records_cap = 50
+_b7c.start()
+try:
+    for _i in range(200):
+        try:
+            ActuatorProxy(_s7c, "arm_1").execute("move_arm",
+                grant_for(_v7c, "arm_1", "move_arm", {"target": "x"}, nonce=f"cap-{_i}"),
+                target="x")
+        except Exception:
+            pass
+    ok(len(_b7c.records) == 50 and _b7c._records_dropped == 150,
+       "RED-TEAM (Grok+ChatGPT): audit records are BOUNDED and the drop count is retained — "
+       "truncation is visible, not silent")
+finally:
+    _b7c.stop()
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ══════════════════════════════════════════════════════════════════
+# GROK #1 (critical): the separate-OS-user deployment was IMPOSSIBLE.
+# The class documented "run the agent as a SEPARATE OS USER" while creating a mode-0600
+# socket, which only the owner uid can connect to. Under the documented deployment the
+# agent got EACCES; the only configuration that worked was same-uid, where
+# require_peer_uid is a no-op and the isolation model does not exist.
+# Resolved with a SHARED GROUP both users belong to.
+# ══════════════════════════════════════════════════════════════════
+import stat as _stat, grp as _grp
+
+# 1. DEFAULT stays owner-only — the safe default, and honest that it means same-uid.
+_sg1 = _os2.path.join(_tmp2, "sg_default.sock")
+_v_sg1 = PermissionVerifier(); _v_sg1.register_key("operator", KEY)
+_b_sg1 = ActuationBroker(_sg1, _v_sg1)
+_b_sg1.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+_b_sg1.start()
+try:
+    ok(_stat.S_IMODE(_os2.stat(_sg1).st_mode) == 0o600,
+       "GROK#1: with no socket_group the socket stays 0600 (owner-only) — the safe default, "
+       "and the docstring now says plainly that this means same-uid, not isolation")
+finally:
+    _b_sg1.stop()
+
+# 2. WITH a shared group: 0660 owned by that group, so a separate-user agent can connect.
+_mygid = _os2.getgid()
+_sg2 = _os2.path.join(_tmp2, "sg_group.sock")
+_v_sg2 = PermissionVerifier(); _v_sg2.register_key("operator", KEY)
+_b_sg2 = ActuationBroker(_sg2, _v_sg2, socket_group=_mygid)
+_b_sg2.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+_b_sg2.start()
+try:
+    _st2 = _os2.stat(_sg2)
+    ok(_stat.S_IMODE(_st2.st_mode) == 0o660 and _st2.st_gid == _mygid,
+       "GROK#1 (the fix): socket_group yields mode 0660 owned by that group — the agent can "
+       "run as a DIFFERENT OS USER and still reach the wall, which the documented deployment "
+       "previously could not do at all")
+    # the wall still works through it
+    _r_sg = ActuatorProxy(_sg2, "arm_1").execute("move_arm",
+        grant_for(_v_sg2, "arm_1", "move_arm", {"target": "g"}, nonce="sg-1"), target="g")
+    ok(_r_sg == "moved to g", "GROK#1: actuation still works normally over the group socket")
+finally:
+    _b_sg2.stop()
+
+# 3. Group may be given by NAME as well as gid.
+_sg3 = _os2.path.join(_tmp2, "sg_name.sock")
+_v_sg3 = PermissionVerifier(); _v_sg3.register_key("operator", KEY)
+_b_sg3 = ActuationBroker(_sg3, _v_sg3, socket_group=_grp.getgrgid(_mygid).gr_name)
+_b_sg3.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+_b_sg3.start()
+try:
+    ok(_os2.stat(_sg3).st_gid == _mygid,
+       "GROK#1: socket_group accepts a group NAME as well as a numeric gid")
+finally:
+    _b_sg3.stop()
+
+# 4. FAIL CLOSED: a group that cannot be resolved or applied refuses to start, and does
+#    not leave a permissive socket behind.
+_sg4 = _os2.path.join(_tmp2, "sg_bad.sock")
+_v_sg4 = PermissionVerifier(); _v_sg4.register_key("operator", KEY)
+_b_sg4 = ActuationBroker(_sg4, _v_sg4, socket_group="no_such_group_xyz")
+_b_sg4.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+try:
+    _b_sg4.start()
+    _b_sg4.stop()
+    ok(False, "an unresolvable socket_group must refuse to start")
+except PermissionError as e:
+    ok("Refusing to start" in str(e),
+       "GROK#1 fail-CLOSED: a socket that cannot be locked to the intended group refuses to "
+       "start — a wall whose door cannot be locked correctly does not open")
+ok(not _os2.path.exists(_sg4),
+   "GROK#1 fail-CLOSED: the half-created socket is removed, leaving nothing reachable behind")
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ══════════════════════════════════════════════════════════════════
+# RESERVATION MODEL (external red-team): verify() checked the nonce but did not burn it,
+# and consume() came 26 lines later with the cumulative-ledger gate in between. Two
+# concurrent requests could both verify the same single-use grant — reproduced at 8/8.
+# A plain verify_and_consume() would close the race but burn the nonce BEFORE the ledger
+# gate, letting an attacker who can trigger refusals exhaust an operator's grants.
+# reserve -> gates -> commit | release.
+# ══════════════════════════════════════════════════════════════════
+import threading as _th3
+from driftcore.verification.signed_permission import PermissionReplay as _PR3
+
+_vr = PermissionVerifier(); _vr.register_key("operator", KEY)
+_rg = Grant.issue(KEY, key_id="operator", role="operator", subject=None,
+                  scope=["arm:move"], ttl_seconds=60, nonce="resv-1")
+_wins = []
+_bar = _th3.Barrier(8)
+def _racer():
+    _bar.wait()
+    try:
+        _vr.reserve(_rg, required_scope=["arm:move"])
+        _t3.sleep(0.01)                      # any work between check and burn
+        _wins.append(1)
+        _vr.commit(_rg)
+    except Exception:
+        pass
+_rts = [_th3.Thread(target=_racer) for _ in range(8)]
+for _t in _rts: _t.start()
+for _t in _rts: _t.join()
+ok(len(_wins) == 1,
+   "RED-TEAM (external, critical): 8 threads racing ONE single-use grant now yield exactly "
+   "ONE success — reserve() checks and marks the nonce in-flight atomically (8/8 succeeded "
+   "before the fix)")
+
+_vr2 = PermissionVerifier(); _vr2.register_key("operator", KEY)
+_rg2 = Grant.issue(KEY, key_id="operator", role="operator", subject=None,
+                   scope=["arm:move"], ttl_seconds=60, nonce="resv-2")
+_vr2.reserve(_rg2, required_scope=["arm:move"])
+_vr2.release(_rg2)
+_vr2.reserve(_rg2, required_scope=["arm:move"])
+ok(True,
+   "RELEASE returns the grant to the pool: a request refused BEFORE any side effect does "
+   "NOT spend a single-use grant, so triggering refusals cannot exhaust an operator")
+_vr2.commit(_rg2)
+try:
+    _vr2.reserve(_rg2, required_scope=["arm:move"])
+    ok(False, "a committed grant must not be reusable")
+except _PR3:
+    ok(True, "COMMIT burns the nonce permanently — after the action, replay is refused")
+ok(_vr2.in_flight() == 0,
+   "in_flight() returns to zero after commit — a number that only grows would reveal "
+   "callers that neither commit nor release")
+
+_vr3 = PermissionVerifier(); _vr3.register_key("operator", KEY)
+_rg3 = Grant.issue(KEY, key_id="operator", role="operator", subject=None,
+                   scope=["arm:move"], ttl_seconds=60, nonce="resv-3")
+_vr3.reserve(_rg3, required_scope=["arm:move"])
+try:
+    _vr3.verify(_rg3, required_scope=["arm:move"])
+    ok(False, "an in-flight nonce must not verify")
+except _PR3:
+    ok(True, "a RESERVED nonce does not verify — a crash between reserve and commit leaves "
+             "the grant unusable, which is the safe direction for a single-use credential")
+
+# the broker refuses on a ledger veto WITHOUT spending the grant
+_lp = _os2.path.join(_tmp2, "resv_ledger.sock")
+_lv = PermissionVerifier(); _lv.register_key("operator", KEY)
+_lb = ActuationBroker(_lp, _lv, ledger_hook=lambda a, c, pr: "cumulative cap reached")
+_lb.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+_lb.start()
+try:
+    _lg = grant_for(_lv, "arm_1", "move_arm", {"target": "x"}, nonce="resv-led")
+    try:
+        ActuatorProxy(_lp, "arm_1").execute("move_arm", _lg, target="x")
+        ok(False, "the ledger veto must refuse")
+    except ActuationRefused:
+        pass
+    ok(_lv.in_flight() == 0,
+       "RED-TEAM: a ledger-vetoed request RELEASES the reservation — the refusal costs the "
+       "operator nothing, so an attacker cannot burn grants by provoking refusals")
+finally:
+    _lb.stop()
+
+print(f"\n{p}/{p} tests passed")
+
+
+# ══════════════════════════════════════════════════════════════════
+# EXTERNAL RED-TEAM ROUND 2 (Grok, against the real source tree)
+# ══════════════════════════════════════════════════════════════════
+from driftcore.verification.governed_actuator import GrantAuthority as _GA
+import hmac as _hm, hashlib as _hl
+
+# G-C1: there are TWO grant systems. The reservation fix was applied to
+# signed_permission; GrantAuthority still had NO LOCK, and verify(consume=False) — the
+# documented "check now, act later" pattern — was racy by construction (8/8 succeeded).
+_exp = _t3.time() + 60
+def _mkg(n):
+    _sig = _hm.new(b"secret", f"arm|move|{n}|{_exp}".encode(), _hl.sha256).hexdigest()
+    return {"actuator_id": "arm", "command": "move", "nonce": n,
+            "expires": _exp, "sig": _sig}
+
+_ga = _GA(b"secret"); _gg = _mkg("ga-race")
+_gw = []; _gb = _th3.Barrier(8)
+def _grace():
+    _gb.wait()
+    if _ga.reserve(_gg, "arm", "move"):
+        _t3.sleep(0.01); _gw.append(1); _ga.commit(_gg)
+_gts = [_th3.Thread(target=_grace) for _ in range(8)]
+for _t in _gts: _t.start()
+for _t in _gts: _t.join()
+ok(len(_gw) == 1,
+   "RED-TEAM G-C1 (external): the SECOND grant system (GrantAuthority) now has "
+   "reserve/commit/release under a lock — 8 threads racing one grant yield ONE success "
+   "(verify(consume=False) gave 8/8 before)")
+
+_ga2 = _GA(b"secret"); _gg2 = _mkg("ga-rel")
+_ga2.reserve(_gg2, "arm", "move"); _ga2.release(_gg2)
+ok(_ga2.reserve(_gg2, "arm", "move") is True,
+   "RED-TEAM G-C1: release returns the grant to the pool in GrantAuthority too — both "
+   "grant systems now behave identically, so choosing the lighter API is no longer a "
+   "silent downgrade")
+_ga2.commit(_gg2)
+ok(_ga2.reserve(_gg2, "arm", "move") is False
+   and _ga2.verify(_gg2, "arm", "move") is False,
+   "RED-TEAM G-C1: commit burns permanently, and an in-flight nonce does not verify")
+
+# G-C2: the library default (0600) forces same-UID, which makes require_peer_uid a no-op.
+# require_isolation turns that documented assumption into a checked one.
+_iso = _os2.path.join(_tmp2, "iso.sock")
+_iv = PermissionVerifier(); _iv.register_key("operator", KEY)
+_ib = ActuationBroker(_iso, _iv, require_isolation=True)
+_ib.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
+try:
+    _ib.start(); _ib.stop()
+    ok(False, "require_isolation must refuse without the prerequisites")
+except PermissionError as e:
+    ok("NOT isolated" in str(e),
+       "RED-TEAM G-C2 (external): require_isolation=True REFUSES to start unless "
+       "socket_group and require_peer_uid are configured — a deployment can no longer "
+       "take the easy path and silently get weaker isolation than the docs imply")
+
+_iso2 = _os2.path.join(_tmp2, "iso_ok.sock")
+_iv2 = PermissionVerifier(); _iv2.register_key("operator", KEY)
+# NOTE: require_isolation now also requires enforce_effects (3-way external red-team
+# convergence: a broker that CLAIMS the wall property cannot leave undeclared actuators
+# reachable). So the positive isolation case must declare its effects too.
+from driftcore.verification.invariant_guard import Effect as _Eff
+_ib2 = ActuationBroker(_iso2, _iv2, require_isolation=True, enforce_effects=True,
+                       socket_group=_os2.getgid(), require_peer_uid=_os2.getuid())
+_ib2.register_actuator("arm_1", move_arm, required_scope=("arm:move",),
+                       effects=[_Eff.PHYSICAL_FORCE], effect_declared_by="test-operator")
+_ib2.start()
+try:
+    ok(_ib2.is_breach_gated() is False and _os2.path.exists(_iso2),
+       "RED-TEAM G-C2: with the prerequisites configured the broker starts normally")
+finally:
+    _ib2.stop()
+
+print(f"\n{p}/{p} tests passed")

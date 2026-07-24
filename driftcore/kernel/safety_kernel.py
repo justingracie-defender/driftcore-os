@@ -1,14 +1,19 @@
 """
-safety_kernel.py — Absolute Override Layer v3.1
+safety_kernel.py — Absolute Override Layer (one-door)
 
 The kernel has final say.
-Above the kernel: the InvariantGuard.
-Nothing bypasses the InvariantGuard.
+Above the kernel: ONE constitutional decider — the effect-based
+verification.invariant_guard, reached through kernel/one_door.py.
+Nothing else decides. The old keyword guard still runs on every
+action as an independent tripwire: it narrates, records, and counts
+disagreements. It cannot block and it cannot allow.
+
+Nothing bypasses the door.
 Nothing.
 """
 
 from datetime import datetime
-from driftcore.kernel.invariants import InvariantGuard
+from driftcore.kernel.one_door import ConstitutionalDoor
 
 
 class SafetyKernel:
@@ -16,22 +21,29 @@ class SafetyKernel:
     def __init__(self, narrator=None, audit=None):
         self.locked       = False
         self.override_log = []
-        # InvariantGuard sits above the kernel
-        # It runs FIRST, before any other check
-        self.invariant_guard = InvariantGuard(narrator=narrator, audit=audit)
+        # ONE DOOR: the constitutional decider runs FIRST, before any
+        # other check. The keyword tripwire rides inside it as a sensor.
+        self.door = ConstitutionalDoor(narrator=narrator, audit=audit)
+        # Backward-compatible introspection handle: the SENSOR's inner
+        # keyword guard (real InvariantGuard instance — check_log,
+        # explain_all, choose_gentlest all still work). Decisions do NOT
+        # flow through this attribute anymore.
+        self.invariant_guard = self.door.tripwire.guard
+        self.last_decision = None
 
     def evaluate(self, action: dict) -> str:
         """
         Evaluate an action.
         Order:
-          1. Invariant check  — immutable, no override
-          2. Lock check       — emergency halt active?
-          3. Risk check       — high risk action?
-          4. Policy check     — violates policy?
+          1. Constitutional door — single decider, immutable, no override
+          2. Lock check          — emergency halt active?
+          3. Risk check          — high risk action?
+          4. Policy check        — violates policy?
           5. ALLOW
         """
-        # 1. Invariants — always first, always wins
-        invariant_result = self.invariant_guard.check(action)
+        # 1. The door — always first, always wins
+        invariant_result = self.door.decide(action)
+        self.last_decision = invariant_result
         if invariant_result.get("status") == "BLOCKED_BY_INVARIANT":
             return "BLOCKED_BY_INVARIANT"
 

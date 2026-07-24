@@ -3,6 +3,27 @@
 All notable changes to DriftCore OS. Test counts are produced by
 `bash scripts/count_tests.sh` (the single source of truth).
 
+
+## Unreleased — ONE DOOR consolidation
+
+Two independently-grown enforcement stacks (kernel keyword lists vs verification
+effect guard) collapsed to a single decider. `SafetyKernel` now decides through
+`kernel/one_door.py` -> `verification.invariant_guard.InvariantGuard`; the keyword
+guard is demoted to an independent tripwire that observes, narrates, and counts
+disagreements but can neither block nor allow. Invariant sets unioned first:
+new ABSOLUTE `Effect.SELF_MODIFICATION` + `no_self_modification_of_safety_rules`;
+word-boundary lethal backstop closes the confession gap (untagged "kill the
+intruder" was ALLOWED at this guard before). Sensor errors are counted separately
+from agreement (a dead sensor must not look like a healthy one). Belt: a
+constitutionally-classified action the decider allows is blocked fail-closed and
+the internal disagreement recorded. New: `driftcore/kernel/one_door.py`,
+`test_one_door.py` (48 checks), `ONE_DOOR.md`. Found-by-suite fixes en route: the
+door initially classified its own ActionContext repr ("target_authorized" contains
+"target" — a weapon signal) and the first lethal backstop used substrings ("kill "
+matched inside "skill " and blocked the skill library). Both are recorded in code
+comments as lessons. Coordinator vocabulary and PROPOSED status of
+EffectRegistry/EffectGuard deliberately unchanged — see ONE_DOOR.md.
+
 ## v4.5.0 — Two-Ended Drift: protecting the human end
 
 The drift detector watches the machine sliding off its values. This release adds
@@ -72,7 +93,10 @@ a human-set number, not a machine guess.
 Tests: `test_second_reader.py` (19), `test_keepers.py` (15),
 `test_interpretation_guard.py` (8), `test_integrity_invariance.py` (12),
 `test_approval_governance.py` (16), `test_clarification_gate.py` (10).
-Suite: **1124 tests / 41 files**, all green.
+Suite at the close of this release: **1745 tests / 63 files**, all green — the figure
+includes the two blocks that landed after this entry was first drafted (`challenger.py`,
+84 tests; `effect_guard.py`, 26). A changelog entry is a historical record, so a pinned
+number belongs here; everywhere else, run `bash scripts/count_tests.sh`.
 
 Interface — ask, don't guess
 - `verification/clarification_gate.py` — "tell it your goal and let it ask." When a

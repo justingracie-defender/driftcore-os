@@ -294,50 +294,20 @@ class InvariantGuard:
         """
         Check an action against all invariants.
         Returns ALLOW or BLOCKED with full explanation.
-        This check cannot be skipped.
+
+        ONE-DOOR NOTE: since the one-door consolidation this method DECIDES
+        nothing in the enforcement path. SafetyKernel routes decisions through
+        kernel/one_door.py (verification.invariant_guard is the single decider);
+        this class is retained as an independent keyword TRIPWIRE — it still
+        runs, still reports, and its disagreements with the decider are counted.
+        Detection logic lives in classify() below, shared as pure data+matching
+        with the door's translation tier, so tripwire and decider cannot drift
+        apart silently on this vocabulary.
         """
-        action_name = str(action.get("action", "")).lower()
-        action_str  = str(action).lower()
-
-        # Normalize to defeat evasion: strip separators between letters
-        # so "w e a p o n" and "w-e-a-p-o-n" collapse to "weapon".
-        import re as _re
-        import unicodedata as _ud
-        normalized = _ud.normalize("NFKC", action_str)          # fullwidth → ascii
-        normalized = normalized.lower()
-        collapsed  = _re.sub(r"[\s\-_.*]+", "", normalized)     # remove separators
-
-        def _hit(signal: str) -> bool:
-            s = signal.replace("_", "")
-            return (signal in action_name or signal in action_str
-                    or signal in normalized
-                    or s in collapsed)
-
-        # Check weapons signals
-        for signal in self.WEAPON_SIGNALS:
-            if _hit(signal):
-                return self._block(action, "NO_AUTONOMOUS_LETHAL_DECISION",
-                    f"Action contains weapons signal: '{signal}'")
-
-        # Check oversight removal signals
-        for signal in self.OVERSIGHT_REMOVAL_SIGNALS:
-            if _hit(signal):
-                return self._block(action, "HUMAN_OVERSIGHT_CANNOT_BE_DISABLED",
-                    f"Action attempts to remove oversight: '{signal}'")
-
-        # Explicit flags
-        if action.get("lethal"):
-            return self._block(action, "NO_AUTONOMOUS_LETHAL_DECISION",
-                "Action flagged as lethal=True")
-
-        if action.get("modifies_safety_rules"):
-            return self._block(action, "NO_SELF_MODIFICATION_OF_SAFETY_RULES",
-                "Action attempts to modify safety rules")
-
-        if action.get("deletes_audit"):
-            return self._block(action, "AUDIT_CHAIN_CANNOT_BE_DELETED",
-                "Action attempts to delete audit records")
-
+        verdict = classify(action)
+        if verdict is not None:
+            name, reason = verdict
+            return self._block(action, name, reason)
         self._log_pass(action)
         return {"status": "ALLOW", "invariants_checked": len(self.WEAPON_SIGNALS) + len(self.OVERSIGHT_REMOVAL_SIGNALS)}
 
@@ -455,3 +425,88 @@ class InvariantGuard:
             "status":    "PASS",
             "action":    action,
         })
+
+
+import re as _re
+import functools as _functools
+
+_SIG_SEP = r"[\s\-_.*]*"   # optional single separators between a signal's letters
+
+
+@_functools.lru_cache(maxsize=512)
+def _signal_re(signal: str):
+    """Compile a whole-token matcher for a keyword signal.
+
+    Alphanumerics of the signal, joined by optional separators, bounded by
+    ALPHANUMERIC-run edges (lookarounds, not \\b). We can't use \\b because
+    underscore is a regex word char, so \\bweapon\\b misses "design_weapon" —
+    exactly the snake_case identifiers the kernel guard was built for. The
+    lookarounds treat "_", "-", space, ".", quotes and braces all as edges:
+
+      matches "kill the intruder", "design_weapon" (via _weapon), "w e a p o n"
+      rejects "skill" ('s' before 'kill'), "alarmed" ('l' before 'armed')
+
+    Homographs are the known residual: "kill the process" is a whole-word
+    "kill" and still matches. No keyword rule can separate it from "kill the
+    intruder" — only a structural tag can. That is the open design decision in
+    RED_TEAM_ONE_DOOR_COLD.md, not something this matcher can fix.
+    """
+    core = _SIG_SEP.join(_re.escape(c) for c in signal if c.isalnum())
+    if not core:
+        return _re.compile(r"(?!x)x")   # matches nothing
+    return _re.compile(r"(?<![a-z0-9])" + core + r"(?![a-z0-9])")
+
+
+def classify(action: dict):
+    """
+    Pure constitutional classification: (invariant_name, reason) or None.
+
+    EXACTLY the detection logic check() has always used — signal lists, the
+    separator-collapse normalizer, then the explicit flags, in the same order.
+    Extracted so the one-door decider translates the same vocabulary into
+    guard Effects while the tripwire keeps its own independent code path.
+    No side effects: no logging, no narration, no audit. Callers decide what
+    a hit means; this function only finds.
+    """
+    import unicodedata as _ud
+    action_str  = str(action).lower()
+    normalized  = _ud.normalize("NFKC", action_str).lower()
+
+    # Word-boundary matching, NOT substring. The old substring form matched
+    # "kill" inside "skill" and "armed" inside "alarmed", so the door (which
+    # promotes a classify() hit into a blocking Effect) blocked benign
+    # authorized actions — "install the skill", "deliver to target_address" —
+    # as LETHAL. Found by the cold red-team pass, verified against running code.
+    #
+    # Each signal matches as a whole token: its alphanumerics joined by OPTIONAL
+    # single separators, anchored at word boundaries. This still defeats the
+    # "w e a p o n" / "w-e-a-p-o-n" separator-evasion the collapse form was for
+    # (the letters + optional separators pattern IS the evasion), while a
+    # word-boundary before the first letter means "skill" no longer contains
+    # a matching "kill" (the 's' blocks the boundary).
+    #
+    # NOTE this does NOT resolve the homograph ambiguity: "kill the intruder"
+    # and "kill the process" are both a whole-word "kill". No keyword layer can
+    # separate them — only a structural effect tag can. See ONE_DOOR.md /
+    # RED_TEAM_ONE_DOOR_COLD.md: keyword hits are a REVIEW TRIPWIRE, and whether
+    # a bare keyword hit should hard-block is an open design decision.
+    def _hit(signal: str) -> bool:
+        return bool(_signal_re(signal).search(normalized))
+
+    for signal in InvariantGuard.WEAPON_SIGNALS:
+        if _hit(signal):
+            return ("NO_AUTONOMOUS_LETHAL_DECISION",
+                    f"Action contains weapons signal: '{signal}'")
+    for signal in InvariantGuard.OVERSIGHT_REMOVAL_SIGNALS:
+        if _hit(signal):
+            return ("HUMAN_OVERSIGHT_CANNOT_BE_DISABLED",
+                    f"Action attempts to remove oversight: '{signal}'")
+    if action.get("lethal"):
+        return ("NO_AUTONOMOUS_LETHAL_DECISION", "Action flagged as lethal=True")
+    if action.get("modifies_safety_rules"):
+        return ("NO_SELF_MODIFICATION_OF_SAFETY_RULES",
+                "Action attempts to modify safety rules")
+    if action.get("deletes_audit"):
+        return ("AUDIT_CHAIN_CANNOT_BE_DELETED",
+                "Action attempts to delete audit records")
+    return None

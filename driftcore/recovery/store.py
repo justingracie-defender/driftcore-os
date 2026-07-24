@@ -42,6 +42,20 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
+# ── human identity ──────────────────────────────────────────────────────────
+# (red-team, external) This module used to carry its OWN copy of a reserved-word
+# blacklist, so `_is_human("mallory")` returned True and any caller that chose its
+# own `authorised_by` string self-authorized. Three modules carried identical
+# copies. The single shared implementation supports registered principals and
+# signed attestations: driftcore/authority/human_identity.py
+#
+# The import is LOCAL (deferred) to break the authority <-> skills import cycle —
+# the same idiom coordinator.py uses for interpretation_guard.
+def _is_human(authorised_by) -> bool:
+    from driftcore.authority.human_identity import is_human
+    return is_human(authorised_by)
+
+
 
 class EventKind(Enum):
     CREATE  = "create"
@@ -250,8 +264,6 @@ class CheckpointStore:
 
 # ── Privileged authority: restore / prune (human only) ────────────
 
-def _is_human(authorised_by: Optional[str]) -> bool:
-    return authorised_by not in ("", "system", "auto", "auto-sign", "agent", None)
 
 
 class RestoreAuthority:
