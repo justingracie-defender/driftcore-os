@@ -189,6 +189,7 @@ r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
                    source=FakeProc(netns="net:[9]", seccomp=2))
 r2 = __import__("driftcore.kernel.isolation_manifest", fromlist=["_verify"])._verify(
     type("S", (), {"fds": lambda s: {"0": "pipe:[1]"}, "netns": lambda s: "net:[9]",
+                   "interfaces": lambda s: ["lo"], "net_inodes": lambda s: {},
                    "status": lambda s: {"Seccomp": "2", "NoNewPrivs": "1"}})(),
     M, trusted=True, label="t", reference_netns="net:[other]")
 ok(not r2.permitted and any("CapEff is absent" in f for f in r2.findings),
@@ -202,12 +203,23 @@ ok(not r.permitted and any("NO reference namespace" in f for f in r.findings),
    "I3: no reference namespace REFUSES — a check that cannot run has not passed")
 
 # I5: a declared target must not launder a dangerous kind
-M5 = IsolationManifest(declared_by="j", allowed_fd_targets=frozenset({"socket:[8080]"}))
+# I5 was originally pinned at VERIFY time. The defence has since moved EARLIER: an
+# inode-numbered target can no longer be declared at all (Meta P0-1), so the
+# misconfiguration is impossible to write down rather than merely caught later.
+try:
+    IsolationManifest(declared_by="j", allowed_fd_targets=frozenset({"socket:[8080]"}))
+    ok(False, "I5: an inode-numbered target should be refused at declaration")
+except ValueError:
+    ok(True, "I5 (strengthened): a socket inode cannot be DECLARED as an allowed target")
+# and the verify-time check remains as defence in depth, for a manifest built by any
+# path that bypasses __post_init__ (e.g. object.__setattr__ on the frozen dataclass)
+import dataclasses as _dc5
+M5 = IsolationManifest(declared_by="j")
+object.__setattr__(M5, "allowed_fd_targets", frozenset({"socket:[8080]"}))
 r = verify_process(1, M5, compare_to_self=False, reference_netns=HOST_NS, source=FakeProc(
     fds={"0": "pipe:[1]", "3": "socket:[8080]"}, netns="net:[9]", seccomp=2))
 ok(not r.permitted and any("never be permitted by naming a target" in f for f in r.findings),
-   "I5: naming a socket inode in allowed_fd_targets does NOT permit it "
-   "(inodes are unstable — it would permit whatever holds that inode next)")
+   "I5: and if one is smuggled past the constructor, verify still refuses it")
 
 # I6: permitting sockets by kind must be explicit, never quiet
 try:
@@ -288,5 +300,135 @@ ok("allow-all filter satisfies this check" in str(r.observations.get("seccomp_no
 # ChatGPT P1-3: manifest versioning so stale manifests are visible
 ok(IsolationManifest(declared_by="j").manifest_version >= 2,
    "ChatGPT P1-3: the manifest carries a version")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== LOCAL REFUSAL: the error says no where the error happens ==")
+from driftcore.kernel.isolation_manifest import IsolationScanError
+
+class _ScanFails(FakeProc):
+    def fds(self):
+        raise IsolationScanError("file descriptor 7 exists but could not be read (EACCES)")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_ScanFails(netns="net:[P]", seccomp=2))
+ok(not r.permitted, "an unreadable file descriptor REFUSES the scan")
+ok(any("descriptor 7" in f for f in r.findings),
+   "and the refusal names WHICH descriptor — the reason travels from the failure site, "
+   "instead of a vague 'unknown' label that a distant allowlist happens to reject")
+
+class _TableFails(FakeProc):
+    def net_inodes(self):
+        raise IsolationScanError("socket table 'tcp' exists but could not be read")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_TableFails(netns="net:[P]", seccomp=2))
+ok(not r.permitted and any("socket table" in f for f in r.findings),
+   "an unreadable socket table REFUSES — incomplete attribution could mistake a "
+   "network socket for a local one, so it is never treated as a complete map")
+
+ok(verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                  source=FakeProc(netns="net:[P]", seccomp=2)).permitted,
+   "and a scan that CAN read everything still passes — absent is distinguished from "
+   "unreadable, so a kernel without IPv6 is not treated as a failure")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== EXTERNAL ROUND 2 PINS (Meta / ChatGPT / Grok) ==")
+
+# ChatGPT F3 + Grok #1 — THE SUBSTRING BUG, FOURTH INSTANCE, found by two reviewers
+ok(classify_fd("anon_inode:[eventfd]") == "anon_inode",
+   "the genuine benign anon inode is still permitted")
+for laundered in ["anon_inode:[eventfd_evil]", "anon_inode:[memfd_backdoor]",
+                  "anon_inode:[pidfd_exfil]", "anon_inode:[signalfd2]",
+                  "anon_inode:[inotify_x]"]:
+    ok(classify_fd(laundered) == "anon_unknown",
+       f"4th-instance substring bug: {laundered} is NOT laundered into the allowed kind")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=FakeProc(fds={"0": "pipe:[1]", "6": "anon_inode:[memfd_evil]"},
+                                   netns="net:[P]", seccomp=2))
+ok(not r.permitted, "and a laundered anon inode is refused at the wall")
+
+# Grok #2 — version fields were declared and never consulted
+from driftcore.kernel.isolation_manifest import VERIFIER_VERSION
+import dataclasses as _dc
+future = _dc.replace(IsolationManifest(declared_by="j"),
+                     min_verifier_version=VERIFIER_VERSION + 1)
+r = verify_process(1, future, compare_to_self=False, reference_netns=HOST_NS,
+                   source=FakeProc(netns="net:[P]", seccomp=2))
+ok(not r.permitted and any("verifier version" in f for f in r.findings),
+   "a manifest demanding a NEWER verifier is refused — a pass would mean 'the checks "
+   "I know about succeeded', not 'the declared surface was verified'")
+unknown = _dc.replace(IsolationManifest(declared_by="j"), manifest_version=99)
+r = verify_process(1, unknown, compare_to_self=False, reference_netns=HOST_NS,
+                   source=FakeProc(netns="net:[P]", seccomp=2))
+ok(not r.permitted, "an unknown manifest_version is refused rather than guessed at")
+
+# Meta P0-1 — inode-numbered targets must be impossible to DECLARE, not merely caught
+for bad in ["socket:[8080]", "net:[4026531833]", "anon_inode:[eventfd]", "pipe:[3]"]:
+    try:
+        IsolationManifest(declared_by="j", allowed_fd_targets=frozenset({bad}))
+        ok(False, f"declaring {bad} as an allowed target should be refused")
+    except ValueError:
+        ok(True, f"{bad} cannot be DECLARED as an allowed target (inodes are recycled)")
+ok(IsolationManifest(declared_by="j",
+                     allowed_fd_targets=frozenset({"/var/log/app.log"})) is not None,
+   "...while a stable filesystem path remains declarable")
+
+# ChatGPT F1 — the report states what was observed, not what is guaranteed
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=FakeProc(netns="net:[P]", seccomp=2))
+ok("OBSERVED ISOLATION" in r.summary(),
+   "the summary says OBSERVED, not 'isolation OK' — /proc is an observation interface, "
+   "not an enforcement mechanism, and the wording must not imply a guarantee")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== COLD SELF-RED-TEAM PINS (round 2 fixes) ==")
+import dataclasses as _dcx
+
+# A4: the declaration-time inode check was dodged three ways
+for dodge in ["SOCKET:[8080]", " socket:[8080]", "/proc/1/fd/socket:[8080]",
+              "net:[4026531833]", "relative/path"]:
+    try:
+        IsolationManifest(declared_by="j", allowed_fd_targets=frozenset({dodge}))
+        ok(False, f"A4: {dodge!r} should be refused at declaration")
+    except ValueError:
+        ok(True, f"A4: {dodge!r} cannot be declared (positive path shape, not a blocklist)")
+ok(IsolationManifest(declared_by="j",
+                     allowed_fd_targets=frozenset({"/var/log/app.log"})) is not None,
+   "A4: a genuine absolute path with no colon remains declarable")
+
+# A5: an empty interface list must not read as the safest possible namespace
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=FakeProc(netns="net:[P]", seccomp=2, ifaces=[]))
+ok(not r.permitted and any("not even loopback" in f for f in r.findings),
+   "A5: zero interfaces REFUSES — more likely a parse failure than a genuinely empty "
+   "namespace, and a parse failure must not read as the safest possible state")
+
+# A6: shareable memory objects are channels, not inert
+for shareable in ["anon_inode:[memfd]", "anon_inode:[dmabuf]"]:
+    ok(classify_fd(shareable) == "anon_unknown",
+       f"A6: {shareable} is no longer benign — passed over SCM_RIGHTS it is a channel "
+       f"to a helper process that may have the network this one does not")
+ok(classify_fd("anon_inode:[eventfd]") == "anon_inode",
+   "A6: genuinely inert kinds are still permitted")
+
+# A7: absent version fields defaulted to a KNOWN version and passed
+class _NoVersion:
+    declared_by = "x"; allowed_fd_kinds = frozenset({"pipe"})
+    allowed_fd_targets = frozenset(); max_fds = 64
+    require_own_netns = False; forbidden_capabilities = frozenset()
+    require_seccomp = False; require_no_new_privs = False
+    require_empty_netns = False; require_dropped_from_bounding_set = False
+r = verify_process(1, _NoVersion(), compare_to_self=False, reference_netns=HOST_NS,
+                   source=FakeProc(netns="net:[P]", seccomp=2))
+ok(not r.permitted and any("declares no version" in f for f in r.findings),
+   "A7: a manifest with NO version fields is refused — an absent declaration is not a "
+   "version-1 declaration")
 
 print(f"\nALL {passed} CHECKS PASSED")

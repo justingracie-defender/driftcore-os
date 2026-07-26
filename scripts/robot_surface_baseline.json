@@ -1,0 +1,47 @@
+{
+  "modules": {
+    "driftcore/kernel/actuation_gate.py": {
+      "leaky": 2,
+      "robot": 4
+    },
+    "driftcore/kernel/blast_radius.py": {
+      "leaky": 7,
+      "robot": 10
+    },
+    "driftcore/kernel/effect_guard.py": {
+      "leaky": 2,
+      "robot": 6
+    },
+    "driftcore/kernel/egress_guard.py": {
+      "leaky": 2,
+      "robot": 15
+    },
+    "driftcore/kernel/escalation_lexicon.py": {
+      "leaky": 5,
+      "robot": 10
+    },
+    "driftcore/kernel/invariants.py": {
+      "leaky": 1,
+      "robot": 6
+    },
+    "driftcore/kernel/isolation_manifest.py": {
+      "leaky": 7,
+      "robot": 28
+    },
+    "driftcore/kernel/one_door.py": {
+      "leaky": 7,
+      "robot": 8
+    },
+    "driftcore/verification/invariant_guard.py": {
+      "leaky": 3,
+      "robot": 4
+    },
+    "driftcore/verification/mediated_actuation.py": {
+      "leaky": 22,
+      "robot": 33
+    }
+  },
+  "note": "Baseline history. (1) first recording. (2) after isolation_manifest's error paths were made to refuse locally AND the tool was taught the accumulate-refusal idiom it had been mismeasuring. (3) after adding the merge-proof 'leaves' companion metric and match/case walking. (4) after cold self-red-team found the walker was blind to ternaries, comprehension guards and loop guards \u2014 the numbers ROSE because the instrument now sees decisions it previously missed, which is the opposite of tuning. Every entry is an instrument correction or a real improvement. A baseline moves when the world moves or the ruler was wrong, never to make a number look better.",
+  "total_leaky": 58,
+  "total_robot": 124
+}

@@ -63,6 +63,13 @@ _CAP_BITS = {
 
 _SECCOMP_MODES = {0: "DISABLED", 1: "STRICT", 2: "FILTER"}
 
+# The verifier's own version. A manifest may demand a newer verifier than this; if it
+# does, this verifier does not know the checks that manifest expects and must refuse.
+# The version fields existed but `_verify` never read them — a version field used as
+# documentation rather than as a control, which is the failure mode it exists to prevent.
+VERIFIER_VERSION = 2
+KNOWN_MANIFEST_VERSIONS = frozenset({1, 2})
+
 # Kinds that an exact-target declaration must never be able to launder, because their
 # /proc targets are unstable inode numbers rather than stable names.
 _NEVER_BY_TARGET = frozenset({"socket_network", "socket_unix", "socket_unknown",
@@ -93,16 +100,41 @@ _TTY_RE = re.compile(r"^/dev/(tty|pts/\d+)$")
 # adds anon inode types regularly; the next one that can do network I/O would have been
 # silently allowed. Now only demonstrably-inert kinds are named, and anything else is
 # 'anon_unknown', which is not in any default allowlist.
-_BENIGN_ANON = ("eventfd", "eventpoll", "timerfd", "signalfd", "inotify",
-                "fanotify", "pidfd", "memfd", "dmabuf", "sync_file")
+# EXACT MATCH ONLY. This was written as `if benign in inner` — a substring test — which
+# laundered anon_inode:[eventfd_evil], [memfd_backdoor] and [pidfd_exfil] into the
+# permitted kind. That is the SAME substring-vs-whole-token bug this file's own comments
+# record as having been fixed three times already (escalation lexicon "kill" in "skill",
+# kernel guard classify(), and the /dev path prefix test two hundred lines above this
+# one). Fourth instance, found by two independent reviewers.
+#
+# The recurrence is the finding. "Remember not to do this" has now failed four times, so
+# the rule is structural instead: SECURITY-RELEVANT NAME COMPARISONS IN THIS FILE USE
+# frozenset MEMBERSHIP. No `in` against a string, no startswith, no regex with a
+# non-anchored tail. If a comparison cannot be expressed as set membership, it is not a
+# name comparison and needs a different mechanism.
+# memfd and dmabuf were removed from this set in self-red-team. Both are SHAREABLE
+# memory objects: a memfd passed to another process over SCM_RIGHTS is a two-way
+# communication channel, and "a channel to a helper process that does have network" is
+# precisely the bypass this module exists to notice. They are inert only while nobody
+# shares them, which is not a property an FD scan can establish. Undeclared -> refused;
+# a deployment that genuinely needs one declares it as a kind and says why.
+_BENIGN_ANON = frozenset({
+    "eventfd", "eventpoll", "timerfd", "signalfd", "inotify",
+    "fanotify", "pidfd", "sync_file"})
 
 
 def classify_fd(target: str, net_inodes: Optional[Dict[str, str]] = None) -> str:
-    """Classify an FD. `net_inodes` maps socket inode -> family ('network'/'unix'),
-    built from /proc/<pid>/net/*; without it a socket cannot be attributed and is
-    classified 'socket_unknown', which is refused."""
-    """Classify an FD by its /proc readlink target. Anything unrecognised is
-    'unknown' — and unknown is refused, not shrugged at."""
+    """Classify an FD by its /proc readlink target.
+
+    `net_inodes` maps socket inode -> family ('network'/'unix'), built from
+    /proc/<pid>/net/*; without it a socket cannot be attributed and is classified
+    'socket_unknown'. Anything unrecognised is 'unknown'. Both are refused by default —
+    unknown is not shrugged at.
+
+    All name comparisons here are frozenset membership, never containment. See the
+    note on _BENIGN_ANON for why that is a structural rule in this file rather than
+    a thing to remember.
+    """
     if target.startswith("socket:"):
         # Grok #3: every socket used to collapse to one kind, so AF_UNIX could not be
         # permitted without also permitting AF_INET. Inodes ARE attributable via
@@ -120,9 +152,8 @@ def classify_fd(target: str, net_inodes: Optional[Dict[str, str]] = None) -> str
         return "pipe"
     if target.startswith("anon_inode:"):
         inner = target[len("anon_inode:"):].strip("[]").lower()
-        for benign in _BENIGN_ANON:
-            if benign in inner:
-                return "anon_inode"
+        if inner in _BENIGN_ANON:          # exact membership, never containment
+            return "anon_inode"
         # io_uring, bpf, userfaultfd, perf_event AND every kind invented after this
         # code was written all land here — and 'anon_unknown' is refused by default.
         return "anon_unknown"
@@ -135,6 +166,20 @@ def classify_fd(target: str, net_inodes: Optional[Dict[str, str]] = None) -> str
     if target.startswith("/"):
         return "file"
     return "unknown"
+
+
+class IsolationScanError(Exception):
+    """The capability surface could not be fully enumerated.
+
+    Raised at the point of failure rather than encoded as a vague placeholder. The
+    three sites that now raise this used to label the unreadable thing "unknown", or
+    silently skip it, and rely on a rule three files away to refuse the label later.
+    That worked — but the safety lived somewhere other than the failure, so a
+    reasonable-looking edit to the allowlist would have turned all three into bypasses
+    in the same afternoon, with nothing connecting the change to the breakage.
+
+    An error that says no where it happens is an error a reviewer can read in one place.
+    """
 
 
 @dataclass(frozen=True)
@@ -177,6 +222,34 @@ class IsolationManifest:
                 f"network/namespace handles and defeats the purpose of this manifest. "
                 f"If that is genuinely intended, set accept_network_capable_fds=True so "
                 f"the decision is explicit and visible in the declaration.")
+        # Inode-numbered targets can never be declared. `socket:[8080]` names an inode
+        # that the kernel recycles, so allowing it by exact string permits whatever holds
+        # that inode next — a TOCTOU by construction. _verify already refuses these, but
+        # refusing at declaration makes the misconfiguration impossible to write down
+        # rather than merely caught later.
+        # A declared target must BE a stable filesystem path — asserted as a positive
+        # shape, not as a blocklist of prefixes. The blocklist version split on ":" and
+        # was dodged three ways in self-red-team: "SOCKET:[8080]" (case),
+        # " socket:[8080]" (leading space), and "/proc/1/fd/socket:[8080]" (the inode
+        # reference embedded in something that IS a path). Enumerating the bad forms is
+        # the losing game this project keeps refusing to play everywhere else.
+        for t in self.allowed_fd_targets:
+            if t != t.strip():
+                raise ValueError(
+                    f"allowed_fd_targets contains {t!r} with surrounding whitespace; "
+                    f"it would never match a real /proc target. Refusing rather than "
+                    f"silently trimming.")
+            if not t.startswith("/"):
+                raise ValueError(
+                    f"allowed_fd_targets contains {t!r}, which is not an absolute "
+                    f"filesystem path. Only stable paths may be declared by name.")
+            if ":" in t:
+                raise ValueError(
+                    f"allowed_fd_targets contains {t!r}. A ':' means it references a "
+                    f"kernel object by RECYCLED INODE NUMBER (socket:[..], net:[..], "
+                    f"anon_inode:[..]) — possibly embedded inside something that looks "
+                    f"like a path. Permitting it would permit whatever holds that inode "
+                    f"next. Declare an FD KIND instead.")
         for cap in self.forbidden_capabilities:
             if cap not in _CAP_BITS:
                 raise ValueError(
@@ -198,8 +271,11 @@ class IsolationReport:
         return not self.findings
 
     def summary(self) -> str:
-        head = ("ISOLATION OK" if self.permitted else
-                f"ISOLATION REFUSED ({len(self.findings)} finding(s))")
+        # "ISOLATION OK" implies a guarantee. What this holds is a snapshot of
+        # observable properties at one instant — /proc is an observation interface, not
+        # an enforcement mechanism. The wording says so.
+        head = ("OBSERVED ISOLATION: no findings" if self.permitted else
+                f"OBSERVED ISOLATION: REFUSED ({len(self.findings)} finding(s))")
         trust = ("" if self.trusted else
                  "  [SELF-REPORTED — a misconfiguration smoke test, NOT a security "
                  "control: in-process code could patch this result]")
@@ -220,8 +296,20 @@ class _ProcSource:
         for name in os.listdir(d):
             try:
                 out[name] = os.readlink(f"{d}/{name}")
-            except OSError:
-                out[name] = "unknown"
+            except FileNotFoundError:
+                # The descriptor was closed between listing and reading. Benign and
+                # common in a live process — it is gone, so it holds nothing.
+                continue
+            except OSError as e:
+                # A descriptor that EXISTS and cannot be read is a ticket we cannot
+                # check. Refuse here, naming it, rather than labelling it "unknown"
+                # and depending on a distant allowlist to reject that label.
+                raise IsolationScanError(
+                    f"file descriptor {name} exists but could not be read ({e}). An FD "
+                    f"that cannot be identified cannot be cleared. If this is a "
+                    f"transient race, re-run the scan; if it persists, the supervisor "
+                    f"lacks the privilege to inspect this process and must not "
+                    f"attest to it.") from e
         return out
 
     def netns(self) -> str:
@@ -251,8 +339,18 @@ class _ProcSource:
                             parts = line.split()
                             if len(parts) > idx:
                                 out[parts[idx].rstrip(":")] = fam
-                except (OSError, StopIteration):
+                except FileNotFoundError:
+                    # That protocol table does not exist on this kernel (e.g. no IPv6).
+                    # A table that is absent lists no sockets, so nothing is unmeasured.
                     continue
+                except OSError as e:
+                    # The table EXISTS and could not be read, so socket attribution is
+                    # incomplete and we cannot tell AF_UNIX from AF_INET. Refuse here
+                    # rather than returning a partial map that silently looks complete.
+                    raise IsolationScanError(
+                        f"socket table {f!r} exists but could not be read ({e}). Socket "
+                        f"attribution would be incomplete, so a network socket could be "
+                        f"mistaken for a local one.") from e
         return out
 
     def status(self) -> Dict[str, str]:
@@ -269,13 +367,36 @@ def _verify(source, manifest: IsolationManifest, *, trusted: bool, label: str,
             reference_netns: Optional[str] = None) -> IsolationReport:
     rep = IsolationReport(trusted=trusted, source=label)
 
+    # ── the manifest must be one this verifier actually understands ──
+    # getattr(..., 1) meant an object with no version fields defaulted to a KNOWN
+    # version and passed. An absent declaration is not a version-1 declaration.
+    if not hasattr(manifest, "manifest_version") or \
+            not hasattr(manifest, "min_verifier_version"):
+        rep.findings.append(
+            "the manifest declares no version. This verifier cannot tell which checks "
+            "it was written to expect, so a pass would be meaningless. Refusing.")
+    mv = getattr(manifest, "manifest_version", None)
+    need = getattr(manifest, "min_verifier_version", None)
+    if mv is None or need is None:
+        return rep
+    rep.observations["manifest_version"] = mv
+    rep.observations["verifier_version"] = VERIFIER_VERSION
+    if need > VERIFIER_VERSION:
+        rep.findings.append(
+            f"manifest requires verifier version {need} but this verifier is "
+            f"{VERIFIER_VERSION}. It does not implement the checks the manifest expects, "
+            f"so a pass here would mean 'the checks I know about succeeded', not 'the "
+            f"declared surface was verified'. Refusing.")
+    if mv not in KNOWN_MANIFEST_VERSIONS:
+        rep.findings.append(
+            f"manifest_version {mv} is not one this verifier knows "
+            f"({sorted(KNOWN_MANIFEST_VERSIONS)}); refusing rather than guessing which "
+            f"defaults it intended.")
+
     # ── file descriptors: fail closed on ANYTHING undeclared ──
     try:
         fds = source.fds()
-        try:
-            net_inodes = source.net_inodes()
-        except Exception:
-            net_inodes = {}      # unattributable -> sockets become 'socket_unknown'
+        net_inodes = source.net_inodes()
         rep.observations["fd_count"] = len(fds)
         kinds: Dict[str, int] = {}
         for num, target in sorted(fds.items()):
@@ -301,6 +422,19 @@ def _verify(source, manifest: IsolationManifest, *, trusted: bool, label: str,
             rep.findings.append(
                 f"{len(fds)} open file descriptors exceeds the declared max "
                 f"{manifest.max_fds}")
+    except AttributeError as e:
+        # An incomplete scan SOURCE (missing a method) is a wiring error, not a clean
+        # surface. The previous bare `except Exception` swallowed this too and carried
+        # on with an empty map. _verify must stay TOTAL — it always returns a report,
+        # never raises — so this becomes a refusal rather than a crash.
+        rep.findings.append(
+            f"the scan source is incomplete ({e}); refusing. A verifier that cannot "
+            f"ask every question has not asked them.")
+    except IsolationScanError as e:
+        # The scan named its own failure. Carry that reason through verbatim: the
+        # operator needs to know WHICH descriptor or table was unreadable, not merely
+        # that something was.
+        rep.findings.append(f"capability surface could not be enumerated: {e}")
     except OSError as e:
         rep.findings.append(
             f"file descriptors could not be enumerated ({e}); refusing rather than "
@@ -339,6 +473,15 @@ def _verify(source, manifest: IsolationManifest, *, trusted: bool, label: str,
         try:
             ifaces = source.interfaces()
             rep.observations["interfaces"] = ifaces
+            if not ifaces:
+                # Loopback is present in essentially every namespace, so an EMPTY list
+                # is far more likely to mean "/proc/net/dev did not parse" than
+                # "genuinely no interfaces" — and a format change would then read as
+                # the safest possible result. Unmeasured is not empty.
+                rep.findings.append(
+                    "no network interfaces were listed at all, not even loopback. That "
+                    "is more likely a parse failure than a genuinely empty namespace, "
+                    "and a parse failure must not read as the safest possible state.")
             routable = [i for i in ifaces if i != "lo"]
             if routable:
                 rep.findings.append(
