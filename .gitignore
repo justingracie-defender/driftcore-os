@@ -51,3 +51,6 @@ driftcore_spent_tokens.json
 *_spent_tokens.json
 *_daily_budget.json
 *.jsonl
+
+# Safety artifacts — DO NOT ignore; these are load-bearing baselines, not runtime state
+!scripts/robot_surface_baseline.json
