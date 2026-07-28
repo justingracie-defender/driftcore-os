@@ -209,3 +209,368 @@ ok(r1.get("ok") is False and r2.get("ok") is True,
    "fix; this assertion must flip when they land")
 
 print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== LOCAL REFUSAL in the enforcement path (the wall's own error handling) ==")
+# Each of these four gates used to refuse in TWO steps: set a flag in the except, then
+# act on the flag further down. Safe, but the refusal lived away from the failure — and
+# one of them (the registry read) was CONDITIONAL and could be skipped entirely.
+
+class _BrokenRegistry:
+    def effects_for(self, a): raise RuntimeError("registry down")
+    def declaration(self, a): return None
+
+# the verified hole: registry failure + no destinations in params -> the actuator RAN
+b, v = broker(False)
+ran = []
+b.register_actuator("arm", lambda **k: ran.append(1) or "ok", required_scope=("a:m",))
+b._effect_registry = _BrokenRegistry()
+r = b._handle(req("arm", "move", {}, grant(v, "arm", "move", {}, nonce="lr1", scope=("a:m",))))
+ok(r.get("error_code") == "REGISTRY_ERROR" and not ran,
+   "an unreadable effect registry refuses UNCONDITIONALLY — it used to refuse only if "
+   "destinations were also present, so an action with no URL in its params executed")
+
+# the effect gate's own failure returns from the except, not via a flag
+b, v = broker(True)
+fired = []
+b.register_actuator("vac", lambda **k: fired.append(1), required_scope=("f:c",),
+                    effects=[Effect.NONE], effect_declared_by="justin")
+class _BoomGate:
+    def authorize(self, *a, **k): raise RuntimeError("gate exploded")
+b._effect_gate = _BoomGate()
+r = b._handle(req("vac", "clean", {}, grant(v, "vac", "clean", {}, nonce="lr2", scope=("f:c",))))
+ok(r.get("error_code") == "EFFECT_BLOCK_ERROR" and not fired,
+   "a crashing effect gate refuses at the failure site")
+
+# the blast-radius governor likewise
+from driftcore.kernel.blast_radius import BlastRadiusGovernor, BreadthPolicy
+b2 = ActuationBroker(SOCK, v, enforce_effects=True,
+                     blast_radius=BlastRadiusGovernor(
+                         BreadthPolicy(window_seconds=60, max_distinct_capabilities=5)))
+moved = []
+b2.register_actuator("arm2", lambda **k: moved.append(1), required_scope=("a:m",),
+                     effects=[Effect.NONE], effect_declared_by="justin")
+class _BoomGov:
+    def observe(self, *a, **k): raise RuntimeError("governor exploded")
+    def is_armed(self): return True
+b2._blast_radius = _BoomGov()
+r = b2._handle(req("arm2", "move", {}, grant(v, "arm2", "move", {}, nonce="lr3", scope=("a:m",))))
+ok(r.get("error_code") == "BLAST_RADIUS_ERROR" and not moved,
+   "a crashing blast-radius governor refuses at the failure site")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== UNKNOWN PHYSICAL STATE: a timeout must not become a double actuation ==")
+import time as _t
+# Reproduced before the fix: the broker reports ACTUATOR_TIMEOUT and burns the nonce,
+# but Python cannot kill the daemon thread running the actuator. The orphan completed
+# the move, the agent retried with a fresh grant, and the arm moved TWICE.
+_v = PermissionVerifier(); _v.register_key("operator", KEY)
+_b = ActuationBroker(SOCK, _v, enforce_effects=True, actuator_timeout=0.3)
+_moves = []
+def _slow(**k):
+    _t.sleep(0.9); _moves.append("moved"); return "ok"
+_b.register_actuator("slowarm", _slow, required_scope=("a:m",),
+                     effects=[Effect.PHYSICAL_FORCE], effect_declared_by="justin")
+def _g(n):
+    return grant(_v, "slowarm", "move", {}, nonce=n, scope=("a:m",))
+
+r = _b._handle(req("slowarm", "move", {}, _g("u1")))
+ok(r.get("error_code") == "ACTUATOR_TIMEOUT",
+   "a timed-out actuator reports UNKNOWN completion, never a clean refusal")
+r = _b._handle(req("slowarm", "move", {}, _g("u2")))
+ok(r.get("error_code") == "UNKNOWN_PHYSICAL_STATE",
+   "the retry is REFUSED — the orphaned thread may still complete the action, so a "
+   "second grant could actuate the physical world twice")
+_t.sleep(1.2)
+ok(len(_moves) == 1,
+   "exactly ONE physical actuation occurred (before the quarantine it was two)")
+ok("slowarm" in _b.unknown_completions(),
+   "the actuator is listed as having unknown physical state — a real-world object "
+   "whose position nobody currently knows")
+
+try:
+    _b.acknowledge_completion("slowarm", by="", observed_state="")
+    ok(False, "clearing a quarantine without attribution should raise")
+except ValueError:
+    ok(True, "clearing requires WHO looked and WHAT they saw — it is a safety act")
+_b.acknowledge_completion("slowarm", by="justin", observed_state="arm at rest")
+r = _b._handle(req("slowarm", "move", {}, _g("u3")))
+ok(r.get("error_code") != "UNKNOWN_PHYSICAL_STATE",
+   "after a human reconciles the physical state, the actuator is accepted again")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== the quarantine must survive a restart, and must not be duplicated ==")
+import os as _os
+_QP = "/tmp/dc_quarantine_pin.json"
+if _os.path.exists(_QP):
+    _os.remove(_QP)
+
+def _mkq():
+    _vq = PermissionVerifier(); _vq.register_key("operator", KEY)
+    _bq = ActuationBroker(SOCK, _vq, enforce_effects=True, actuator_timeout=0.3,
+                          quarantine_path=_QP)
+    _bq.register_actuator("qarm", lambda **k: _t.sleep(0.9), required_scope=("a:m",),
+                          effects=[Effect.PHYSICAL_FORCE], effect_declared_by="justin")
+    return _bq, _vq
+
+_b1, _v1 = _mkq()
+_b1._handle(req("qarm", "move", {}, grant(_v1, "qarm", "move", {}, nonce="qp1",
+                                          scope=("a:m",))))
+ok(_os.path.exists(_QP),
+   "the quarantine is written to disk. There were briefly TWO _persist_quarantine "
+   "methods; Python keeps the LAST definition silently, so the other implementation "
+   "was dead while its constructor parameter and posture event stayed live — a "
+   "deployment was told the quarantine was durable while nothing was ever written")
+ok(_b1.is_quarantine_durable(), "and the broker reports durability truthfully")
+
+_t.sleep(1.1)
+_b2, _v2 = _mkq()                      # simulated restart
+r = _b2._handle(req("qarm", "move", {}, grant(_v2, "qarm", "move", {}, nonce="qp2",
+                                              scope=("a:m",))))
+ok(r.get("error_code") == "UNKNOWN_PHYSICAL_STATE",
+   "the quarantine SURVIVES a restart — a crash-restart is exactly when a timeout is "
+   "likely, and physical state does not reset because a process did")
+
+_bare = ActuationBroker(SOCK, _v1)
+ok(any(e["layer"] == "quarantine_durable" for e in _bare.posture_events()),
+   "a broker with no quarantine store records the gap as a posture event")
+ok(len([e for e in _bare.posture_events() if "quarantine" in e["layer"]]) == 1,
+   "and reports it exactly ONCE — the duplicate posture entry is gone")
+
+with open(_QP, "w") as _fh:
+    _fh.write("{not json")
+try:
+    _mkq()
+    ok(False, "an unreadable quarantine store should refuse to start")
+except RuntimeError:
+    ok(True, "an unreadable quarantine record REFUSES to start — it may list actuators "
+             "left in unknown physical state, and unreadable cannot be assumed empty")
+_os.remove(_QP)
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== ISOLATION ATTESTATION: the wall must be MEASURED, not declared ==")
+import os as _o
+from datetime import datetime as _dtt, timezone as _tzz, timedelta as _tdd
+from driftcore.kernel.isolation_manifest import IsolationReport as _Rep
+
+_ME = f"supervisor:{_o.getpid()}"
+def _iso(att):
+    return ActuationBroker(SOCK, PermissionVerifier(), require_isolation=True,
+                           enforce_effects=True, socket_group=_o.getgid(),
+                           require_peer_uid=_o.getuid(), isolation_attestation=att)
+
+for _label, _att in [
+    ("no attestation", None),
+    ("self-reported", _Rep(trusted=False, source="self")),
+    ("has findings", _Rep(trusted=True, source=_ME, findings=["an undeclared socket FD"])),
+    ("another pid", _Rep(trusted=True, source="supervisor:99999")),
+    ("stale", _Rep(trusted=True, source=_ME,
+                   checked_at=(_dtt.now(_tzz.utc) - _tdd(hours=2)).isoformat())),
+    ("unreadable timestamp", _Rep(trusted=True, source=_ME, checked_at="not-a-time")),
+]:
+    try:
+        _b = _iso(_att); _b.start(); _b.stop()
+        ok(False, f"a broker claiming isolation started with a {_label} attestation")
+    except PermissionError:
+        ok(True, f"claiming the wall property REFUSES on: {_label}")
+
+_good = _iso(_Rep(trusted=True, source=_ME))
+_good.start()
+ok(_good.is_isolation_attested(),
+   "a fresh supervisor attestation for THIS process lets the wall serve")
+_good.stop()
+
+ok(any(e["layer"] == "isolation_attested"
+       for e in ActuationBroker(SOCK, PermissionVerifier()).posture_events()),
+   "and an unattested broker records it as a posture event — the surface was never "
+   "verified, so the wall property is a claim rather than a measurement")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== ATTESTATION FRESHNESS is enforced on EVERY request, not once at start ==")
+_fresh = lambda age=0: _Rep(trusted=True, source=_ME,
+    checked_at=(_dtt.now(_tzz.utc) - _tdd(seconds=age)).isoformat())
+
+_fb = ActuationBroker(SOCK, _v1, require_isolation=True, enforce_effects=True,
+                      socket_group=_o.getgid(), require_peer_uid=_o.getuid(),
+                      isolation_attestation=_fresh(), attestation_max_age_seconds=1.0)
+_fran = []
+_fb.register_actuator("farm", lambda **k: _fran.append(1) or "ok",
+                      required_scope=("a:m",), effects=[Effect.PHYSICAL_FORCE],
+                      effect_declared_by="justin")
+_fb.start()
+def _fgo(n):
+    return _fb._handle(req("farm", "move", {},
+                           grant(_v1, "farm", "move", {}, nonce=n, scope=("a:m",))))
+
+ok(_fgo("f1").get("ok") is True, "a fresh attestation lets the wall serve")
+_t.sleep(1.2)
+r = _fgo("f2")
+ok(r.get("error_code") == "ISOLATION_UNATTESTED" and len(_fran) == 1,
+   "once the attestation AGES OUT the wall stops serving mid-run — a broker verified "
+   "clean at boot used to run indefinitely on a report describing a process that no "
+   "longer existed in that state")
+_fb.refresh_isolation_attestation(_fresh())
+ok(_fgo("f3").get("ok") is True and len(_fran) == 2,
+   "and a supervisor re-verifying restores service — staleness is not a one-way door "
+   "requiring a restart, because restarting to clear a safety hold is the reflex this "
+   "project designs against")
+
+for _lbl, _bad in [("self-report", _Rep(trusted=False, source="self")),
+                   ("another pid", _Rep(trusted=True, source="supervisor:99999")),
+                   ("has findings", _Rep(trusted=True, source=_ME, findings=["socket"]))]:
+    try:
+        _fb.refresh_isolation_attestation(_bad)
+        ok(False, f"refresh accepted a {_lbl} attestation")
+    except PermissionError:
+        ok(True, f"refresh applies the SAME five rules as start(): {_lbl} refused")
+_fb.stop()
+
+import time as _tm
+_t0 = _tm.perf_counter()
+for _ in range(5000):
+    _fb._attestation_stale_reason()
+_per_us = (_tm.perf_counter() - _t0) / 5000 * 1e6
+ok(_per_us < 25,
+   f"the per-request freshness check costs {_per_us:.2f}us against a ~150us wall — the "
+   f"timestamp is parsed once at install, so the hot path does arithmetic not parsing")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== EFFECT-DECLARATION BINDING: the downgrade gap, closed ==")
+# Both external reviews ranked this first. A grant pinned WHAT is executed but not
+# WHAT THE ACTUATOR WAS DECLARED TO DO, so an operator (or a compromised broker) could
+# issue a grant against LETHAL, downgrade the registry to NONE with replace=True, and
+# the outstanding grant then executed under the weaker floor. Reproduced below.
+def _dbuild(bind):
+    _dv = PermissionVerifier(); _dv.register_key("operator", KEY)
+    _db = ActuationBroker(SOCK, _dv, enforce_effects=True, require_effect_binding=bind)
+    _hit = []
+    _db.register_actuator("darm", lambda **k: _hit.append(1) or "MOVED",
+                          required_scope=("a:m",), effects=[Effect.LETHAL],
+                          effect_declared_by="justin")
+    return _db, _dv, _hit
+
+def _dmint(_db, n):
+    _eh = _db._declaration_hash("darm") if _db.is_effect_bound() else None
+    return Grant.issue(KEY, key_id="operator", role="operator", scope=("a:m",),
+                       subject="robot-1", ttl_seconds=60, nonce=n,
+                       action_binding=PermissionVerifier.bind_action(
+                           "darm", "move", {}, effects_hash=_eh)).to_dict()
+
+_db, _dv, _hit = _dbuild(False)
+_g = _dmint(_db, "dg1")
+_db._handle(req("darm", "move", {}, _g))
+_db._effect_registry.register("darm", [Effect.NONE], declared_by="mallory", replace=True)
+_r = _db._handle(req("darm", "move", {}, _g))
+ok(_r.get("ok") is True and len(_hit) == 1,
+   "UNBOUND (documenting the gap): the same outstanding grant executes after the "
+   "declaration is downgraded LETHAL -> NONE")
+
+_db, _dv, _hit = _dbuild(True)
+_g = _dmint(_db, "dg2")
+_db._handle(req("darm", "move", {}, _g))
+_db._effect_registry.register("darm", [Effect.NONE], declared_by="mallory", replace=True)
+_r = _db._handle(req("darm", "move", {}, _g))
+ok(_r.get("ok") is False and not _hit,
+   "BOUND: the outstanding grant is REFUSED after the downgrade — the binding covers "
+   "the declaration, so any change invalidates every grant issued against the old one")
+
+_db, _dv, _hit = _dbuild(True)
+_db._effect_registry.register("darm", [Effect.NONE], declared_by="justin", replace=True)
+ok(_db._handle(req("darm", "move", {}, _dmint(_db, "dg3"))).get("ok") is True,
+   "and a FRESH grant against the current declaration still works — this invalidates "
+   "stale authorization, it does not freeze the registry")
+
+ok(any(e["layer"] == "effect_binding"
+       for e in ActuationBroker(SOCK, _dv).posture_events()),
+   "a broker without effect binding records the gap as a posture event")
+
+print("== canonicalisation: NaN / Infinity cannot be bound ==")
+for _bad in (float("nan"), float("inf"), float("-inf")):
+    try:
+        PermissionVerifier.bind_action("a", "c", {"force": _bad})
+        ok(False, f"binding accepted {_bad}")
+    except ValueError:
+        ok(True, f"a {_bad} parameter is refused — json.dumps emits non-standard tokens "
+                 f"that other runtimes serialize differently or reject")
+ok(PermissionVerifier.bind_action("a", "c", {"force": 1.5}) is not None,
+   "ordinary floats are unaffected")
+
+print("== attestation age is measured on the MONOTONIC clock ==")
+_mb = ActuationBroker(SOCK, _dv, require_isolation=True, enforce_effects=True,
+                      socket_group=_o.getgid(), require_peer_uid=_o.getuid(),
+                      isolation_attestation=_fresh(), attestation_max_age_seconds=60)
+_mb.start()
+ok(_mb._attested_mono is not None,
+   "a monotonic reference is captured at install: a backwards wall-clock step (NTP, "
+   "VM migration, a manual `date`) would otherwise make a STALE attestation look "
+   "fresh, and freshness is the whole control")
+ok(_mb._attestation_stale_reason() is None, "and a fresh attestation still reads fresh")
+_mb.stop()
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== COLD PASS on the binding/clock work ==")
+
+# C1: the first NaN guard walked only the top level of params — the same
+# only-checked-the-first-level mistake as the egress decoy-parameter bug.
+for _lbl, _p in [("nested dict", {"body": {"f": float("nan")}}),
+                 ("inside a list", {"vals": [1.0, float("inf")]}),
+                 ("deeply buried", {"a": {"b": [{"c": float("nan")}]}})]:
+    try:
+        PermissionVerifier.bind_action("a", "c", _p)
+        ok(False, f"C1: a non-finite value {_lbl} should be refused")
+    except ValueError:
+        ok(True, f"C1: a non-finite value {_lbl} is refused — the rule moved into the "
+                 f"serializer (allow_nan=False), so depth cannot defeat it")
+ok(PermissionVerifier.bind_action("a", "c", {"x": 1.5, "y": {"z": [2, 3]}}) is not None,
+   "C1: ordinary nested parameters are unaffected")
+
+# C2: monotonic does not tick during suspend
+from driftcore.verification.mediated_actuation import _elapsed_clock as _ec
+import time as _tc
+ok(abs(_ec() - _tc.clock_gettime(_tc.CLOCK_BOOTTIME)) < 0.5,
+   "C2: elapsed time uses CLOCK_BOOTTIME, which advances across SUSPEND. "
+   "time.monotonic() stops while suspended, so a robot asleep for eight hours would "
+   "have resumed with a stale attestation still reading fresh — switching to a "
+   "monotonic clock fixed the step-backwards hole and opened a stops-ticking one")
+
+# C4: an attestation cannot describe a moment that has not happened
+def _fut(delta_s):
+    return _Rep(trusted=True, source=_ME,
+                checked_at=(_dtt.now(_tzz.utc) + _tdd(seconds=delta_s)).isoformat())
+try:
+    _b = _iso(_fut(18000)); _b.start(); _b.stop()
+    ok(False, "C4: an attestation dated 5h in the future should be refused")
+except PermissionError as _e:
+    ok("FUTURE" in str(_e),
+       "C4: a future-dated attestation is refused AND names the real cause. It "
+       "previously clamped to age zero and read fresh for the whole window — and the "
+       "first fix reported it as an unreadable timestamp, because the deliberate "
+       "refusal was caught by the parse handler and re-wrapped")
+_b = _iso(_fut(10)); _b.start(); _b.stop()
+ok(True, "C4: ordinary clock skew between supervisor and broker is tolerated")
+
+# C3: a control nobody can use is a control nobody has
+_hb = ActuationBroker(SOCK, _v1, enforce_effects=True, require_effect_binding=True)
+_hb.register_actuator("harm", lambda **k: "ok", required_scope=("a:m",),
+                      effects=[Effect.PHYSICAL_FORCE], effect_declared_by="justin")
+_h1 = _hb.declaration_hash("harm")
+ok(_h1 is not None,
+   "C3: declaration_hash() is PUBLIC — minting a bound grant used to require reaching "
+   "into an underscore method, which pushes deployments to leave the binding off")
+_hb._effect_registry.register("harm", [Effect.NONE], declared_by="justin", replace=True)
+ok(_hb.declaration_hash("harm") != _h1,
+   "C3: and it changes when the declaration changes, which is what makes it bindable")
+
+print(f"\nALL {passed} CHECKS PASSED")

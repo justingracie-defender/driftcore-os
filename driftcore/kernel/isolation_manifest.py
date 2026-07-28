@@ -61,6 +61,30 @@ _CAP_BITS = {
     "CAP_SYS_MODULE": 16,
 }
 
+_CAP_BY_BIT = {v: k for k, v in _CAP_BITS.items()}
+
+
+def decode_caps(mask: int) -> list:
+    """Every capability bit SET in the mask, named where known and numbered where not.
+
+    The verifier knew 7 of ~41 Linux capabilities, so a capability outside that list
+    was invisible — hunt-known-bad, the exact pattern this module rejects for file
+    descriptors and anon inodes two hundred lines above. Decoding the whole mask means
+    a capability introduced by a future kernel is REPORTED rather than missed, because
+    it appears as an unnamed bit rather than as nothing at all.
+    """
+    out = []
+    # Width derived from the value, not fixed at 64. A mask wider than 64 bits (a
+    # future kernel) would otherwise have its high capabilities silently invisible —
+    # the exact "unknown becomes nothing" failure this function exists to prevent.
+    # Bounded. /proc is trusted for CONTENT here but not for FORMAT: a malformed or
+    # hostile CapEff string would otherwise make this loop as long as the value.
+    for bit in range(min(max(64, mask.bit_length()), 256)):
+        if mask & (1 << bit):
+            out.append(_CAP_BY_BIT.get(bit, f"CAP_UNKNOWN_BIT_{bit}"))
+    return out
+
+
 _SECCOMP_MODES = {0: "DISABLED", 1: "STRICT", 2: "FILTER"}
 
 # The verifier's own version. A manifest may demand a newer verifier than this; if it
@@ -74,8 +98,15 @@ KNOWN_MANIFEST_VERSIONS = frozenset({1, 2})
 # /proc targets are unstable inode numbers rather than stable names.
 _NEVER_BY_TARGET = frozenset({"socket_network", "socket_unix", "socket_unknown",
                               "namespace", "anon_unknown"})
+# 'file' and 'unknown' join this set: /dev/net/tun, /dev/ppp and /dev/tap* all
+# classify as "file", so an operator adding "file" to allowed_fd_kinds would silently
+# permit a TUN device — network capability arriving through a kind that sounds inert.
+# The module's rule is that network-capable surface must be EXPLICIT, so permitting a
+# broad kind now requires the same deliberate opt-in as permitting a socket. The
+# intended path for the few files an agent should hold is an exact allowed_fd_targets
+# entry, which is unaffected.
 _NETWORK_CAPABLE_KINDS = frozenset({"socket_network", "socket_unix", "socket_unknown",
-                                    "namespace", "anon_unknown"})
+                                    "namespace", "anon_unknown", "file", "unknown"})
 
 
 # Device paths are matched EXACTLY, never by prefix. A prefix test classified
@@ -88,6 +119,28 @@ _NETWORK_CAPABLE_KINDS = frozenset({"socket_network", "socket_unix", "socket_unk
 _BENIGN_DEVICES = frozenset({"/dev/null", "/dev/zero", "/dev/urandom", "/dev/random",
                              "/dev/full"})
 _TTY_RE = re.compile(r"^/dev/(tty|pts/\d+)$")
+
+# Loopback interface names, matched EXACTLY. The routes oracle was written as
+# `not r.startswith("lo")` — a prefix test on a name that decides "can a packet
+# leave" — in the SAME commit as the comment above declaring that security-relevant
+# name comparisons in this file use frozenset membership. It permitted "loophole",
+# "lo0" and "local0" as loopback. That is the fifth instance of this bug in this
+# repository. "Remember not to do this" has now failed five times; the standing rule
+# is that any name test deciding a security property is membership in a frozenset.
+# EXACTLY "lo". On Linux the loopback interface is always and only `lo`; "lo0" is
+# BSD/Solaris and "loopback" is not a Linux default either. Both were in this set for
+# one commit, and both are names an attacker can CREATE on Linux — so the allowlist
+# written to fix a too-loose prefix test was itself too loose. Replacing a bad test
+# with a generous list is the same error wearing a different mechanism: what matters
+# is not "am I using membership" but "is the set exactly the real thing".
+_LOOPBACK_NAMES = frozenset({"lo"})
+
+
+def _is_loopback(name: str) -> bool:
+    """Exact, alias-aware loopback test. Used by BOTH the interface and route oracles
+    so they cannot disagree — a disagreement between two oracles for the same property
+    is where a false permit hides."""
+    return name.split(":", 1)[0] in _LOOPBACK_NAMES
 
 # anon_inode kinds that are NOT benign. io_uring in particular can perform network
 # operations (IORING_OP_CONNECT/SEND/RECV) without ever calling socket(), so an
@@ -194,9 +247,13 @@ class IsolationManifest:
     allowed_fd_targets: FrozenSet[str] = frozenset()   # exact paths, e.g. a log file
     max_fds: int = 64
     require_own_netns: bool = True
-    forbidden_capabilities: FrozenSet[str] = frozenset(
-        {"CAP_NET_ADMIN", "CAP_NET_RAW", "CAP_NET_BIND_SERVICE", "CAP_SYS_ADMIN",
-         "CAP_SYS_MODULE", "CAP_SYS_PTRACE"})
+    # DEFAULT DENY. Previously this was `forbidden_capabilities` — a list of seven
+    # named capabilities, out of roughly forty-one, with everything unnamed silently
+    # permitted. Inverted: the process may hold ONLY what is declared here, and the
+    # default is nothing, because an agent behind a wall needs no capabilities at all.
+    # Replaced rather than added alongside: two mechanisms governing one property is
+    # how the duplicated quarantine gave a false durability signal.
+    permitted_capabilities: FrozenSet[str] = frozenset()
     # Dropping from the BOUNDING set is the durable removal; CapEff alone can be
     # regained across a privilege transition (Grok #5).
     require_dropped_from_bounding_set: bool = True
@@ -233,6 +290,20 @@ class IsolationManifest:
         # " socket:[8080]" (leading space), and "/proc/1/fd/socket:[8080]" (the inode
         # reference embedded in something that IS a path). Enumerating the bad forms is
         # the losing game this project keeps refusing to play everywhere else.
+        # A target in the DEVICE tree can be anything — /dev/net/tun, /dev/ppp,
+        # /dev/tap0 all provide network and all classify as an ordinary "file". The
+        # KIND gate now requires an opt-in for broad kinds; the exact-target path did
+        # not, so naming a device by path walked straight past it. Structural test on
+        # the path's first component, not a list of known device names.
+        for t in self.allowed_fd_targets:
+            parts = tuple(x for x in t.split("/") if x)
+            if parts and parts[0] == "dev" and not self.accept_network_capable_fds:
+                raise ValueError(
+                    f"allowed_fd_targets contains {t!r}, a path in the device tree. "
+                    f"Devices can provide network capability (/dev/net/tun, /dev/ppp, "
+                    f"/dev/tap*) while classifying as an ordinary file, so declaring "
+                    f"one requires accept_network_capable_fds=True — the same "
+                    f"deliberate opt-in as permitting a socket.")
         for t in self.allowed_fd_targets:
             if t != t.strip():
                 raise ValueError(
@@ -250,11 +321,12 @@ class IsolationManifest:
                     f"anon_inode:[..]) — possibly embedded inside something that looks "
                     f"like a path. Permitting it would permit whatever holds that inode "
                     f"next. Declare an FD KIND instead.")
-        for cap in self.forbidden_capabilities:
-            if cap not in _CAP_BITS:
+        for cap in self.permitted_capabilities:
+            if cap not in _CAP_BITS and not cap.startswith("CAP_UNKNOWN_BIT_"):
                 raise ValueError(
-                    f"unknown capability {cap!r}; known: {sorted(_CAP_BITS)}. A "
-                    f"capability the verifier cannot locate would be silently unchecked.")
+                    f"unknown capability {cap!r}; known: {sorted(_CAP_BITS)}. Permitting "
+                    f"a capability the verifier cannot locate would permit a bit it "
+                    f"cannot check.")
 
 
 @dataclass
@@ -324,6 +396,35 @@ class _ProcSource:
                     continue
                 names.append(line.split(":", 1)[0].strip())
         return names
+
+    def routes(self) -> List[str]:
+        """Interfaces that have a ROUTE in the subject's namespace.
+
+        Interface NAMES are a proxy: `lo:0` and other aliases slip past a `!= "lo"`
+        test, and a renamed loopback defeats it entirely. What actually determines
+        whether a packet can leave is the routing table, so read that too. Emptiness
+        is then the conjunction of both oracles rather than one name comparison.
+        """
+        out = []
+        # BOTH families. This read only /proc/net/route, which is IPv4, while the
+        # comment said "the routing table" — a namespace with IPv6-only connectivity
+        # was unmeasured by the stronger oracle. A table that does not exist on this
+        # kernel lists no routes; a table that exists and cannot be READ is a refusal,
+        # raised so the caller records it rather than assuming emptiness.
+        for fam in ("route", "ipv6_route"):
+            try:
+                with open(f"{self.base}/net/{fam}") as fh:
+                    if fam == "route":
+                        next(fh, None)         # IPv4 table has a header; ipv6_route does not
+                    for line in fh:
+                        parts = line.split()
+                        if not parts:
+                            continue
+                        # IPv4: iface is column 0. IPv6: iface is the LAST column.
+                        out.append(parts[0] if fam == "route" else parts[-1])
+            except FileNotFoundError:
+                continue
+        return out
 
     def net_inodes(self) -> Dict[str, str]:
         """socket inode -> 'network' | 'unix', read from the subject's own net tables."""
@@ -482,7 +583,34 @@ def _verify(source, manifest: IsolationManifest, *, trusted: bool, label: str,
                     "no network interfaces were listed at all, not even loopback. That "
                     "is more likely a parse failure than a genuinely empty namespace, "
                     "and a parse failure must not read as the safest possible state.")
-            routable = [i for i in ifaces if i != "lo"]
+            # Routes are the stronger oracle; interface names are the weaker one.
+            # Both are consulted, and a source that cannot answer the route question
+            # is a refusal rather than a pass.
+            try:
+                routes = source.routes()
+                rep.observations["routes"] = routes
+                routed_out = [r for r in routes if not _is_loopback(r)]
+                if routed_out:
+                    rep.findings.append(
+                        f"the namespace has route(s) out via {sorted(set(routed_out))}. "
+                        f"A routing entry is what actually lets a packet leave; "
+                        f"interface names alone can be aliased ('lo:0') or renamed.")
+            except AttributeError:
+                # A source that cannot answer the route question has not answered it.
+                # This was `pass` — a silent skip that let any source lacking routes()
+                # bypass the stronger oracle entirely while the report still said
+                # "no findings". That is the same shape as every other swallow this
+                # module has removed.
+                rep.findings.append(
+                    "the scan source cannot report routes, so namespace emptiness "
+                    "rests on interface NAMES alone — and names can be aliased "
+                    "('lo:0') or renamed. Refusing: a check that cannot run has not "
+                    "passed.")
+            except OSError as e:
+                rep.findings.append(
+                    f"the routing table could not be read ({e}); refusing — namespace "
+                    f"emptiness is unverified, and unverified is not empty")
+            routable = [i for i in ifaces if not _is_loopback(i)]
             if routable:
                 rep.findings.append(
                     f"network namespace contains non-loopback interface(s) {routable}. "
@@ -507,24 +635,52 @@ def _verify(source, manifest: IsolationManifest, *, trusted: bool, label: str,
                 "empty one.")
         cap_eff = int(st.get("CapEff", "0"), 16)
         rep.observations["CapEff"] = st.get("CapEff", "")
-        for cap in sorted(manifest.forbidden_capabilities):
-            if cap_eff & (1 << _CAP_BITS[cap]):
-                rep.findings.append(
-                    f"{cap} is HELD. It must be dropped from the bounding set — with "
-                    f"it, network configuration or raw sockets remain reachable "
-                    f"regardless of any application-layer allowlist.")
+        held_eff = decode_caps(cap_eff)
+        rep.observations["capabilities_effective"] = held_eff
+        undeclared_eff = [c for c in held_eff if c not in manifest.permitted_capabilities]
+        if undeclared_eff:
+            rep.findings.append(
+                f"undeclared capabilities HELD (effective): {undeclared_eff}. The "
+                f"process may hold only what the manifest declares, and it declares "
+                f"{sorted(manifest.permitted_capabilities) or 'none'}. Any of these can "
+                f"reach past an application-layer allowlist; an unnamed bit is a "
+                f"capability this kernel has and this verifier has no name for, which "
+                f"is exactly the case a list of known-bad names would have missed.")
         if getattr(manifest, "require_dropped_from_bounding_set", False):
             if "CapBnd" not in st:
                 rep.findings.append(
                     "CapBnd is absent, so the bounding set could not be checked; refusing")
             else:
                 cap_bnd = int(st.get("CapBnd", "0"), 16)
-                for cap in sorted(manifest.forbidden_capabilities):
-                    if cap_bnd & (1 << _CAP_BITS[cap]):
+                held_bnd = decode_caps(cap_bnd)
+                rep.observations["capabilities_bounding"] = held_bnd
+                # Ambient, permitted and inheritable sets were never observed. Ambient
+                # capabilities in particular survive exec under conditions NoNewPrivs
+                # does not fully eliminate.
+                for other in ("CapAmb", "CapPrm", "CapInh"):
+                    if other not in st:
                         rep.findings.append(
-                            f"{cap} remains in the BOUNDING set. Clearing CapEff alone is "
-                            f"not durable — it can be regained across a privilege "
-                            f"transition. Drop it from CapBnd.")
+                            f"{other} is absent from process status; that capability "
+                            f"set could not be checked. Refusing rather than assuming "
+                            f"it is empty.")
+                        continue
+                    held_other = decode_caps(int(st[other], 16))
+                    rep.observations[f"capabilities_{other[3:].lower()}"] = held_other
+                    extra = [c for c in held_other
+                             if c not in manifest.permitted_capabilities]
+                    if extra:
+                        rep.findings.append(
+                            f"undeclared capabilities in {other}: {extra}. Ambient "
+                            f"capabilities survive exec; permitted and inheritable "
+                            f"sets feed future privilege transitions.")
+                undeclared_bnd = [c for c in held_bnd
+                                  if c not in manifest.permitted_capabilities]
+                if undeclared_bnd:
+                    rep.findings.append(
+                        f"undeclared capabilities remain in the BOUNDING set: "
+                        f"{undeclared_bnd}. Clearing the effective set alone is not "
+                        f"durable — a bounding-set capability can be regained across a "
+                        f"privilege transition.")
         seccomp = int(st.get("Seccomp", "0"))
         rep.observations["seccomp"] = _SECCOMP_MODES.get(seccomp, str(seccomp))
         rep.observations["seccomp_filters"] = st.get("Seccomp_filters", "unknown")

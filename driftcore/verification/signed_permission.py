@@ -91,8 +91,14 @@ class UnknownSigner(PermissionError_):
 
 
 def _canonical(obj) -> bytes:
+    # allow_nan=False makes json.dumps RAISE on NaN/Infinity at ANY depth. The first
+    # attempt at this walked the top level of params by hand and missed
+    # {"body": {"f": nan}} and {"vals": [inf]} — the same only-checked-the-first-level
+    # mistake as the egress decoy-parameter bug. Handing the rule to the serializer
+    # turns a walk that can miss a case into a property that cannot: every value that
+    # reaches a hash is finite, or nothing is hashed at all.
     return json.dumps(obj, sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=False).encode("utf-8")
+                      ensure_ascii=False, allow_nan=False).encode("utf-8")
 
 
 def _finite(x: float, label: str) -> float:
@@ -327,11 +333,22 @@ class PermissionVerifier:
 
     @staticmethod
     def bind_action(actuator_id: str, command: str, params: Optional[dict] = None,
-                    broker_id: Optional[str] = None) -> str:
+                    broker_id: Optional[str] = None,
+                    effects_hash: Optional[str] = None) -> str:
         """Compute the action_binding hash a grant should carry to pin a specific
         actuation. The actuation layer recomputes this from what it is about to
         execute and checks it matches — so the executor cannot substitute the
         action (the TOCTOU defense; enforcement lives in mediated actuation).
+
+        effects_hash (optional) BINDS THE GRANT TO THE EFFECT DECLARATION that was
+        current when it was issued. Without it, a grant is bound to WHAT is executed
+        but not to WHAT THAT ACTUATOR WAS DECLARED TO DO — so an operator (or a
+        compromised broker) can issue a grant against a LETHAL declaration, downgrade
+        the registry to NONE with replace=True, and the grant then executes under the
+        weaker floor. Upgrading fails closed; downgrading executed. Including the
+        declaration in the binding means the hash no longer matches after any change,
+        and the action is refused. BACKWARD-COMPATIBLE the same way broker_id is: when
+        omitted the hash is computed exactly as before.
 
         broker_id (optional) BINDS THE GRANT TO A SPECIFIC BROKER. This closes the
         cross-broker replay gap: without it, a grant's single-use nonce is tracked
@@ -343,8 +360,22 @@ class PermissionVerifier:
         it was approved for. BACKWARD-COMPATIBLE: when broker_id is omitted, the hash
         is byte-identical to the pre-broker-binding behavior, so existing grants and
         single-broker deployments are unaffected."""
+        # NaN / Infinity are refused rather than hashed. json.dumps accepts them by
+        # default and emits the non-standard tokens NaN/Infinity, which other languages
+        # serialize differently or reject outright — so a grant minted by one runtime
+        # could fail to match, or in the worst case match something it should not. A
+        # value that cannot be canonically represented cannot be bound to.
         payload = {"actuator_id": actuator_id, "command": command,
                    "params": params or {}}
         if broker_id is not None:
             payload["broker_id"] = broker_id
-        return hashlib.sha256(_canonical(payload)).hexdigest()
+        if effects_hash is not None:
+            payload["effects_hash"] = effects_hash
+        try:
+            return hashlib.sha256(_canonical(payload)).hexdigest()
+        except ValueError as e:
+            raise ValueError(
+                f"these parameters cannot be canonically represented ({e}). NaN and "
+                f"Infinity have no standard JSON form — other runtimes serialize them "
+                f"differently or reject them — so an action containing one cannot be "
+                f"bound, and an unbindable action is not approvable.") from e

@@ -123,23 +123,59 @@ import struct
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 
-def _call_with_timeout(fn, timeout: float):
+def _elapsed_clock() -> float:
+    """A clock that advances across SUSPEND.
+
+    time.monotonic() is CLOCK_MONOTONIC on Linux, which does NOT tick while the
+    machine is suspended — so a robot suspended for eight hours resumes with an
+    attestation that still reads fresh. That is the same class of hole as the wall
+    clock this replaced: picking a monotonic clock fixed the step-backwards problem
+    and introduced a stops-ticking one. CLOCK_BOOTTIME includes suspend.
+    """
+    try:
+        return time.clock_gettime(time.CLOCK_BOOTTIME)
+    except (AttributeError, OSError):
+        return time.monotonic()
+
+
+def _call_with_timeout(fn, timeout: float, on_late=None):
     """Run `fn()` with a hard deadline. Used for the breach-posture check, which sits at
     position zero in the mediation path — a hanging source there stalls EVERY request.
     Raises TimeoutError on expiry so the caller can fail CLOSED."""
     box = {}
+    deadline_passed = threading.Event()
     def _run():
         try:
             box["v"] = fn()
         except BaseException as e:      # noqa: BLE001 - propagated to the caller
             box["e"] = e
+        # (red-team, cold pass Q4) If the deadline already passed, this call is an
+        # ORPHAN: the broker reported "completion UNKNOWN" and moved on, and nothing
+        # ever recorded what actually happened. The audit then says "timed out" forever
+        # even though the physical action COMPLETED — a trail that is wrong about the
+        # world is worse than a gap, because an investigator would conclude the action
+        # never occurred. The orphan now reports its own outcome.
+        if deadline_passed.is_set() and on_late is not None:
+            try:
+                on_late("raised" if "e" in box else "completed", box.get("e"))
+            except Exception:
+                # A genuine swallow, and named as one. This runs in an ORPHANED daemon
+                # thread that nobody joins: raising here would kill the thread silently
+                # and escalate to no one, so there is nowhere better for the failure to
+                # go. The cost is that a failure to RECORD a late completion is
+                # invisible — the audit would then still say "timed out" for an action
+                # that finished. The quarantine is what actually protects the world in
+                # that case; this path only improves the evidence.
+                pass
     t = threading.Thread(target=_run, daemon=True)
     t.start()
     t.join(timeout)
     if t.is_alive():
-        raise TimeoutError(f"posture check exceeded {timeout}s")
+        deadline_passed.set()
+        raise TimeoutError(f"call exceeded {timeout}s")
     if "e" in box:
         raise box["e"]
     return box.get("v")
@@ -262,6 +298,10 @@ class ActuationBroker:
                  blast_radius: Optional[BlastRadiusGovernor] = None,
                  egress_guard: Optional[EgressGuard] = None,
                  actuator_timeout: Optional[float] = None,
+                 quarantine_path: Optional[str] = None,
+                 require_effect_binding: bool = False,
+                 isolation_attestation=None,
+                 attestation_max_age_seconds: float = 300.0,
                  audit_logger=None):
         self._socket_path = socket_path
         self._verifier = verifier
@@ -382,6 +422,8 @@ class ActuationBroker:
         # actuator_id -> the param key that carries its destination (declared
         # at registration for any DATA_EGRESS capability, never guessed).
         self._destination_params: Dict[str, str] = {}
+        # actuator_id -> the real-world thing it moves (defaults to itself)
+        self._physical_resource: Dict[str, str] = {}
         # Optional cross-action gate run on the BROKER side (cumulative_ledger).
         # Returns None to allow, or a string reason to REFUSE.
         self._ledger_hook = ledger_hook
@@ -391,6 +433,78 @@ class ActuationBroker:
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._lock = threading.RLock()
+        # ACTUATORS WITH UNKNOWN PHYSICAL STATE (red-team, Grok #4 — reproduced).
+        # `_call_with_timeout` runs the actuator in a daemon thread. On expiry the
+        # broker reports ACTUATOR_TIMEOUT and burns the nonce, but PYTHON CANNOT KILL A
+        # THREAD: the orphan keeps running and may complete the physical action after
+        # the caller was told the outcome is unknown. Verified end to end — the arm
+        # moved, the agent retried with a fresh grant, and the arm moved AGAIN.
+        #
+        # Cancellation is not available, so the control is QUARANTINE: an actuator whose
+        # completion is unknown accepts nothing further until a human reconciles the
+        # physical state. Refusing the retry is the only thing standing between a
+        # timeout and a double actuation.
+        self._unknown_completion: Dict[str, dict] = {}
+        # DURABILITY (red-team, cold pass Q2). The quarantine was in-memory only, so a
+        # crash-loop or an ordinary restart erased the ONE control standing between a
+        # timeout and a double actuation — and a restart is exactly what an operator
+        # does when a robot seems stuck. Physical state does not reset because a process
+        # did. When a store path is given the quarantine is persisted on every change
+        # and reloaded at construction; a store that exists but cannot be READ is a
+        # refusal to start, because an unreadable quarantine is indistinguishable from
+        # an empty one.
+        # (red-team, cold pass Q1) The quarantine lived only in memory, so a broker
+        # restart erased it — and a crash-restart is EXACTLY when a timeout is likely
+        # (the actuator hung, someone power-cycled the broker). Reproduced: after a
+        # restart the retry was accepted and the arm moved TWICE. Physical state does
+        # not reset because a process did.
+        #
+        # When `quarantine_path` is set the quarantine is written through on every
+        # change and reloaded at construction. Unset means it does NOT survive a
+        # restart, which is recorded as a posture event rather than left implicit.
+        self._quarantine_path = quarantine_path
+        # ISOLATION ATTESTATION (the detection-vs-enforcement gap).
+        # isolation_manifest.py could verify a process's capability surface, and was
+        # wired into this broker ZERO times. `require_isolation=True` checked only that
+        # two FLAGS had been passed — not that the process was actually isolated. So the
+        # wall property was declared, never checked. An IsolationReport produced by a
+        # SUPERVISOR via verify_process() is now required before the wall will serve.
+        #
+        # Passed at construction because construction is operator-side: whoever builds
+        # the broker already registers the actuators and holds the keys. The agent has
+        # no path here.
+        # BIND THE GRANT TO THE DECLARATION (both external reviews' top item).
+        # A grant pins WHAT is executed but not WHAT THE ACTUATOR WAS DECLARED TO DO,
+        # so a declaration downgrade under a live grant executed under the weaker
+        # floor. When on, the binding includes a hash of the current declaration, so
+        # any change invalidates every outstanding grant for that actuator.
+        self._require_effect_binding = bool(require_effect_binding)
+        self._isolation_attestation = isolation_attestation
+        self._attestation_max_age = float(attestation_max_age_seconds)
+        self._attested_at: Optional[float] = None      # epoch seconds, parsed once
+        # Age is measured on the MONOTONIC clock after install. The supervisor's
+        # timestamp is necessarily wall-clock, so the initial gap is computed once from
+        # it; everything after that is monotonic, because a backwards clock step (NTP,
+        # VM migration, a manual `date`) would otherwise make a stale attestation look
+        # fresh again — and freshness is the whole control.
+        self._attested_mono: Optional[float] = None
+        self._attested_initial_age: float = 0.0
+        if quarantine_path:
+            try:
+                if os.path.exists(quarantine_path):
+                    with open(quarantine_path, encoding="utf-8") as fh:
+                        loaded = json.load(fh)
+                    if not isinstance(loaded, dict):
+                        raise ValueError("quarantine file is not an object")
+                    self._unknown_completion.update(loaded)
+            except Exception as e:
+                # A broker that cannot tell which actuators are in an unknown physical
+                # state must not start and drive them.
+                raise RuntimeError(
+                    f"could not read the quarantine record at {quarantine_path!r}: {e}. "
+                    f"Refusing to start: it is unknown which actuators were left in an "
+                    f"unresolved physical state, and starting would allow a retry that "
+                    f"actuates the world a second time.") from e
 
         # POSTURE EVENTS (incident-derived, §I3). In the July 2026 incident a safety
         # layer was disabled for a legitimate reason and nothing recorded that the
@@ -421,6 +535,18 @@ class ActuationBroker:
              "connecting process identity is not checked"),
             ("isolation_required", self._require_isolation,
              "separate-user prerequisites are not asserted at start"),
+            ("effect_binding", self._require_effect_binding,
+             "a grant is not bound to the effect declaration, so downgrading an "
+             "actuator from LETHAL to NONE with replace=True lets outstanding grants "
+             "execute under the weaker floor"),
+            ("isolation_attested", self.is_isolation_attested(),
+             "no external supervisor has verified this process's capability surface, "
+             "so the wall property is a claim rather than a measurement — the process "
+             "may hold a socket, a capability or a namespace handle nobody declared"),
+            ("quarantine_durable", bool(self._quarantine_path),
+             "a timeout leaves an actuator in UNKNOWN physical state, and that record "
+             "is memory-only: a broker restart erases it and the next grant can "
+             "actuate the world a second time"),
             ("actuator_timeout", self._actuator_timeout is not None,
              "a hanging actuator wedges the wall indefinitely"),
         ):
@@ -447,6 +573,7 @@ class ActuationBroker:
                           effects: "Optional[object]" = None,
                           effect_declared_by: Optional[str] = None,
                           destination_param: Optional[str] = None,
+                          physical_resource: Optional[str] = None,
                           replace: bool = False) -> None:
         """Operator registers a real actuator IN THIS PROCESS. `required_scope` is the
         capability the Grant must cover to drive it. The agent has no equivalent of
@@ -516,6 +643,13 @@ class ActuationBroker:
             self._actuators[actuator_id] = (fn, tuple(required_scope))
             if destination_param:
                 self._destination_params[actuator_id] = destination_param
+            # (cold pass Q2) Two actuator ids can drive the SAME hardware. Quarantining
+            # one left the other free, and the second path moved the same arm —
+            # reproduced. Quarantine therefore applies to the declared physical
+            # resource; undeclared, an actuator is its own resource (previous
+            # behaviour), which is safe for the one-id-per-device case and wrong for
+            # any device with two code paths. Declare it.
+            self._physical_resource[actuator_id] = physical_resource or actuator_id
 
     @staticmethod
     def _coerce_effects(effects) -> "list":
@@ -532,6 +666,228 @@ class ActuationBroker:
                     raise ValueError(f"{e!r} is not a member of the Effect enum")
                 out.append(m)
         return out
+
+    def _persist_quarantine(self) -> None:
+        """Write the quarantine through, atomically.
+
+        (red-team, cold pass) There were briefly TWO methods with this name. Python
+        keeps the last definition silently, so the other implementation was dead code
+        that still had a live constructor parameter and a live posture event — a
+        deployment that configured it was told the quarantine was durable while nothing
+        was ever written. A duplicated safety mechanism is worse than a missing one:
+        it reports success on behalf of code that does not run.
+        """
+        if not self._quarantine_path:
+            return
+        try:
+            tmp = self._quarantine_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(self._unknown_completion, fh)
+            os.replace(tmp, self._quarantine_path)   # atomic
+        except Exception as e:
+            # The in-memory quarantine still holds for THIS process, but durability is
+            # gone. Record it loudly rather than failing the caller: refusing here
+            # would turn a disk problem into a wall outage.
+            self._record("(quarantine)", "persist", False,
+                         f"quarantine could not be persisted ({e}); it will NOT "
+                         f"survive a restart")
+
+    def is_quarantine_durable(self) -> bool:
+        """Whether the quarantine survives a restart. If False, a restart erases the
+        only control preventing a timed-out actuator from being retried into a double
+        actuation. Deployment checks with physical actuators should assert this."""
+        return bool(self._quarantine_path)
+
+    def unknown_completions(self) -> dict:
+        """Actuators quarantined because a timeout left their physical state unknown.
+        A deployment check should surface these: each one is a real-world object whose
+        position nobody currently knows."""
+        with self._lock:
+            # deep copy: a shallow one shared the inner dicts, so an observer could
+            # rewrite the quarantine record it was handed for inspection
+            return {k: dict(v) for k, v in self._unknown_completion.items()}
+
+    def acknowledge_completion(self, actuator_id: str, *, by: str,
+                               observed_state: str) -> None:
+        """Clear a quarantine after a HUMAN has established the physical state.
+
+        Deliberately not automatic and not time-based: a timeout that expires on its
+        own would let the double actuation through on the second attempt, which is the
+        exact failure this exists to prevent. Someone has to look at the arm.
+        """
+        if not by or not observed_state:
+            raise ValueError(
+                "acknowledge_completion requires both `by` (who looked) and "
+                "`observed_state` (what they saw). Clearing an unknown physical state "
+                "is a safety-critical act and must be attributable.")
+        with self._lock:
+            key = self._physical_resource.get(actuator_id, actuator_id)
+            if key not in self._unknown_completion:
+                raise ValueError(
+                    f"neither {actuator_id!r} nor its physical resource {key!r} is "
+                    f"quarantined")
+            del self._unknown_completion[key]
+            self._persist_quarantine()
+        self._record(actuator_id, "acknowledge_completion", True,
+                     f"physical state reconciled by {by}: {observed_state}")
+
+    def _validate_attestation(self, att) -> float:
+        """Run the five checks and return the attestation's epoch time.
+
+        Shared by start() and refresh_isolation_attestation() so the rules exist once.
+        """
+        if att is None:
+            raise PermissionError(
+                "require_isolation=True but no isolation attestation was supplied. The "
+                "flags only say the operator INTENDED isolation; an attestation says a "
+                "supervisor looked. Produce one with "
+                "isolation_manifest.verify_process(os.getpid(), manifest) from OUTSIDE "
+                "this process and pass it as isolation_attestation.")
+        if not getattr(att, "trusted", False):
+            raise PermissionError(
+                "the isolation attestation is SELF-REPORTED (source="
+                f"{getattr(att, 'source', '?')!r}). The process that answered the "
+                "question is the process under question. Obtain a supervisor "
+                "attestation via verify_process().")
+        if not getattr(att, "permitted", False):
+            raise PermissionError(
+                "the isolation attestation has findings; this process's capability "
+                "surface was not clean when a supervisor looked:\n"
+                + getattr(att, "summary", lambda: "")())
+        src = str(getattr(att, "source", ""))
+        expected = f"supervisor:{os.getpid()}"
+        if src != expected:
+            raise PermissionError(
+                f"the isolation attestation describes {src!r}, not this process "
+                f"({expected!r}). An attestation for a different — possibly cleaner — "
+                f"process says nothing about the one about to hold the actuators.")
+        try:
+            _ts = datetime.fromisoformat(str(att.checked_at)).timestamp()
+            # An attestation dated in the FUTURE clamped to age zero and then read
+            # fresh for the whole window. A measurement cannot describe a moment that
+            # has not happened; a small tolerance covers ordinary clock skew between
+            # supervisor and broker, and anything beyond it is a broken or forged clock.
+            _skew = _ts - time.time()
+            if _skew > 60.0:
+                raise PermissionError(
+                    f"the isolation attestation is dated {_skew:.0f}s in the FUTURE. A "
+                    f"measurement cannot describe a moment that has not happened — "
+                    f"either the supervisor's clock is wrong or the timestamp was "
+                    f"chosen. Refusing.")
+            return _ts
+        except PermissionError:
+            # A deliberate refusal must not be re-wrapped as a parse failure. It was
+            # caught by the handler below and reported as "timestamp could not be
+            # read", so the operator was told the clock was unreadable when in fact it
+            # was five hours ahead. Fail-closed hid a wrong diagnosis — the third time
+            # in this session a check refused correctly and named the wrong cause.
+            raise
+        except Exception as e:
+            raise PermissionError(
+                f"the isolation attestation's timestamp could not be read ({e}); its "
+                f"freshness is unknown and unknown is not fresh.") from e
+
+    def refresh_isolation_attestation(self, attestation) -> None:
+        """Install a fresh supervisor attestation on a RUNNING broker.
+
+        Without this, staleness would be a one-way door: the wall would stop serving
+        at the age limit and could only be restored by a restart — and restarting to
+        clear a safety hold is precisely the reflex this project keeps designing
+        against. A supervisor re-verifies and hands the result in.
+        """
+        at = self._validate_attestation(attestation)
+        with self._lock:
+            self._isolation_attestation = attestation
+            self._attested_at = at
+            self._attested_mono = _elapsed_clock()
+            self._attested_initial_age = max(0.0, time.time() - at)
+        self._record("(isolation)", "attestation_refreshed", True,
+                     f"supervisor re-verified this process at {attestation.checked_at}")
+
+    def _attestation_stale_reason(self) -> Optional[str]:
+        """None while the attestation is fresh; a reason once it is not.
+
+        Cheap by construction: the timestamp is parsed once at install time, so the
+        actuation path does an arithmetic comparison rather than ISO parsing.
+        """
+        if not self._require_isolation:
+            return None
+        with self._lock:
+            mono = self._attested_mono
+            initial = self._attested_initial_age
+        if mono is None:
+            return ("no isolation attestation is installed, so this process's "
+                    "capability surface has never been verified")
+        age = initial + (_elapsed_clock() - mono)
+        if age > self._attestation_max_age:
+            return (f"the isolation attestation is {age:.0f}s old (limit "
+                    f"{self._attestation_max_age:.0f}s). It described this process at a "
+                    f"moment that has passed; since then it may have acquired a socket, "
+                    f"a capability or a namespace handle. A supervisor must re-verify "
+                    f"and call refresh_isolation_attestation().")
+        return None
+
+    def _assert_isolation_attested(self) -> None:
+        """Refuse to start unless an EXTERNAL supervisor has verified this process.
+
+        Five checks, each of which was a way to hold a worthless attestation:
+          * present at all — otherwise the wall property is a claim, not a measurement
+          * TRUSTED — a self-report is the subject auditing itself, and
+            isolation_manifest.attest_or_refuse() rejects one even when it passes
+          * clean — findings mean the surface was wrong when it was looked at
+          * ABOUT THIS PROCESS — an attestation for some other, cleaner pid is the
+            obvious forgery, and the report carries its subject in `source`
+          * FRESH — a check is a moment, so an old one describes a process that may
+            since have acquired anything
+        """
+        _at = self._validate_attestation(self._isolation_attestation)
+        with self._lock:
+            self._attested_at = _at
+            self._attested_mono = _elapsed_clock()
+            self._attested_initial_age = max(0.0, time.time() - _at)
+        stale = self._attestation_stale_reason()
+        if stale:
+            raise PermissionError(stale)
+
+    def declaration_hash(self, actuator_id: str) -> Optional[str]:
+        """PUBLIC: the hash an operator must pass as `effects_hash` when minting a
+        grant for this actuator under require_effect_binding.
+
+        Was private, so the only way to mint a bound grant was to reach into an
+        underscore method — a usability trap that pushes deployments to leave the
+        binding off, and a control nobody can use is a control nobody has.
+        """
+        return self._declaration_hash(actuator_id)
+
+    def _declaration_hash(self, actuator_id: str) -> Optional[str]:
+        """A stable hash of an actuator's CURRENT effect declaration.
+
+        Deterministic across processes: effects sorted by value, plus who declared
+        them. Any change — a downgrade from LETHAL to NONE, a different declarer —
+        produces a different hash and therefore invalidates every grant bound to the
+        old one.
+        """
+        try:
+            eff = self._effect_registry.effects_for(actuator_id)
+            if not eff:
+                return None
+            decl = self._effect_registry.declaration(actuator_id)
+            by = getattr(decl, "declared_by", "") if decl else ""
+            payload = "|".join(sorted(e.value for e in eff)) + "|" + str(by)
+            import hashlib as _h
+            return _h.sha256(payload.encode("utf-8")).hexdigest()
+        except Exception:
+            return None
+
+    def is_effect_bound(self) -> bool:
+        """Whether grants are bound to the effect declaration current at issuance."""
+        return self._require_effect_binding
+
+    def is_isolation_attested(self) -> bool:
+        """Whether an external supervisor has verified this process's surface."""
+        att = self._isolation_attestation
+        return bool(att is not None and getattr(att, "trusted", False)
+                    and getattr(att, "permitted", False))
 
     def is_effect_gated(self) -> bool:
         """Whether the constitutional effect gate is enforced. An UNENFORCED broker
@@ -580,6 +936,8 @@ class ActuationBroker:
         # asserts isolation must also enforce the constitutional effect gate, or it
         # refuses to start. Claiming the wall while leaving undeclared actuators
         # reachable is the contradiction this closes.
+        if self._require_isolation:
+            self._assert_isolation_attested()
         if self._require_isolation and not self._enforce_effects:
             raise PermissionError(
                 "require_isolation=True but enforce_effects=False. A broker that claims "
@@ -762,6 +1120,35 @@ class ActuationBroker:
 
         actuator_id = str(req.get("actuator_id", ""))
         command = str(req.get("command", ""))
+
+        # 0. ATTESTATION FRESHNESS. Checked on EVERY request, not once at start().
+        #    A broker verified clean at boot otherwise runs for a week on a report
+        #    describing a process that no longer exists in that state — the literal
+        #    "detection is a moment" critique. Now the wall stops serving when the
+        #    attestation ages out and resumes when a supervisor re-verifies.
+        _stale = self._attestation_stale_reason()
+        if _stale:
+            self._record(actuator_id, command, False, f"attestation stale: {_stale}")
+            return {"ok": False, "error": "isolation_unattested",
+                    "error_code": "ISOLATION_UNATTESTED", "detail": _stale}
+
+        # 0a. UNKNOWN PHYSICAL STATE. Runs before the breach gate: whether the arm is
+        #     where we think it is does not depend on posture, grants, or effects.
+        with self._lock:
+            _res = self._physical_resource.get(actuator_id, actuator_id)
+            unknown = self._unknown_completion.get(_res)
+        if unknown:
+            self._record(actuator_id, command, False,
+                         "actuator has unreconciled unknown completion")
+            return {"ok": False, "error": "unknown_physical_state",
+                    "error_code": "UNKNOWN_PHYSICAL_STATE",
+                    "detail": f"actuator {actuator_id!r} timed out at "
+                              f"{unknown['at']} and its work may still be running or "
+                              f"may have completed. Its physical state is unknown, so a "
+                              f"retry could actuate twice. A human must establish the "
+                              f"real state and call acknowledge_completion("
+                              f"{actuator_id!r}, by=...) before it accepts anything "
+                              f"further."}
         params = req.get("params") or {}
         grant_d = req.get("grant")
 
@@ -853,7 +1240,17 @@ class ActuationBroker:
                 refused = decision.outcome is not Outcome.ALLOW
                 reason, code = decision.reason, decision.outcome.value
             except Exception as e:
-                refused, reason, code = True, f"effect gate failed closed: {e!r}", "block_error"
+                # Refuse HERE. This used to set refused=True and depend on the `if`
+                # below to act on it. Safe, but the refusal lived one step away from
+                # the failure, and "the safety is somewhere else" is the fragility this
+                # repo keeps finding — a later edit between the two steps breaks it
+                # with nothing connecting the change to the breakage.
+                self._record(actuator_id, command, False,
+                             f"effect gate block_error: {e!r}")
+                return {"ok": False, "error": "effect_block_error",
+                        "error_code": "EFFECT_BLOCK_ERROR",
+                        "detail": f"the effect gate could not evaluate and fails "
+                                  f"closed: {e!r}"}
             if refused:
                 self._record(actuator_id, command, False, f"effect gate {code}: {reason}")
                 return {"ok": False, "error": f"effect_{code}",
@@ -878,9 +1275,12 @@ class ActuationBroker:
                 breadth_ok = reading.verdict is BreadthVerdict.OK
                 breadth_reason, breadth_code = reading.reason, reading.verdict.value
             except Exception as e:
-                breadth_ok = False
-                breadth_reason = f"blast-radius governor failed closed: {e!r}"
-                breadth_code = "ERROR"
+                self._record(actuator_id, command, False,
+                             f"blast radius ERROR: {e!r}")
+                return {"ok": False, "error": "blast_radius_error",
+                        "error_code": "BLAST_RADIUS_ERROR",
+                        "detail": f"the blast-radius governor could not evaluate and "
+                                  f"fails closed: {e!r}"}
             if not breadth_ok:
                 self._record(actuator_id, command, False,
                              f"blast radius {breadth_code}: {breadth_reason}")
@@ -911,11 +1311,22 @@ class ActuationBroker:
         #     E3 — the registry read was wrapped in `except: _declared_eff = ()`, so a
         #          registry failure emptied the effect set and skipped the interlock
         #          entirely. A safety gate's error handler must not be its bypass.
-        _reg_ok, _declared_eff = True, ()
         try:
             _declared_eff = self._effect_registry.effects_for(actuator_id) or ()
-        except Exception:
-            _reg_ok = False
+        except Exception as e:
+            # UNCONDITIONAL. This set a flag that was only acted on further down IF
+            # destinations were also present, so a registry failure on an action with
+            # no URL in its params proceeded and the actuator RAN — reproduced in cold
+            # self-red-team. Whether the effect declaration can be read is not a
+            # question that depends on what else is in the params.
+            self._record(actuator_id, command, False,
+                         f"effect registry unreadable: {e!r}")
+            return {"ok": False, "error": "registry_error",
+                    "error_code": "REGISTRY_ERROR",
+                    "detail": f"the effect declaration for {actuator_id!r} could not be "
+                              f"read ({e!r}), so it is unknown what this action does. "
+                              f"Refusing: a gate that cannot check does not open."}
+        _reg_ok = True          # retained for the checks below; failure returned above
         _dests = _find_destinations(params)
         _dkey = self._destination_params.get(actuator_id)
         if _dkey:
@@ -970,8 +1381,11 @@ class ActuationBroker:
                             ok_e, reason_e, code_e = False, dec.reason, dec.verdict.value
                             break
             except Exception as e:
-                ok_e, reason_e, code_e = False, (
-                    f"egress interlock failed closed: {e!r}"), "ERROR"
+                self._record(actuator_id, command, False, f"egress ERROR: {e!r}")
+                return {"ok": False, "error": "egress_error",
+                        "error_code": "EGRESS_ERROR",
+                        "detail": f"the egress interlock could not evaluate and fails "
+                                  f"closed: {e!r}"}
             if not ok_e:
                 self._record(actuator_id, command, False, f"egress {code_e}: {reason_e}")
                 return {"ok": False, "error": f"egress_{code_e.lower()}",
@@ -992,8 +1406,19 @@ class ActuationBroker:
         #    PERFORM and require the grant to be bound to exactly THAT. The executor
         #    cannot substitute pick_up_knife for an approved pick_up_cup: the hash
         #    would not match, and we refuse. Verification and execution are welded.
+        _eff_hash = None
+        if self._require_effect_binding:
+            _eff_hash = self._declaration_hash(actuator_id)
+            if _eff_hash is None:
+                self._record(actuator_id, command, False,
+                             "effect binding required but the declaration is unreadable")
+                return {"ok": False, "error": "declaration_unreadable",
+                        "error_code": "DECLARATION_UNREADABLE",
+                        "detail": f"require_effect_binding is on but {actuator_id!r} has "
+                                  f"no readable effect declaration to bind to."}
         binding_now = PermissionVerifier.bind_action(actuator_id, command, params,
-                                                     broker_id=self._broker_id)
+                                                     broker_id=self._broker_id,
+                                                     effects_hash=_eff_hash)
 
         # 3. Verify signature / expiry / replay / scope / binding — all in ONE place,
         #    on the PRIVILEGED side, with the key the agent does not have.
@@ -1041,14 +1466,30 @@ class ActuationBroker:
             if self._actuator_timeout is None:
                 result = fn(**params) if params else fn()
             else:
+                def _late(outcome, exc, _a=actuator_id, _c=command, _n=grant.nonce):
+                    self._record(_a, _c, outcome == "completed",
+                                 f"ORPHANED actuator {outcome} AFTER the broker reported "
+                                 f"UNKNOWN completion"
+                                 + (f": {exc!r}" if exc else "")
+                                 + ". The physical action's true outcome is this record, "
+                                   "not the timeout above.", _n)
                 result = _call_with_timeout(
-                    (lambda: fn(**params)) if params else fn, self._actuator_timeout)
+                    (lambda: fn(**params)) if params else fn, self._actuator_timeout,
+                    on_late=_late)
         except TimeoutError:
             # The nonce is already burned and the actuator MAY have started. This is
             # NOT a clean refusal and must never be reported as one — an agent told
             # "refused" would retry and double-actuate.
+            with self._lock:
+                _res = self._physical_resource.get(actuator_id, actuator_id)
+                self._unknown_completion[_res] = {
+                    "at": time.time(), "command": command,
+                    "actuator_id": actuator_id,
+                    "timeout": self._actuator_timeout}
+                _perr = self._persist_quarantine()
             self._record(actuator_id, command, False,
-                         f"actuator exceeded {self._actuator_timeout}s; completion UNKNOWN",
+                         f"actuator exceeded {self._actuator_timeout}s; completion "
+                         f"UNKNOWN; quarantined pending human reconciliation",
                          grant.nonce)
             return {"ok": False, "error": "actuator_timeout",
                     "error_code": "ACTUATOR_TIMEOUT",

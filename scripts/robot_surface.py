@@ -109,6 +109,47 @@ _SHAPE_CMP = (ast.Is, ast.IsNot, ast.In, ast.NotIn, ast.Eq, ast.NotEq,
               ast.Lt, ast.LtE, ast.Gt, ast.GtE)
 
 
+# Names whose comparison decides a security property. A prefix or substring test
+# against any of these has produced a real laundering bug FIVE times in this repo:
+# "kill" inside "skill" (escalation lexicon), classify() in the kernel guard,
+# "/dev/null_backdoor" (isolation manifest devices), "anon_inode:[eventfd_evil]"
+# (benign anon inodes), and "loophole" passing as loopback (route oracle) — the last
+# written in the same commit as the comment declaring the rule.
+#
+# Five recurrences means the control cannot be "remember not to do this". This is the
+# structural version: the tool finds them, so nobody has to remember.
+_NAME_DECIDING_CALLS = ("startswith", "endswith")
+
+
+def find_prefix_matches(tree: ast.AST) -> list:
+    """Every startswith/endswith used inside a branch condition.
+
+    Not every hit is a bug — a prefix test on a URL scheme or a /proc target format is
+    legitimate. But every one of the five laundering bugs was one of these, so each hit
+    is a line a human must look at and consciously clear.
+    """
+    hits = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.If, ast.IfExp, ast.While)):
+            continue
+        for inner in ast.walk(node.test):
+            if (isinstance(inner, ast.Call)
+                    and isinstance(inner.func, ast.Attribute)
+                    and inner.func.attr in _NAME_DECIDING_CALLS):
+                hits.append((node.lineno, ast.unparse(inner)[:70]))
+    # comprehension guards live outside .test on ListComp etc.
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+            for gen in node.generators:
+                for cond in gen.ifs:
+                    for inner in ast.walk(cond):
+                        if (isinstance(inner, ast.Call)
+                                and isinstance(inner.func, ast.Attribute)
+                                and inner.func.attr in _NAME_DECIDING_CALLS):
+                            hits.append((node.lineno, ast.unparse(inner)[:70]))
+    return sorted(set(hits))
+
+
 def count_leaves(test: ast.AST) -> int:
     """Atomic tests inside a condition, counting through boolean compounds.
 
@@ -153,6 +194,7 @@ class ModuleReport:
     path: str
     branches: List[Branch] = field(default_factory=list)
     max_depth: int = 0
+    prefix_matches: List[tuple] = field(default_factory=list)
 
     def counts(self) -> Dict[str, int]:
         c = {SHAPE: 0, RULE: 0, JUDGMENT: 0, PLUMBING: 0}
@@ -210,13 +252,20 @@ def classify_test(test: ast.AST) -> Tuple[str, str]:
     if hit:
         return JUDGMENT, f"interprets meaning via {sorted(hit)[0]}()"
 
-    # `x is None`, `x is not None`, `not x` -> presence/absence, pure structure.
+    # NEGATION IS TRANSPARENT. `not X` asks the same question as `X` and gets the
+    # opposite answer; it cannot turn a shape into a judgment. This was handled only
+    # for a few operand types, so `not isinstance(ctx, ActionContext)` — a plain type
+    # check — fell through to the catch-all and was counted as a robot, making
+    # one_door.decide() read as leakier than it is. Stated as a general rule rather
+    # than a special case, because a special case is how a measuring instrument gets
+    # tuned to flatter one module.
     if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
-        inner = test.operand
-        if isinstance(inner, (ast.Name, ast.Attribute, ast.Constant)):
-            return SHAPE, "presence/absence test"
-    if isinstance(test, (ast.Name, ast.Attribute)):
-        return SHAPE, "truthiness of a single value"
+        return classify_test(test.operand)
+    # Truthiness of a single stored value: a name, an attribute, or a subscript such
+    # as sensed["error"]. All ask "is this thing present/set", which is structure, not
+    # interpretation.
+    if isinstance(test, (ast.Name, ast.Attribute, ast.Subscript)):
+        return SHAPE, "truthiness of a single stored value"
 
     if isinstance(test, ast.Compare):
         if not all(isinstance(op, _SHAPE_CMP) for op in test.ops):
@@ -441,6 +490,7 @@ def analyse(path: str) -> Optional[ModuleReport]:
         tree = ast.parse(fh.read())
     rep = ModuleReport(path=path)
     _Walker(rep, os.path.basename(path), find_refusal_accumulators(tree)).visit(tree)
+    rep.prefix_matches = find_prefix_matches(tree)
     return rep
 
 
@@ -500,17 +550,21 @@ def print_report(reports: List[ModuleReport], verbose: bool = False):
 
 
 def to_baseline(reports: List[ModuleReport]) -> dict:
-    return {"note": ("Baseline history. (1) first recording. (2) after "
-                     "isolation_manifest's error paths were made to refuse locally AND "
-                     "the tool was taught the accumulate-refusal idiom it had been "
-                     "mismeasuring. (3) after adding the merge-proof 'leaves' companion "
-                     "metric and match/case walking. (4) after cold self-red-team found "
-                     "the walker was blind to ternaries, comprehension guards and loop "
-                     "guards — the numbers ROSE because the instrument now sees "
-                     "decisions it previously missed, which is the opposite of tuning. "
-                     "Every entry is an instrument correction or a real improvement. A "
-                     "baseline moves when the world moves or the ruler was wrong, never "
-                     "to make a number look better."),
+    return {"note": ("Baseline history. (1) first recording. (2)-(4)(7) instrument "
+                     "corrections: accumulate-refusal idiom, merge-proof leaves metric, "
+                     "ternary/comprehension/loop-guard/match walking, transparent "
+                     "negation. (5)(6)(8)(9) real mechanisms: local refusals, "
+                     "quarantine, orphan reporter, default-deny capabilities, route "
+                     "oracle, fifth-prefix-bug fix plus a detector so the sixth is "
+                     "found by the tool. (10) ISOLATION ATTESTATION wired into the "
+                     "wall: isolation_manifest could verify a process's capability "
+                     "surface and was wired into the broker ZERO times, so "
+                     "require_isolation only proved two flags had been passed. Starting "
+                     "now requires a supervisor report that is trusted, clean, about "
+                     "THIS pid, and fresh — +4 branches for five distinct ways an "
+                     "attestation could be worthless. A baseline moves when the world "
+                     "moves or the ruler was wrong, never to make a number look "
+                     "better."),
             "modules": {r.path: {"robot": r.robot_count(),
                                  "leaky": r.leaky_failures()} for r in reports},
             "total_robot": sum(r.robot_count() for r in reports),

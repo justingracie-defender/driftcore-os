@@ -24,7 +24,22 @@ fail=0
 for f in test_*.py; do
     [ -e "$f" ] || continue
     files=$((files + 1))
-    line="$(python3 "$f" 2>&1 | grep -iE '[0-9]+/[0-9]+ (tests?|checks?) passed|ALL [0-9]+ CHECKS? PASSED' | tail -1 || true)"
+    # (red-team) The exit code used to be discarded: python3 was piped straight into
+    # grep, so a file that printed "ALL 50 CHECKS PASSED", then hit an assertion and
+    # died, was counted as 50 passing and reported nothing. A crashed test file was
+    # silently indistinguishable from a passing one — in the gate every claim about
+    # this repository rests on. Capture the output and the status separately.
+    # `set -euo pipefail` is active, so a plain assignment from a failing
+    # command aborts the whole script. The || branch keeps the loop alive
+    # so the crash can be REPORTED rather than silently ending the run.
+    out="$(python3 "$f" 2>&1)" && rc=0 || rc=$?
+    line="$(printf '%s\n' "$out" | grep -iE '[0-9]+/[0-9]+ (tests?|checks?) passed|ALL [0-9]+ CHECKS? PASSED' | tail -1 || true)"
+    if [ "$rc" -ne 0 ]; then
+        printf '  %-28s CRASHED (exit %s) after: %s\n' "$f" "$rc" "${line:-no summary}"
+        printf '      %s\n' "$(printf '%s\n' "$out" | tail -1)"
+        fail=$((fail + 1))
+        continue
+    fi
     nums="$(echo "$line" | grep -oE '[0-9]+/[0-9]+' | head -1 || true)"
     if [ -n "$nums" ]; then
         passed="${nums%%/*}"

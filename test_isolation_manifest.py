@@ -30,9 +30,15 @@ class FakeProc:
     def fds(self): return dict(self._fds)
     def netns(self): return self._netns
     def interfaces(self): return list(self._ifaces)
+    def routes(self): return []
     def net_inodes(self): return dict(self._inodes)
     def status(self):
         return {"CapEff": f"{self._cap:016x}", "CapBnd": f"{self._cap:016x}",
+                # ambient / permitted / inheritable are now observed too: ambient
+                # capabilities survive exec under conditions NoNewPrivs does not fully
+                # eliminate, and an absent set is refused rather than assumed empty
+                "CapAmb": "0" * 16, "CapPrm": f"{self._cap:016x}",
+                "CapInh": "0" * 16,
                 "Seccomp": str(self._sec), "Seccomp_filters": "1",
                 "NoNewPrivs": self._nnp}
 
@@ -136,7 +142,7 @@ try:
 except ValueError:
     ok(True, "an isolation manifest must name who declared it")
 try:
-    IsolationManifest(declared_by="j", forbidden_capabilities=frozenset({"CAP_MADE_UP"}))
+    IsolationManifest(declared_by="j", permitted_capabilities=frozenset({"CAP_MADE_UP"}))
     ok(False, "an unknown capability should raise")
 except ValueError:
     ok(True, "a capability the verifier cannot locate is refused, not silently unchecked")
@@ -190,7 +196,9 @@ r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
 r2 = __import__("driftcore.kernel.isolation_manifest", fromlist=["_verify"])._verify(
     type("S", (), {"fds": lambda s: {"0": "pipe:[1]"}, "netns": lambda s: "net:[9]",
                    "interfaces": lambda s: ["lo"], "net_inodes": lambda s: {},
-                   "status": lambda s: {"Seccomp": "2", "NoNewPrivs": "1"}})(),
+                   "status": lambda s: {"Seccomp": "2", "NoNewPrivs": "1",
+                                        "CapAmb": "0"*16, "CapPrm": "0"*16,
+                                        "CapInh": "0"*16}})(),
     M, trusted=True, label="t", reference_netns="net:[other]")
 ok(not r2.permitted and any("CapEff is absent" in f for f in r2.findings),
    "I2: a status file with no CapEff REFUSES — it used to default to 'no caps held'")
@@ -279,8 +287,10 @@ ok(not r.permitted,
    "but it is now DISTINGUISHABLE, so an operator can opt in knowingly")
 
 # G5: bounding set and CAP_NET_BIND_SERVICE
-ok("CAP_NET_BIND_SERVICE" in IsolationManifest(declared_by="j").forbidden_capabilities,
-   "G5: CAP_NET_BIND_SERVICE is forbidden by default")
+ok(IsolationManifest(declared_by="j").permitted_capabilities == frozenset(),
+   "G5 (strengthened): capabilities are now DEFAULT-DENY. The old check named seven "
+   "forbidden capabilities out of ~41, so everything unnamed was silently permitted — "
+   "hunt-known-bad, in the module that rejects exactly that for FDs")
 class _BndProc(FakeProc):
     def status(self):
         st = FakeProc.status(self); st["CapBnd"] = "000001fffeffffff"; return st
@@ -422,7 +432,7 @@ ok(classify_fd("anon_inode:[eventfd]") == "anon_inode",
 class _NoVersion:
     declared_by = "x"; allowed_fd_kinds = frozenset({"pipe"})
     allowed_fd_targets = frozenset(); max_fds = 64
-    require_own_netns = False; forbidden_capabilities = frozenset()
+    require_own_netns = False; permitted_capabilities = frozenset()
     require_seccomp = False; require_no_new_privs = False
     require_empty_netns = False; require_dropped_from_bounding_set = False
 r = verify_process(1, _NoVersion(), compare_to_self=False, reference_netns=HOST_NS,
@@ -430,5 +440,194 @@ r = verify_process(1, _NoVersion(), compare_to_self=False, reference_netns=HOST_
 ok(not r.permitted and any("declares no version" in f for f in r.findings),
    "A7: a manifest with NO version fields is refused — an absent declaration is not a "
    "version-1 declaration")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== BOUNCER HARDENING: capabilities default-deny, routes as the oracle ==")
+from driftcore.kernel.isolation_manifest import decode_caps
+
+# the whole mask is decoded, not seven named bits
+full = decode_caps(0x000001fffeffffff)
+ok(len(full) > 30,
+   f"a full-privilege mask decodes to {len(full)} capabilities, not the 7 the old "
+   f"blocklist could name")
+ok(any("CAP_UNKNOWN_BIT_" in c for c in full),
+   "capabilities this verifier has no name for are REPORTED as numbered bits — a "
+   "kernel adding a new CAP_* is visible instead of invisible")
+ok(decode_caps(0) == [], "and a process holding none decodes to nothing")
+
+# default-deny: any held capability is undeclared
+class _CapProc(FakeProc):
+    def __init__(self, mask, **kw):
+        FakeProc.__init__(self, **kw); self._mask = mask
+    def status(self):
+        st = FakeProc.status(self)
+        st["CapEff"] = f"{self._mask:016x}"; st["CapBnd"] = f"{self._mask:016x}"
+        return st
+
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_CapProc(1 << 13, netns="net:[P]", seccomp=2))   # CAP_NET_RAW
+ok(not r.permitted and any("undeclared capabilities" in f for f in r.findings),
+   "a held capability is refused because it is UNDECLARED, not because it is on a "
+   "list of known-bad names")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_CapProc(1 << 37, netns="net:[P]", seccomp=2))   # unnamed bit
+ok(not r.permitted and any("CAP_UNKNOWN_BIT_37" in f for f in r.findings),
+   "a capability with NO NAME in this verifier is still refused — the old blocklist "
+   "would have permitted it silently")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_CapProc(0, netns="net:[P]", seccomp=2))
+ok(r.permitted, "and a process holding no capabilities passes")
+
+try:
+    IsolationManifest(declared_by="j", permitted_capabilities=frozenset({"CAP_NONSENSE"}))
+    ok(False, "permitting an unlocatable capability should raise")
+except ValueError:
+    ok(True, "you cannot PERMIT a capability the verifier cannot locate")
+
+# routes are the stronger namespace oracle
+class _RouteProc(FakeProc):
+    def __init__(self, routes, **kw):
+        FakeProc.__init__(self, **kw); self._routes = routes
+    def routes(self): return list(self._routes)
+
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_RouteProc([], netns="net:[P]", seccomp=2, ifaces=["lo"]))
+ok(r.permitted, "loopback only, no routes out -> permitted")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_RouteProc(["eth0"], netns="net:[P]", seccomp=2, ifaces=["lo"]))
+ok(not r.permitted and any("route(s) out" in f for f in r.findings),
+   "a ROUTE out is refused even when the interface list looks like loopback only — "
+   "a routing entry is what actually lets a packet leave")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_RouteProc([], netns="net:[P]", seccomp=2,
+                                     ifaces=["lo", "lo:0", "eth0"]))
+ok(not r.permitted,
+   "and an aliased loopback no longer hides a real interface ('lo:0' used to pass the "
+   "!= 'lo' test as though it were routable, and eth0 alongside it is caught)")
+
+class _NoRoutes(FakeProc):
+    def routes(self): raise OSError("permission denied")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_NoRoutes(netns="net:[P]", seccomp=2))
+ok(not r.permitted and any("routing table could not be read" in f for f in r.findings),
+   "an unreadable routing table REFUSES — unverified is not empty")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== EXTERNAL ROUND 3 PINS (Grok + ChatGPT) ==")
+from driftcore.kernel.isolation_manifest import _is_loopback
+
+# Grok R1 — THE FIFTH PREFIX BUG, written in the same commit as the rule forbidding it
+for fake_lo in ["loophole", "local0", "lodge0", "lo_evil"]:
+    ok(not _is_loopback(fake_lo),
+       f"R1: route/interface named {fake_lo!r} is NOT treated as loopback "
+       f"(startswith('lo') permitted all of these)")
+for real_lo in ["lo", "lo:0"]:
+    ok(_is_loopback(real_lo), f"R1: genuine loopback {real_lo!r} still recognised")
+# This pin previously asserted that "lo0" and "loopback" WERE loopback. They are not,
+# on Linux — "lo0" is BSD/Solaris and "loopback" is not a Linux default. The test was
+# encoding the bug: the allowlist written to fix a too-loose prefix test was itself
+# too loose, and the pin locked that in. A regression test can preserve a mistake as
+# faithfully as it preserves a fix.
+for not_lo in ["lo0", "loopback", "lo1"]:
+    ok(not _is_loopback(not_lo),
+       f"R1 (corrected): {not_lo!r} is NOT loopback on Linux — it is a name an "
+       f"attacker can create, and it was permitted for one commit")
+
+class _RouteProc2(FakeProc):
+    def __init__(self, routes, **kw):
+        FakeProc.__init__(self, **kw); self._r = routes
+    def routes(self): return list(self._r)
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_RouteProc2(["loophole"], netns="net:[P]", seccomp=2))
+ok(not r.permitted,
+   "R1: a route out via 'loophole' is REFUSED — both oracles now use the same exact "
+   "membership test, so they cannot disagree about what loopback means")
+
+# ChatGPT P1 — capability decode width was fixed at 64
+ok(decode_caps(1 << 70) == ["CAP_UNKNOWN_BIT_70"],
+   "P1: a capability bit beyond 64 is decoded, not silently invisible")
+ok(decode_caps(1 << 63) == ["CAP_UNKNOWN_BIT_63"], "P1: and the top standard bit still reports")
+
+# Grok R5 — only CapEff and CapBnd were observed
+class _AmbProc(FakeProc):
+    def status(self):
+        st = FakeProc.status(self); st["CapAmb"] = f"{1 << 13:016x}"; return st
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_AmbProc(netns="net:[P]", seccomp=2))
+ok(not r.permitted and any("CapAmb" in f for f in r.findings),
+   "R5: an AMBIENT capability is refused — ambient survives exec under conditions "
+   "NoNewPrivs does not fully eliminate, and it was never observed before")
+class _NoAmb(FakeProc):
+    def status(self):
+        st = FakeProc.status(self); del st["CapAmb"]; return st
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=_NoAmb(netns="net:[P]", seccomp=2))
+ok(not r.permitted, "R5: and an ABSENT capability set is refused, not assumed empty")
+
+# Grok R2 — a broad 'file' kind silently permitted /dev/net/tun
+ok(classify_fd("/dev/net/tun") == "file", "R2: a TUN device classifies as a plain file")
+for broad in ("file", "unknown"):
+    try:
+        IsolationManifest(declared_by="j",
+                          allowed_fd_kinds=frozenset({"pipe", broad}))
+        ok(False, f"R2: allowing the broad {broad!r} kind should require an opt-in")
+    except ValueError:
+        ok(True, f"R2: allowing {broad!r} now needs accept_network_capable_fds — "
+                 f"/dev/net/tun, /dev/ppp and /dev/tap* all arrive as this kind")
+ok(IsolationManifest(declared_by="j",
+                     allowed_fd_targets=frozenset({"/var/log/app.log"})) is not None,
+   "R2: and the intended path — an exact file target — is unaffected")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== COLD SELF-RED-TEAM, ROUND 3 ==")
+
+# A1: the fix for the prefix bug introduced its own bypass
+class _LoProc(FakeProc):
+    def __init__(self, routes, **kw):
+        FakeProc.__init__(self, **kw); self._r = routes
+    def routes(self): return list(self._r)
+for attacker_name in ["lo0", "loopback"]:
+    r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                       source=_LoProc([attacker_name], netns="net:[P]", seccomp=2,
+                                      ifaces=["lo", attacker_name]))
+    ok(not r.permitted,
+       f"A1: an interface an attacker NAMED {attacker_name!r} is refused. The allowlist "
+       f"introduced to fix the prefix bug listed it as loopback — replacing a loose "
+       f"test with a generous set is the same error in a different mechanism")
+
+# A2: an exact target in the device tree walked past the network-capable opt-in
+try:
+    IsolationManifest(declared_by="j", allowed_fd_targets=frozenset({"/dev/net/tun"}))
+    ok(False, "A2: a device target should require the opt-in")
+except ValueError:
+    ok(True, "A2: declaring /dev/net/tun by exact path now needs "
+             "accept_network_capable_fds — the KIND gate required it, the TARGET path "
+             "did not, and a TUN device classifies as an ordinary file")
+ok(IsolationManifest(declared_by="j", allowed_fd_targets=frozenset({"/dev/net/tun"}),
+                     accept_network_capable_fds=True) is not None,
+   "A2: and with the deliberate opt-in it is declarable")
+ok(IsolationManifest(declared_by="j",
+                     allowed_fd_targets=frozenset({"/var/log/app.log"})) is not None,
+   "A2: an ordinary file target is unaffected")
+r = verify_process(1, M, compare_to_self=False, reference_netns=HOST_NS,
+                   source=FakeProc(fds={"0": "pipe:[1]", "2": "/dev/null"},
+                                   netns="net:[P]", seccomp=2))
+ok(r.permitted,
+   "A2: and /dev/null still passes by KIND, so the device gate did not break the "
+   "ordinary case")
+
+# A4: a malformed capability mask must not make the decoder unbounded
+ok(len(decode_caps(int("F" * 512, 16))) == 256,
+   "A4: a hostile 2048-bit CapEff decodes to a bounded 256 entries — /proc is trusted "
+   "for content here, not for format")
 
 print(f"\nALL {passed} CHECKS PASSED")

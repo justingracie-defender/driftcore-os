@@ -9,7 +9,7 @@ import os, time, tempfile, threading
 from driftcore.verification.mediated_actuation import (
     ActuationBroker, ActuatorProxy, ActuationRefused,
 )
-from driftcore.verification.signed_permission import Grant, PermissionVerifier
+from driftcore.verification.signed_permission import _finite as _fin, Grant, PermissionVerifier
 
 p = 0
 def ok(cond, label):
@@ -344,14 +344,25 @@ try:
     ok(False, "infinite ttl should be rejected at issue")
 except _SE:
     ok(True, "RED-TEAM: infinite ttl rejected at issue (was: grant that never expires)")
-_gnan = _G(key_id="op", role="r", scope=("a",), subject="s", issued_at=0.0,
-           expires_at=float('nan'), nonce="rf2", sig="")
-_gnan = _G(**{**_gnan.__dict__,
-              "sig": _hmac.new(b"k"*32, _canon(_gnan._payload()), _hl.sha256).hexdigest()})
+# This pin used to BUILD a NaN-expiry grant to prove verify() rejects it. The
+# canonical serializer now refuses non-finite values outright (allow_nan=False), so
+# such a payload can no longer be signed at all — the test can no longer construct its
+# own malicious input. That is strictly stronger, but a fix that makes a red-team pin
+# unreachable must not quietly retire the property it protected, so BOTH layers are
+# asserted directly.
 try:
-    _vv.verify(_gnan, required_scope=("a",)); ok(False, "NaN expiry should be rejected")
-except _SE:
-    ok(True, "RED-TEAM: NaN expiry rejected at verify (was fail-OPEN: now>=NaN is False)")
+    _canon({"expires_at": float("nan")})
+    ok(False, "the canonical serializer should refuse a non-finite value")
+except ValueError:
+    ok(True, "RED-TEAM: a non-finite value cannot be canonically serialized at all, so "
+             "it can never enter a SIGNED payload (stronger than catching it later)")
+try:
+    _fin(float("nan"), "expires_at")
+    ok(False, "the verify-time guard should reject a non-finite expiry")
+except Exception:
+    ok(True, "RED-TEAM: and the verify-time guard still rejects a non-finite expiry "
+             "independently (was fail-OPEN: now >= NaN is always False, so the grant "
+             "never expired) — defense in depth, now unreachable through normal paths")
 
 # R-wildcard: 'x:*' covers exactly one segment, not infinite depth (privilege escalation)
 ok(_sc(("doors:*",), "doors:front") and not _sc(("doors:*",), "doors:front:unlock")
@@ -840,8 +851,14 @@ _iv2 = PermissionVerifier(); _iv2.register_key("operator", KEY)
 # convergence: a broker that CLAIMS the wall property cannot leave undeclared actuators
 # reachable). So the positive isolation case must declare its effects too.
 from driftcore.verification.invariant_guard import Effect as _Eff
+# require_isolation now also demands an ATTESTATION: isolation_manifest could verify a
+# process's surface but was wired into this broker zero times, so the flag only proved
+# the operator INTENDED isolation. A supervisor report is what says someone looked.
+from driftcore.kernel.isolation_manifest import IsolationReport as _IsoRep
+_att = _IsoRep(trusted=True, source=f"supervisor:{_os2.getpid()}")
 _ib2 = ActuationBroker(_iso2, _iv2, require_isolation=True, enforce_effects=True,
-                       socket_group=_os2.getgid(), require_peer_uid=_os2.getuid())
+                       socket_group=_os2.getgid(), require_peer_uid=_os2.getuid(),
+                       isolation_attestation=_att)
 _ib2.register_actuator("arm_1", move_arm, required_scope=("arm:move",),
                        effects=[_Eff.PHYSICAL_FORCE], effect_declared_by="test-operator")
 _ib2.start()

