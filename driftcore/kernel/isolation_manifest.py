@@ -264,6 +264,64 @@ class IsolationManifest:
     accept_network_capable_fds: bool = False   # explicit opt-in; see __post_init__
     require_empty_netns: bool = True           # G1: own netns is NOT no network
 
+    def more_permissive_than(self, other: "IsolationManifest") -> list:
+        """Axes where SELF is looser than OTHER. Empty list means self is at least as
+        strict. Pure set containment and boolean implication — no judgment, nothing to
+        trick, and no vocabulary an adversary can paraphrase around.
+
+        WHY THIS EXISTS. Once every fetch, every packet and every actuation is forced
+        through one broker, THE BROKER BECOMES THE MAIL SLOT. Nothing previously
+        stopped it from running wide open — sockets permitted, no seccomp required, a
+        populated network namespace — while enforcing a tight manifest on the agent it
+        protects. That is precisely the package-registry mistake rebuilt one layer up:
+        a trusted conduit whose own surface nobody audited.
+
+        A bunker that is less locked down than the room it guards is not a bunker.
+        """
+        looser = []
+        extra_kinds = self.allowed_fd_kinds - other.allowed_fd_kinds
+        if extra_kinds:
+            looser.append(f"permits FD kinds the protected manifest does not: "
+                          f"{sorted(extra_kinds)}")
+        extra_targets = self.allowed_fd_targets - other.allowed_fd_targets
+        if extra_targets:
+            looser.append(f"permits FD targets the protected manifest does not: "
+                          f"{sorted(extra_targets)}")
+        extra_caps = self.permitted_capabilities - other.permitted_capabilities
+        if extra_caps:
+            looser.append(f"permits capabilities the protected manifest does not: "
+                          f"{sorted(extra_caps)}")
+        if self.max_fds > other.max_fds:
+            looser.append(f"allows more file descriptors ({self.max_fds} vs "
+                          f"{other.max_fds})")
+        for flag, label in (
+            ("require_own_netns", "own network namespace"),
+            ("require_empty_netns", "empty network namespace"),
+            ("require_seccomp", "seccomp"),
+            ("require_no_new_privs", "NoNewPrivs"),
+            ("require_dropped_from_bounding_set", "a cleared capability bounding set"),
+        ):
+            if getattr(other, flag, False) and not getattr(self, flag, False):
+                looser.append(f"does not require {label} while the protected manifest "
+                              f"does")
+        # Version fields are a strictness axis too: a manifest demanding an OLDER
+        # verifier is checked by weaker logic, which is looseness wearing a different
+        # word. They were the only two fields the comparison never mentioned.
+        if getattr(self, "min_verifier_version", 1) < getattr(other, "min_verifier_version", 1):
+            looser.append(
+                f"accepts an older verifier (min {self.min_verifier_version} vs "
+                f"{other.min_verifier_version}), so it is checked by weaker logic than "
+                f"the manifest it protects")
+        if getattr(self, "manifest_version", 1) < getattr(other, "manifest_version", 1):
+            looser.append(
+                f"is an older manifest revision ({self.manifest_version} vs "
+                f"{other.manifest_version}) and may predate checks the protected "
+                f"manifest expects")
+        if self.accept_network_capable_fds and not other.accept_network_capable_fds:
+            looser.append("accepts network-capable FD kinds while the protected "
+                          "manifest does not")
+        return looser
+
     def __post_init__(self):
         if not self.declared_by:
             raise ValueError(

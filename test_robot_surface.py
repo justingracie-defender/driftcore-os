@@ -115,3 +115,92 @@ ok(rs.find_prefix_matches(ast.parse('x = s.startswith("a")')) == [],
    "a startswith OUTSIDE a branch condition is not flagged: it is not deciding anything")
 
 print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== EXTERNAL REVIEW OF THE INSTRUMENT (ChatGPT RS-1/2/4/5) ==")
+
+# RS-5: the merge-proof metric was never written to the baseline, so the ratchet
+# compared a missing key against a missing key — 0 > 0 — on every run.
+_b = rs.to_baseline(rs.run(rs.ENFORCEMENT_MODULES[:2]))
+_k = list(_b["modules"].values())[0]
+ok("leaves" in _k,
+   "RS-5: the baseline records 'leaves'. It did not, so the leaf ratchet was inert — "
+   "the defence built specifically to defeat Goodhart gaming never ran")
+ok("robot" in _k and "leaky" in _k and "leaky_decide" in _k,
+   "RS-5: and the other tracked numbers are still recorded alongside it")
+
+# RS-1 / RS-2: merging could not game the leaf count, but EXTRACTION could
+_inline = surface('def check(a):\n    if x(a) or y(a) or z(a):\n        return "refuse"')
+_helper_src = ('def should_refuse(a):\n    return x(a) or y(a) or z(a)\n'
+               'def check(a):\n    if should_refuse(a):\n        return "refuse"')
+# (updated) the local-function map is passed explicitly now; it used to be a module
+# global that outlived analyse(), which is the D2 finding below.
+_t = ast.parse(_helper_src)
+_hrep = rs.ModuleReport(path="h")
+rs._Walker(_hrep, "h", set(), rs._index_local_functions(_t)).visit(_t)
+ok(_hrep.robot_leaves() == _inline.robot_leaves() == 3,
+   "RS-1/2: three decisions moved behind a local helper still count as three leaves. "
+   "Complexity does not stop being complexity because it moved a stack frame away")
+
+# RS-4: "does a return exist anywhere" was optimistic
+ok(rs.classify_fail_path(ast.parse('if x:\n    return 1\ncarry_on()').body) == "continues",
+   "RS-4: a body where only SOME paths return is 'continues'. It used to read "
+   "hard-refusal because a return existed somewhere, while the common path fell "
+   "straight through — optimism in the one classifier that must never lean that way")
+ok(rs.classify_fail_path(ast.parse('if x:\n    return 1\nelse:\n    raise E()').body)
+   == "hard-refusal",
+   "RS-4: and a body where EVERY path terminates is still hard-refusal")
+ok(rs.classify_fail_path(ast.parse('return 1').body) == "hard-refusal",
+   "RS-4: the simple terminating case is unaffected")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== COLD PASS ON THE INSTRUMENT'S OWN FIXES ==")
+
+def _leaves(src):
+    t = ast.parse(src)
+    r = rs.ModuleReport(path="t")
+    rs._Walker(r, "t", set(), rs._index_local_functions(t)).visit(t)
+    return r.robot_leaves()
+
+# D1: the helper-inlining fix indexed only single-return functions, so one trivial
+# extra line put the complexity back out of sight.
+_single = _leaves('def h(a):\n    return x(a) or y(a) or z(a)\n'
+                  'def c(a):\n    if h(a):\n        return 1')
+_two = _leaves('def h(a):\n    if never: return False\n    return x(a) or y(a) or z(a)\n'
+               'def c(a):\n    if h(a):\n        return 1')
+ok(_single == 3, "D1: a single-return helper still contributes its three leaves")
+ok(_two >= _single,
+   "D1: adding a trivial second return does NOT shrink the count — it used to drop "
+   "3 -> 1, so an anti-laundering fix had a one-line dodge. Now the dodge costs you")
+
+# D2: the local-function map was a module global that outlived analyse()
+ok(not hasattr(rs, "_LOCAL_FUNCS"),
+   "D2: no module-level function map survives. It persisted after analyse() returned, "
+   "so a later direct count_leaves() used whichever module was scanned last — shared "
+   "mutable state in a measuring instrument")
+_r1 = rs.analyse("driftcore/kernel/one_door.py")
+_r2 = rs.analyse("driftcore/kernel/egress_guard.py")
+ok(rs.analyse("driftcore/kernel/one_door.py").robot_leaves() == _r1.robot_leaves(),
+   "D2: analysing a module twice with another in between gives the same answer")
+
+# D3: the repair for RS-5 made the same failure silent again
+import json as _j, io as _io, tempfile as _tf, os as _os2
+_b = _j.load(_io.open("scripts/robot_surface_baseline.json"))
+for _m in _b["modules"].values():
+    _m.pop("leaves", None)
+_tmp = _tf.mktemp(suffix=".json")
+_j.dump(_b, _io.open(_tmp, "w"))
+_old, rs.BASELINE = rs.BASELINE, _tmp
+_rc = rs.check_against_baseline(rs.run(rs.ENFORCEMENT_MODULES))
+rs.BASELINE = _old
+_os2.unlink(_tmp)
+ok(_rc == 1,
+   "D3: a baseline with no 'leaves' FAILS loudly. The fix for 'the ratchet never ran' "
+   "was a compatibility guard that made 'the ratchet is not running' silent — the "
+   "identical failure, reintroduced by its own repair")
+
+print(f"\nALL {passed} CHECKS PASSED")

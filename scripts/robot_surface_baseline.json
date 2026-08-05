@@ -1,47 +1,85 @@
 {
   "modules": {
     "driftcore/kernel/actuation_gate.py": {
-      "leaky": 2,
+      "leaky": 1,
+      "leaky_decide": 0,
+      "leaves": 7,
       "robot": 4
     },
+    "driftcore/kernel/allowlist_hygiene.py": {
+      "leaky": 0,
+      "leaky_decide": 0,
+      "leaves": 5,
+      "robot": 3
+    },
     "driftcore/kernel/blast_radius.py": {
-      "leaky": 7,
+      "leaky": 0,
+      "leaky_decide": 3,
+      "leaves": 15,
       "robot": 10
     },
     "driftcore/kernel/effect_guard.py": {
-      "leaky": 2,
+      "leaky": 1,
+      "leaky_decide": 0,
+      "leaves": 5,
       "robot": 3
     },
     "driftcore/kernel/egress_guard.py": {
-      "leaky": 2,
-      "robot": 13
+      "leaky": 1,
+      "leaky_decide": 0,
+      "leaves": 29,
+      "robot": 14
     },
     "driftcore/kernel/escalation_lexicon.py": {
-      "leaky": 5,
+      "leaky": 0,
+      "leaky_decide": 0,
+      "leaves": 11,
       "robot": 10
     },
     "driftcore/kernel/invariants.py": {
-      "leaky": 1,
+      "leaky": 0,
+      "leaky_decide": 0,
+      "leaves": 6,
       "robot": 6
     },
     "driftcore/kernel/isolation_manifest.py": {
-      "leaky": 14,
-      "robot": 35
+      "leaky": 1,
+      "leaky_decide": 5,
+      "leaves": 43,
+      "robot": 36
+    },
+    "driftcore/kernel/isolation_monitor.py": {
+      "leaky": 4,
+      "leaky_decide": 0,
+      "leaves": 13,
+      "robot": 9
     },
     "driftcore/kernel/one_door.py": {
-      "leaky": 3,
+      "leaky": 0,
+      "leaky_decide": 0,
+      "leaves": 6,
       "robot": 4
     },
+    "driftcore/kernel/probe_detector.py": {
+      "leaky": 2,
+      "leaky_decide": 0,
+      "leaves": 13,
+      "robot": 9
+    },
     "driftcore/verification/invariant_guard.py": {
-      "leaky": 3,
+      "leaky": 0,
+      "leaky_decide": 0,
+      "leaves": 4,
       "robot": 4
     },
     "driftcore/verification/mediated_actuation.py": {
-      "leaky": 22,
-      "robot": 39
+      "leaky": 14,
+      "leaky_decide": 2,
+      "leaves": 49,
+      "robot": 42
     }
   },
-  "note": "Baseline history. (1) first recording. (2)-(4)(7) instrument corrections: accumulate-refusal idiom, merge-proof leaves metric, ternary/comprehension/loop-guard/match walking, transparent negation. (5)(6)(8)(9) real mechanisms: local refusals, quarantine, orphan reporter, default-deny capabilities, route oracle, fifth-prefix-bug fix plus a detector so the sixth is found by the tool. (10) ISOLATION ATTESTATION wired into the wall: isolation_manifest could verify a process's capability surface and was wired into the broker ZERO times, so require_isolation only proved two flags had been passed. Starting now requires a supervisor report that is trusted, clean, about THIS pid, and fresh \u2014 +4 branches for five distinct ways an attestation could be worthless. A baseline moves when the world moves or the ruler was wrong, never to make a number look better.",
-  "total_leaky": 61,
-  "total_robot": 128
+  "note": "Baseline history through (23) established in earlier sessions. (24) MERGED FROM A SIBLING SESSION: allowlist_hygiene.py, responding to the public Memory Heist disclosure (Ayush Paul, verified, July 2026) \u2014 Claude web_fetch leaking memory via letter-by-letter link navigation. The adjacent finding: even after that class of bug is closed, egress_guard matches (scheme, host, port) and is BLIND to path/query by design, so an allowlisted pastebin/shortener/webhook still lets a secret ride out one request at a time. This module lints the DECLARATION at build time \u2014 forces every entry to be classified as trusted-or-not-trusted to RECEIVE data, refuses known-bad shapes outright. Two branches shared common ancestry, diverged, and were reconciled here: zero conflict, since the two sessions touched disjoint modules. Also fixed in the merge: test_allowlist_hygiene.py printed a summary line count_tests.sh's own pattern did not match, so 24 passing checks were being silently dropped from every count taken before this fix. A baseline moves when the world moves or the ruler was wrong, never to make a number look better.",
+  "total_leaky": 24,
+  "total_robot": 154
 }

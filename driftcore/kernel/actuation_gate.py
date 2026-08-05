@@ -176,7 +176,7 @@ class ActuationGate:
             action=norm_text or capability_id,
             effect=set(declared),
             context=context or ActionContext())
-        if result.status is GuardStatus.BLOCKED:
+        if not result.permitted:
             d = Decision(
                 Outcome.BLOCK, capability_id,
                 f"declared effect(s) {sorted(e.value for e in declared)} blocked by the "

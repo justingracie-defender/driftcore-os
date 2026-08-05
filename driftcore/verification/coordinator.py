@@ -684,7 +684,7 @@ class VerificationCoordinator:
                                      context=self._authorization_for(request, effects))
             self._audit(stage="guard", status=gd.status.value,
                         invariant=gd.binding_invariant, reason=gd.reason)
-            if gd.status == GuardStatus.BLOCKED:
+            if not gd.permitted:
                 return Decision(Outcome.BLOCKED, invariant=gd.binding_invariant,
                                 reason=gd.reason)
 
