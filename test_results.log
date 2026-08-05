@@ -1,0 +1,82 @@
+  test_actuation_gate.py       ALL 31 CHECKS PASSED
+  test_allowlist_hygiene.py    ALL 24 CHECKS PASSED
+  test_api.py                    36/36 tests passed
+  test_approval_governance.py  16/16 tests passed
+  test_audit_chain.py            35/35 tests passed
+  test_authority.py            21/21 checks passed
+  test_authorization_gate.py   ALL 9 CHECKS PASSED
+  test_authorization_state.py  14/14 tests passed
+  test_authorization_ttl.py    44/44 tests passed
+  test_blast_radius.py         ALL 22 CHECKS PASSED
+  test_breach_response.py      26/26 tests passed
+  test_broker_process.py       12/12 tests passed
+  test_challenger.py           84/84 tests passed
+  test_clarification_gate.py   10/10 tests passed
+  test_cognitive_mode.py         50/50 tests passed
+  test_cold_review_fixes.py    ALL 18 CHECKS PASSED
+  test_consistency_probe.py      38/38 tests passed
+  test_content_mode.py         21/21 tests passed
+  test_coordinator_v45_integration.py 61/61 tests passed
+  test_coverage_gap.py         34/34 tests passed
+  test_cumulative_ledger.py    31/31 tests passed
+  test_deception_measurement.py 29/29 tests passed
+  test_deception_review.py     19/19 tests passed
+  test_domain_controller.py      69/69 tests passed
+  test_drift_detector.py         48/48 tests passed
+  test_edge_loop.py              21/21 tests passed
+  test_effect_guard.py         26/26 tests passed
+  test_effect_wall_integration.py ALL 74 CHECKS PASSED
+  test_egress_guard.py         ALL 72 CHECKS PASSED
+  test_enforcement.py            28/28 tests passed
+  test_escalation_lexicon.py   ALL 61 CHECKS PASSED
+  test_governed_actuator.py      16/16 tests passed
+  test_harm_target.py          15/15 tests passed
+  test_human_identity.py       19/19 tests passed
+  test_integrity_invariance.py 12/12 tests passed
+  test_intent_governance.py      39/39 tests passed
+  test_interpretation_guard.py 8/8 tests passed
+  test_invariant_guard.py      ALL 13 CHECKS PASSED
+  test_isolation_manifest.py   ALL 137 CHECKS PASSED
+  test_isolation_monitor.py    ALL 35 CHECKS PASSED
+  test_keepers.py              15/15 tests passed
+  test_ledger.py                 10/10 tests passed
+  test_lethal_effect_paths.py  ALL 4 CHECKS PASSED
+  test_media_policy.py         22/22 checks passed
+  test_mediated_actuation.py   64/64 tests passed
+  test_memory_core.py            15/15 tests passed
+  test_memory_extended.py        49/49 tests passed
+  test_mode_controller.py        17/17 tests passed
+  test_multi_instance_state.py 5/5 tests passed
+  test_objectives_engine.py    ALL 19 CHECKS PASSED
+  test_observation_gate.py       50/50 tests passed
+  test_one_door.py             ALL 52 CHECKS PASSED
+  test_one_door_client.py      NO SUMMARY LINE
+  test_payload_shape.py        NO SUMMARY LINE
+  test_probe_detector.py       ALL 26 CHECKS PASSED
+  test_profiles_feedback.py      48/48 tests passed
+  test_proportionate_response.py 7/7 tests passed
+  test_psychological_interlock.py 26/26 tests passed
+  test_recovery.py             34/34 checks passed
+  test_redteam_memory_heist.py 9/9 checks passed
+  test_reflection.py           22/22 tests passed
+  test_repeating_tasks_profile.py 18/18 tests passed
+  test_request_schema.py       NO SUMMARY LINE
+  test_review_fixes.py         13/13 checks passed
+  test_review_module.py          37/37 tests passed
+  test_review_router.py        14/14 tests passed
+  test_risk_classifier.py        59/59 tests passed
+  test_robot_surface.py        ALL 31 CHECKS PASSED
+  test_scoped_authorization.py ALL 16 CHECKS PASSED
+  test_second_reader.py        19/19 tests passed
+  test_signed_config.py        12/12 tests passed
+  test_signed_permission.py    14/14 tests passed
+  test_skill_governance.py     36/36 checks passed
+  test_skill_library.py          56/56 tests passed
+  test_spec_citation.py        34/34 tests passed
+  test_storage.py                30/30 tests passed
+  test_stress_scenarios.py     17/17 checks passed
+  test_uncertainty_engine.py     25/25 tests passed
+  test_vector_memory.py          35/35 tests passed
+------------------------------------------------------------
+  2338 tests passing across 79 test files
+  WARNING: 3 file(s) did not report all-passing

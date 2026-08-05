@@ -257,7 +257,15 @@ def _infer_effects(text: str) -> Set[Effect]:
 
 class GuardStatus(Enum):
     ALLOWED = "allowed"
-    BLOCKED = "blocked"
+    BLOCKED = "blocked"          # a DECLARED effect hit the constitutional floor
+    HELD = "held"                # TEXT suggested an effect nobody declared
+
+
+# NOTE ON ADDING STATES. Every consumer of this enum tested `== BLOCKED`, so a third
+# value would have been read as "not blocked" and permitted at seven call sites at
+# once — in the constitutional core. That is why `permitted` exists and why every
+# consumer asks that instead: the safe question is "was this allowed", never "was this
+# the one specific way of not being allowed".
 
 
 @dataclass(frozen=True)
@@ -265,6 +273,12 @@ class GuardResult:
     status: GuardStatus
     reason: str
     binding_invariant: Optional[str] = None
+    inferred_from_text: bool = False   # True when WORDS, not a declaration, held it
+
+    @property
+    def permitted(self) -> bool:
+        """The only safe question. ALLOWED is permission; everything else is not."""
+        return self.status is GuardStatus.ALLOWED
 
     def to_verdict(self) -> LayerVerdict:
         """Surface as a CONSTITUTION-layer verdict for the AuthorityResolver."""

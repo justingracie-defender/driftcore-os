@@ -631,3 +631,57 @@ ok(len(decode_caps(int("F" * 512, 16))) == 256,
    "for content here, not for format")
 
 print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== THE BROKER IS THE NEW MAIL SLOT (external review) ==")
+# Once every fetch and every actuation is forced through one conduit, that conduit's
+# own surface is the escape hatch. Nothing previously stopped the broker running wide
+# open while enforcing a tight manifest on the agent it protects.
+_agent = IsolationManifest(declared_by="justin")
+_loose = IsolationManifest(declared_by="justin",
+                           allowed_fd_kinds=frozenset({"pipe", "devnull", "tty",
+                                                       "anon_inode", "socket_network"}),
+                           accept_network_capable_fds=True,
+                           require_seccomp=False, require_empty_netns=False)
+_findings = _loose.more_permissive_than(_agent)
+ok(len(_findings) >= 3,
+   "a broker manifest that permits sockets, skips seccomp and allows a populated "
+   "namespace is reported as LOOSER on every axis")
+ok(any("socket_network" in f for f in _findings), "the extra FD kind is named")
+ok(any("seccomp" in f for f in _findings), "the missing requirement is named")
+ok(_agent.more_permissive_than(_agent) == [],
+   "an identical manifest is at least as strict as itself")
+ok(IsolationManifest(declared_by="j", max_fds=8).more_permissive_than(_agent) == [],
+   "and a STRICTER broker passes — the check refuses looseness, not difference")
+
+_caps = IsolationManifest(declared_by="j",
+                          permitted_capabilities=frozenset({"CAP_NET_RAW"}))
+ok(any("capabilities" in f for f in _caps.more_permissive_than(_agent)),
+   "a broker permitting a capability the agent may not hold is refused")
+ok(IsolationManifest(declared_by="j", max_fds=999)
+   .more_permissive_than(_agent) != [],
+   "and a higher FD ceiling counts as looser")
+
+print(f"\nALL {passed} CHECKS PASSED")
+
+
+print()
+print("== COLD PASS on the bunker check ==")
+import dataclasses as _dcf, inspect as _insp
+_covered = _insp.getsource(IsolationManifest.more_permissive_than)
+_missing = [f.name for f in _dcf.fields(IsolationManifest)
+            if f.name not in _covered and f.name != "declared_by"]
+ok(not _missing,
+   f"EVERY manifest field is a comparison axis. Two were missing (the version fields), "
+   f"and a broker can be looser on any axis the comparison never mentions")
+
+_old = IsolationManifest(declared_by="j", min_verifier_version=1)
+_new = IsolationManifest(declared_by="j", min_verifier_version=2)
+ok(_old.more_permissive_than(_new),
+   "a broker demanding an OLDER verifier is looser — it is checked by weaker logic "
+   "than the manifest it protects, which is looseness wearing a different word")
+ok(not _new.more_permissive_than(_old),
+   "and demanding a newer one is not looseness")
+
+print(f"\nALL {passed} CHECKS PASSED")

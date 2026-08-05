@@ -82,7 +82,10 @@ ENFORCEMENT_MODULES = [
     "driftcore/kernel/egress_guard.py",
     "driftcore/kernel/escalation_lexicon.py",
     "driftcore/kernel/blast_radius.py",
+    "driftcore/kernel/probe_detector.py",
+    "driftcore/kernel/allowlist_hygiene.py",
     "driftcore/kernel/isolation_manifest.py",
+    "driftcore/kernel/isolation_monitor.py",
     "driftcore/kernel/effect_guard.py",
     "driftcore/kernel/invariants.py",
     "driftcore/verification/invariant_guard.py",
@@ -150,7 +153,69 @@ def find_prefix_matches(tree: ast.AST) -> list:
     return sorted(set(hits))
 
 
-def count_leaves(test: ast.AST) -> int:
+def decision_functions(tree: ast.AST, accumulators: set) -> set:
+    """Functions that can actually produce a VERDICT.
+
+    "61 leaky paths" lumps two unlike things together: an error path inside a server
+    accept loop, where continuing is correct because one bad client must not take down
+    the wall, and an error path inside a function that decides whether an action is
+    permitted, where continuing may be a bypass. Only the second is a review surface.
+
+    A function is a decider if it returns a refusal/verdict-shaped value or appends to
+    a proven refusal accumulator. Derived from the code's own structure — NOT an
+    annotation someone writes, because an annotation is an escape hatch and a robot
+    declared safe by its author is not a slot.
+    """
+    VERDICT_HINTS = {"ok", "error", "error_code", "permitted", "verdict", "allow",
+                     "block", "refuse", "denied", "outcome"}
+    out = set()
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
+                    and n.func.attr == "append" \
+                    and isinstance(n.func.value, ast.Attribute) \
+                    and n.func.value.attr in accumulators:
+                out.add(fn.name); break
+            if isinstance(n, ast.Return) and n.value is not None:
+                v = n.value
+                if isinstance(v, ast.Dict):
+                    keys = {k.value for k in v.keys
+                            if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+                    if keys & VERDICT_HINTS:
+                        out.add(fn.name); break
+                names = {x.id for x in ast.walk(v) if isinstance(x, ast.Name)}
+                attrs = {x.attr for x in ast.walk(v) if isinstance(x, ast.Attribute)}
+                if (names | attrs) & {"Outcome", "EgressVerdict", "BreadthVerdict",
+                                      "GuardStatus", "Decision", "IsolationReport",
+                                      "EgressDecision", "BreadthReading"}:
+                    out.add(fn.name); break
+    return out
+
+
+_INLINE_DEPTH = 3
+
+
+def _index_local_functions(tree: ast.AST) -> Dict[str, ast.AST]:
+    """Map local function name -> its returned expression, for transitive counting."""
+    out = {}
+    for fn in ast.walk(tree):
+        if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            rets = [n.value for n in ast.walk(fn)
+                    if isinstance(n, ast.Return) and n.value is not None]
+            # ALL returns, not just single-return functions. Indexing only
+            # len(rets) == 1 meant adding one trivial line —
+            #     if never_happens: return False
+            # — dropped a three-decision helper back to a single leaf. An
+            # anti-laundering fix with a one-line dodge is not a fix.
+            if rets:
+                out[fn.name] = rets
+    return out
+
+
+def count_leaves(test: ast.AST, _depth: int = 0,
+                 locals_map: Optional[Dict[str, list]] = None) -> int:
     """Atomic tests inside a condition, counting through boolean compounds.
 
     GOODHART DEFENCE (external review). The branch count alone is gameable:
@@ -166,9 +231,24 @@ def count_leaves(test: ast.AST) -> int:
     tracks BOTH: branches may merge, but the decision leaves behind them may not grow.
     """
     if isinstance(test, ast.BoolOp):
-        return sum(count_leaves(v) for v in test.values)
+        return sum(count_leaves(v, _depth, locals_map) for v in test.values)
     if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
-        return count_leaves(test.operand)
+        return count_leaves(test.operand, _depth, locals_map)
+    # TRANSITIVE. `if should_refuse(a):` where should_refuse returns
+    # `dangerous(a) or suspicious(a) or escalated(a)` counted as ONE leaf, so three
+    # decisions disappeared behind a call. Merging could not game the metric;
+    # EXTRACTION could. Complexity does not stop being complexity because it moved
+    # one stack frame away.
+    # Passed explicitly rather than read from a module global. The global outlived
+    # analyse(), so a later direct call to count_leaves() silently used whichever
+    # module happened to be scanned last — shared mutable state in a measuring
+    # instrument, which is how a measurement stops describing what you think it does.
+    if (isinstance(test, ast.Call) and isinstance(test.func, ast.Name)
+            and _depth < _INLINE_DEPTH and locals_map
+            and test.func.id in locals_map):
+        # Every return in the helper, summed: all of that decision logic exists.
+        return sum(count_leaves(r, _depth + 1, locals_map)
+                   for r in locals_map[test.func.id])
     return 1
 
 
@@ -195,6 +275,7 @@ class ModuleReport:
     branches: List[Branch] = field(default_factory=list)
     max_depth: int = 0
     prefix_matches: List[tuple] = field(default_factory=list)
+    deciders: set = field(default_factory=set)
 
     def counts(self) -> Dict[str, int]:
         c = {SHAPE: 0, RULE: 0, JUDGMENT: 0, PLUMBING: 0}
@@ -210,10 +291,34 @@ class ModuleReport:
         return sum(b.leaves for b in self.branches if b.is_robot())
 
     def leaky_failures(self) -> int:
-        """Robot branches whose failure path does NOT terminate in a refusal.
-        These are the ones that historically became bypasses."""
+        """ERROR paths that continue instead of refusing.
+
+        Narrowed after this counted 61 and the eleven that mattered turned out to be
+        comprehension guards and loop-skips — `[... if c not in permitted]` builds the
+        list of violations, `target in allowed_targets -> continue` means "this one is
+        declared, next". A filter ALWAYS continues; that is what filtering is. Counting
+        it as a failure path was a category error that made the number frightening and
+        useless.
+
+        Every fail-open ever found in this repository was an EXCEPTION HANDLER that
+        continued: the registry read that emptied the effect set, the gate crash that
+        set a flag, the missing routes() that passed, the unreadable FD labelled
+        "unknown", the skipped socket table. So that is what the metric now counts.
+        """
         return sum(1 for b in self.branches
-                   if b.is_robot() and b.fail_path == "continues")
+                   if b.is_robot() and b.fail_path == "continues"
+                   and b.source.startswith("except"))
+
+    def leaky_in_deciders(self) -> int:
+        """The subset that sits inside a function which can produce a verdict.
+
+        THIS is the review surface. A continuing error path in a parser or a server
+        accept loop is bookkeeping; the same shape inside a decider is where every
+        fail-open in this repository has lived.
+        """
+        return sum(1 for b in self.branches
+                   if b.is_robot() and b.fail_path == "continues"
+                   and b.function in self.deciders)
 
 
 def _names_in(node: ast.AST) -> set:
@@ -355,6 +460,24 @@ def find_refusal_accumulators(tree: ast.AST) -> set:
     return accumulators
 
 
+def _all_paths_terminate(body: List[ast.stmt]) -> bool:
+    """True only if EVERY path through this block ends in return/raise/continue/break."""
+    if not body:
+        return False
+    last = body[-1]
+    if isinstance(last, (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+        return True
+    if isinstance(last, ast.If):
+        return (bool(last.orelse) and _all_paths_terminate(last.body)
+                and _all_paths_terminate(last.orelse))
+    if isinstance(last, ast.Try):
+        handlers_ok = all(_all_paths_terminate(h.body) for h in last.handlers)
+        return _all_paths_terminate(last.body) and handlers_ok and bool(last.handlers)
+    if isinstance(last, ast.With):
+        return _all_paths_terminate(last.body)
+    return False
+
+
 def classify_fail_path(body: List[ast.stmt], accumulators: set = frozenset()) -> str:
     """Does this branch body terminate in a refusal, or hand control onward?
 
@@ -378,16 +501,21 @@ def classify_fail_path(body: List[ast.stmt], accumulators: set = frozenset()) ->
         if isinstance(stmt, ast.Return):
             # a bare `return` or a returned refusal both terminate the path
             return "hard-refusal"
-    # nested control flow that eventually returns still counts if every leaf returns
-    returns = [n for n in ast.walk(ast.Module(body=body, type_ignores=[]))
-               if isinstance(n, (ast.Return, ast.Raise))]
-    return "hard-refusal" if returns else "continues"
+    # ALL paths must terminate, not merely SOME. The old test asked "does a return
+    # exist anywhere in this body", so
+    #     if x: return refuse()
+    #     carry_on()
+    # was scored hard-refusal even though the common path falls straight through.
+    # Optimism in a fail-path classifier is the one direction it must never lean.
+    return "hard-refusal" if _all_paths_terminate(body) else "continues"
 
 
 class _Walker(ast.NodeVisitor):
-    def __init__(self, report: ModuleReport, module: str, accumulators: set = frozenset()):
+    def __init__(self, report: ModuleReport, module: str, accumulators: set = frozenset(),
+                 locals_map: Optional[Dict[str, list]] = None):
         self.r, self.module = report, module
         self.acc = accumulators
+        self.locals_map = locals_map or {}
         self.fn = "<module>"
         self.depth = 0
 
@@ -404,7 +532,7 @@ class _Walker(ast.NodeVisitor):
         self.r.branches.append(Branch(
             module=self.module, function=self.fn, line=node.lineno,
             source=test_src[:70], level=level, reason=reason, fail_path=fail_path,
-            leaves=(count_leaves(node.test)
+            leaves=(count_leaves(node.test, 0, self.locals_map)
                     if isinstance(node, (ast.If, ast.IfExp, ast.While)) else 1),
             attacker_input=bool(names & {"params", "command", "action", "url", "text",
                                          "action_text", "req", "target", "host"}),
@@ -489,8 +617,10 @@ def analyse(path: str) -> Optional[ModuleReport]:
     with open(full, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     rep = ModuleReport(path=path)
-    _Walker(rep, os.path.basename(path), find_refusal_accumulators(tree)).visit(tree)
+    _Walker(rep, os.path.basename(path), find_refusal_accumulators(tree),
+            _index_local_functions(tree)).visit(tree)
     rep.prefix_matches = find_prefix_matches(tree)
+    rep.deciders = decision_functions(tree, find_refusal_accumulators(tree))
     return rep
 
 
@@ -505,7 +635,7 @@ def run(modules: List[str]) -> List[ModuleReport]:
 
 def print_report(reports: List[ModuleReport], verbose: bool = False):
     print(f"\n{'MODULE':<44} {'SHAPE':>6} {'RULE':>6} {'JUDG':>6} {'PLUMB':>6} "
-          f"{'ROBOT':>6} {'LEAF':>5} {'LEAK':>5} {'DEPTH':>6}")
+          f"{'ROBOT':>6} {'LEAF':>5} {'LEAK':>5} {'DECIDE':>7} {'DEPTH':>6}")
     print("-" * 92)
     tot = {SHAPE: 0, RULE: 0, JUDGMENT: 0, PLUMBING: 0}
     robots = leaks = 0
@@ -515,10 +645,11 @@ def print_report(reports: List[ModuleReport], verbose: bool = False):
             tot[k] += c[k]
         robots += r.robot_count()
         leaks += r.leaky_failures()
-        flag = "  <-- leaky failure path" if r.leaky_failures() else ""
+        flag = "  <-- leaky IN A DECIDER" if r.leaky_in_deciders() else ""
         print(f"{r.path:<44} {c[SHAPE]:>6} {c[RULE]:>6} {c[JUDGMENT]:>6} "
               f"{c[PLUMBING]:>6} {r.robot_count():>6} {r.robot_leaves():>5} "
-              f"{r.leaky_failures():>5} {r.max_depth:>6}{flag}")
+              f"{r.leaky_failures():>5} {r.leaky_in_deciders():>7} "
+              f"{r.max_depth:>6}{flag}")
     print("-" * 92)
     total_branches = sum(tot.values())
     pct = (robots / total_branches * 100) if total_branches else 0
@@ -550,23 +681,29 @@ def print_report(reports: List[ModuleReport], verbose: bool = False):
 
 
 def to_baseline(reports: List[ModuleReport]) -> dict:
-    return {"note": ("Baseline history. (1) first recording. (2)-(4)(7) instrument "
-                     "corrections: accumulate-refusal idiom, merge-proof leaves metric, "
-                     "ternary/comprehension/loop-guard/match walking, transparent "
-                     "negation. (5)(6)(8)(9) real mechanisms: local refusals, "
-                     "quarantine, orphan reporter, default-deny capabilities, route "
-                     "oracle, fifth-prefix-bug fix plus a detector so the sixth is "
-                     "found by the tool. (10) ISOLATION ATTESTATION wired into the "
-                     "wall: isolation_manifest could verify a process's capability "
-                     "surface and was wired into the broker ZERO times, so "
-                     "require_isolation only proved two flags had been passed. Starting "
-                     "now requires a supervisor report that is trusted, clean, about "
-                     "THIS pid, and fresh — +4 branches for five distinct ways an "
-                     "attestation could be worthless. A baseline moves when the world "
-                     "moves or the ruler was wrong, never to make a number look "
-                     "better."),
+    return {"note": ("Baseline history through (23) established in earlier sessions. "
+                     "(24) MERGED FROM A SIBLING SESSION: allowlist_hygiene.py, "
+                     "responding to the public Memory Heist disclosure (Ayush Paul, "
+                     "verified, July 2026) — Claude web_fetch leaking memory via "
+                     "letter-by-letter link navigation. The adjacent finding: even "
+                     "after that class of bug is closed, egress_guard matches "
+                     "(scheme, host, port) and is BLIND to path/query by design, so "
+                     "an allowlisted pastebin/shortener/webhook still lets a secret "
+                     "ride out one request at a time. This module lints the "
+                     "DECLARATION at build time — forces every entry to be classified "
+                     "as trusted-or-not-trusted to RECEIVE data, refuses known-bad "
+                     "shapes outright. Two branches shared common ancestry, diverged, "
+                     "and were reconciled here: zero conflict, since the two sessions "
+                     "touched disjoint modules. Also fixed in the merge: "
+                     "test_allowlist_hygiene.py printed a summary line "
+                     "count_tests.sh's own pattern did not match, so 24 passing "
+                     "checks were being silently dropped from every count taken "
+                     "before this fix. A baseline moves when the world moves or the "
+                     "ruler was wrong, never to make a number look better."),
             "modules": {r.path: {"robot": r.robot_count(),
-                                 "leaky": r.leaky_failures()} for r in reports},
+                                 "leaves": r.robot_leaves(),
+                                 "leaky": r.leaky_failures(),
+                                 "leaky_decide": r.leaky_in_deciders()} for r in reports},
             "total_robot": sum(r.robot_count() for r in reports),
             "total_leaky": sum(r.leaky_failures() for r in reports)}
 
@@ -605,7 +742,20 @@ def check_against_baseline(reports: List[ModuleReport]) -> int:
             print(f"REGRESSION {path}: robot surface grew "
                   f"{old['robot']} -> {cur['robot']}")
             failed = True
-        if cur.get("leaves", 0) > old.get("leaves", cur.get("leaves", 0)):
+        # This compared a key that to_baseline() never wrote, so both sides were the
+        # default and the test was 0 > 0 forever. The merge-proof metric built to
+        # defeat Goodhart gaming was itself inert — a defence that reports success on
+        # behalf of a comparison that never ran.
+        if "leaves" not in old:
+            # The fix for "the leaf ratchet never ran" was a backward-compatibility
+            # guard that made "the leaf ratchet is not running" SILENT — the same
+            # failure, reintroduced by its own repair. A measurement that is absent
+            # is not a measurement that passed.
+            print(f"STALE BASELINE {path}: no 'leaves' recorded, so the merge- and "
+                  f"extraction-proof leaf ratchet is NOT being enforced for it. "
+                  f"Re-baseline deliberately.")
+            failed = True
+        elif cur.get("leaves", 0) > old["leaves"]:
             print(f"REGRESSION {path}: robot decision LEAVES grew "
                   f"{old.get('leaves')} -> {cur['leaves']} (merging branches cannot "
                   f"hide this)")

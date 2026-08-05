@@ -174,11 +174,31 @@ def record(
     entry_hash = _hash_entry(entry)
     entry["entry_hash"] = entry_hash
 
-    # Write to chain file (append only)
+    # Write to chain file (append only).
+    # DURABILITY (external review, all three reviewers): this wrote with a plain
+    # open(..., "a") and never fsynced, so the chain was tamper-EVIDENT but not
+    # crash-DURABLE — a power loss or kill -9 took the most recent entries with it,
+    # and those are precisely the ones describing whatever was happening when things
+    # went wrong. Hugging Face reconstructed the July incident from 17,000 recorded
+    # events; recording is what let them contain it. Evidence that does not survive
+    # the event it describes is not evidence.
+    #
+    # fsync on the file, then on the directory, because a file can be durable while
+    # the directory entry pointing at it is not.
     try:
         os.makedirs("logs", exist_ok=True)
         with open(CHAIN_FILE, "a") as f:
             f.write(json.dumps(entry) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        try:
+            _dfd = os.open(os.path.dirname(CHAIN_FILE) or ".", os.O_RDONLY)
+            try:
+                os.fsync(_dfd)
+            finally:
+                os.close(_dfd)
+        except OSError:
+            pass          # directory fsync unsupported here; the file write still held
     except Exception as e:
         _shutdown_on_chain_tamper(
             f"Failed to write to audit chain: {e}. "

@@ -629,7 +629,7 @@ class SkillLibrary:
                 effect=Effect.PHYSICAL_FORCE if skill.hardware else Effect.NONE,
             )
             from driftcore.verification.invariant_guard import GuardStatus
-            if result.status == GuardStatus.BLOCKED:
+            if not result.permitted:
                 return ValidationResult(
                     valid=False,
                     reason=f"Invariant guard blocked: {result.reason}"

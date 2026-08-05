@@ -574,3 +574,52 @@ ok(_hb.declaration_hash("harm") != _h1,
    "C3: and it changes when the declaration changes, which is what makes it bindable")
 
 print(f"\nALL {passed} CHECKS PASSED")
+
+
+print("== DURABLE, HASH-CHAINED ACTUATION EVIDENCE ==")
+import os as _oe, json as _je, tempfile as _te
+_EV = _oe.path.join(_te.mkdtemp(), "evidence.jsonl")
+
+def _evbroker(path, require=True):
+    _ev = PermissionVerifier(); _ev.register_key("operator", KEY)
+    _eb = ActuationBroker(SOCK, _ev, enforce_effects=True,
+                          evidence_path=path, require_durable_evidence=require)
+    _hits = []
+    _eb.register_actuator("earm", lambda **k: _hits.append(1) or "ok",
+                          required_scope=("a:m",), effects=[Effect.PHYSICAL_FORCE],
+                          effect_declared_by="justin")
+    return _eb, _ev, _hits
+
+_eb, _ev, _hits = _evbroker(_EV)
+_eb._handle(req("earm", "move", {}, grant(_ev, "earm", "move", {}, nonce="ev1",
+                                          scope=("a:m",))))
+_rows = [_je.loads(l) for l in open(_EV) if l.strip()]
+ok([r["phase"] for r in _rows] == ["INTENT", "COMPLETION"],
+   "an actuation writes INTENT before the act and COMPLETION after. A crash between "
+   "them leaves a detectable gap — the same signal the physical-state quarantine acts "
+   "on, now surviving the process that produced it")
+ok(_oe.path.getsize(_EV) > 0 and _eb.verify_evidence(),
+   "the records are on disk immediately (fsynced, so they survive the event they "
+   "describe) and the chain verifies")
+
+_lines = open(_EV).read().splitlines()
+_d = _je.loads(_lines[0]); _d["detail"] = "nothing happened here"
+open(_EV, "w").write("\n".join([_je.dumps(_d)] + _lines[1:]) + "\n")
+ok(not _eb.verify_evidence(),
+   "EDITING a record breaks the chain — each entry hashes the one before it")
+open(_EV, "w").write(_lines[1] + "\n")
+ok(not _eb.verify_evidence(),
+   "DELETING a record breaks the chain too, so evidence cannot be quietly pruned")
+
+_ub, _uv, _uhits = _evbroker("/proc/nonexistent/evidence.jsonl")
+_r = _ub._handle(req("earm", "move", {}, grant(_uv, "earm", "move", {}, nonce="ev2",
+                                               scope=("a:m",))))
+ok(_r.get("error_code") == "EVIDENCE_UNAVAILABLE" and not _uhits,
+   "when durable evidence is required and cannot be written, the action REFUSES — an "
+   "action nobody can record is an action nobody can review")
+
+ok(any(e["layer"] == "durable_evidence"
+       for e in ActuationBroker(SOCK, _ev).posture_events()),
+   "and a broker without durable evidence records the gap as a posture event")
+
+print(f"\nALL {passed} CHECKS PASSED")

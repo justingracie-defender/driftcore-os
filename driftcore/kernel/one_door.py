@@ -268,7 +268,7 @@ class ConstitutionalDoor:
                 context=ctx,
             )
 
-            if result.status is GuardStatus.BLOCKED:
+            if not result.permitted:
                 self.decisions["blocked"] += 1
                 invariant_name = (kernel_verdict[0] if kernel_verdict
                                   else (result.binding_invariant or "CONSTITUTIONAL_FLOOR"))

@@ -115,6 +115,7 @@ HONEST LIMITS (stated, not hidden):
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import socket
@@ -299,9 +300,18 @@ class ActuationBroker:
                  egress_guard: Optional[EgressGuard] = None,
                  actuator_timeout: Optional[float] = None,
                  quarantine_path: Optional[str] = None,
+                 evidence_path: Optional[str] = None,
+                 require_durable_evidence: bool = False,
                  require_effect_binding: bool = False,
+                 probe_detector=None,
+                 broker_manifest=None,
+                 agent_manifest=None,
                  isolation_attestation=None,
-                 attestation_max_age_seconds: float = 300.0,
+                 # 30s, not 300. The attestation window IS the drift window: for the
+                 # whole of it the wall serves on a measurement that may already be
+                 # false. Five minutes is long enough for the recon phase of a real
+                 # campaign. Short enough to hurt is the point.
+                 attestation_max_age_seconds: float = 30.0,
                  audit_logger=None):
         self._socket_path = socket_path
         self._verifier = verifier
@@ -462,6 +472,22 @@ class ActuationBroker:
         # When `quarantine_path` is set the quarantine is written through on every
         # change and reloaded at construction. Unset means it does NOT survive a
         # restart, which is recorded as a posture event rather than left implicit.
+        # DURABLE ACTUATION EVIDENCE. `records` is an in-memory bounded list, so a
+        # crash took the evidence with it — and the lost entries are exactly the ones
+        # describing whatever was happening when things went wrong. Hugging Face
+        # reconstructed the July incident from 17,000 recorded events; recording is
+        # what let them contain it.
+        #
+        # WRITE-AHEAD: an INTENT record is written and fsynced BEFORE the actuator
+        # runs, a COMPLETION record after. An intent with no completion is a detectable
+        # gap — the same signal the physical-state quarantine already acts on, now
+        # surviving the process that produced it.
+        #
+        # Writing has no judgment in it. Nothing can talk the broker out of writing a
+        # record, and nothing about the wording of an action changes what gets written.
+        self._evidence_path = evidence_path
+        self._require_durable_evidence = bool(require_durable_evidence)
+        self._evidence_prev = "GENESIS"
         self._quarantine_path = quarantine_path
         # ISOLATION ATTESTATION (the detection-vs-enforcement gap).
         # isolation_manifest.py could verify a process's capability surface, and was
@@ -479,6 +505,22 @@ class ActuationBroker:
         # floor. When on, the binding includes a hash of the current declaration, so
         # any change invalidates every outstanding grant for that actuator.
         self._require_effect_binding = bool(require_effect_binding)
+        # THE BROKER IS THE NEW MAIL SLOT. Once every fetch and every actuation is
+        # forced through one conduit, that conduit's own surface is the escape hatch —
+        # and nothing stopped it running wide open while enforcing a tight manifest on
+        # the agent. When both manifests are supplied, the broker refuses to start
+        # unless its own is at least as strict as the one it enforces.
+        # PROBE DETECTION. Every gate here refuses correctly and forgets. So an
+        # adversary can hammer one capability fifty times with fifty phrasings, be
+        # refused fifty times, and nobody learns a search took place. Both verified
+        # incidents had that shape: the robot refused twice before the reframe worked,
+        # and the Mexico operator kept reframing until something did. The refusals
+        # WERE the signal and nothing counted them.
+        #
+        # Fed AFTER the refusal decision, never before. It observes; it does not vote.
+        self._probe_detector = probe_detector
+        self._broker_manifest = broker_manifest
+        self._agent_manifest = agent_manifest
         self._isolation_attestation = isolation_attestation
         self._attestation_max_age = float(attestation_max_age_seconds)
         self._attested_at: Optional[float] = None      # epoch seconds, parsed once
@@ -543,6 +585,20 @@ class ActuationBroker:
              "no external supervisor has verified this process's capability surface, "
              "so the wall property is a claim rather than a measurement — the process "
              "may hold a socket, a capability or a namespace handle nobody declared"),
+            ("probe_detection", self._probe_detector is not None
+             and self._probe_detector.is_armed(),
+             "repeated refusals are not counted, so an agent searching for the "
+             "phrasing that opens a gate is refused every time and nobody learns a "
+             "search took place"),
+            ("broker_bunker", self._broker_manifest is not None
+             and self._agent_manifest is not None,
+             "nothing compares the broker's own isolation to the agent's, so the "
+             "conduit everything is forced through may be wider open than what it "
+             "protects"),
+            ("durable_evidence", bool(self._evidence_path),
+             "actuation evidence lives only in memory, so a crash destroys the records "
+             "describing whatever was happening when things went wrong — which are "
+             "exactly the ones an investigation needs"),
             ("quarantine_durable", bool(self._quarantine_path),
              "a timeout leaves an actuator in UNKNOWN physical state, and that record "
              "is memory-only: a broker restart erases it and the next grant can "
@@ -874,8 +930,7 @@ class ActuationBroker:
             decl = self._effect_registry.declaration(actuator_id)
             by = getattr(decl, "declared_by", "") if decl else ""
             payload = "|".join(sorted(e.value for e in eff)) + "|" + str(by)
-            import hashlib as _h
-            return _h.sha256(payload.encode("utf-8")).hexdigest()
+            return hashlib.sha256(payload.encode("utf-8")).hexdigest()
         except Exception:
             return None
 
@@ -936,6 +991,26 @@ class ActuationBroker:
         # asserts isolation must also enforce the constitutional effect gate, or it
         # refuses to start. Claiming the wall while leaving undeclared actuators
         # reachable is the contradiction this closes.
+        # A half-supplied pair used to skip the check in SILENCE — supply only one and
+        # the broker started with nothing compared. That is the same shape as the stale
+        # baseline and the compatibility guard before it: a condition written for
+        # convenience that makes "not checking" indistinguishable from "checked and
+        # fine". Supplying one now REQUIRES the other.
+        if (self._broker_manifest is None) != (self._agent_manifest is None):
+            raise PermissionError(
+                "one isolation manifest was supplied without the other. The bunker "
+                "check compares the broker's own surface against the agent's, so a "
+                "single manifest compares nothing — and starting anyway would mean the "
+                "check silently did not run.")
+        if self._broker_manifest is not None and self._agent_manifest is not None:
+            looser = self._broker_manifest.more_permissive_than(self._agent_manifest)
+            if looser:
+                raise PermissionError(
+                    "the broker's own isolation manifest is LOOSER than the one it "
+                    "enforces on the agent:\n  - " + "\n  - ".join(looser) +
+                    "\nA bunker less locked down than the room it guards is not a "
+                    "bunker. This is the package-registry mistake one layer up: a "
+                    "trusted conduit whose own surface nobody audited.")
         if self._require_isolation:
             self._assert_isolation_attested()
         if self._require_isolation and not self._enforce_effects:
@@ -1090,10 +1165,78 @@ class ActuationBroker:
         except Exception:
             return False   # cannot verify -> refuse
 
+    def _write_evidence(self, phase: str, actuator_id: str, command: str,
+                        detail: str, nonce: str = "") -> bool:
+        """Append one hash-chained, fsynced evidence record. Returns False on failure.
+
+        Chained so a removed or edited entry breaks verification; fsynced so the
+        record survives the event it describes.
+        """
+        if not self._evidence_path:
+            return True
+        try:
+            with self._lock:
+                entry = {"ts": time.time(), "phase": phase,
+                         "actuator_id": actuator_id, "command": command,
+                         "detail": detail, "nonce": nonce,
+                         "previous_hash": self._evidence_prev}
+                entry["entry_hash"] = hashlib.sha256(
+                    json.dumps(entry, sort_keys=True).encode("utf-8")).hexdigest()
+                d = os.path.dirname(self._evidence_path)
+                if d:
+                    os.makedirs(d, exist_ok=True)
+                with open(self._evidence_path, "a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(entry) + "\n")
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                self._evidence_prev = entry["entry_hash"]
+            return True
+        except OSError:
+            # A genuine write failure: disk full, permissions, path gone.
+            return False
+        except Exception as e:
+            # NOT an I/O failure — a programming error. The broad `except Exception`
+            # here converted a missing `hashlib` import into a False return, so a code
+            # bug was indistinguishable from a full disk and the refusal named the
+            # wrong cause. Fail closed either way, but say which.
+            self.records.append(ActuationRecord(
+                time.time(), actuator_id, command, False,
+                f"evidence writer is broken (not an I/O failure): {e!r}", nonce))
+            return False
+
+    def verify_evidence(self) -> bool:
+        """True if the evidence chain is intact. A break means an entry was removed
+        or edited after the fact."""
+        if not self._evidence_path or not os.path.exists(self._evidence_path):
+            return True
+        prev = "GENESIS"
+        with open(self._evidence_path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                e = json.loads(line)
+                if e.get("previous_hash") != prev:
+                    return False
+                stored = e.pop("entry_hash", None)
+                if hashlib.sha256(json.dumps(e, sort_keys=True).encode()).hexdigest() \
+                        != stored:
+                    return False
+                prev = stored
+        return True
+
+    def is_evidence_durable(self) -> bool:
+        return bool(self._evidence_path)
+
     def _record(self, actuator_id: str, command: str, allowed: bool, reason: str,
                 nonce: str = "") -> None:
         rec = ActuationRecord(time.time(), actuator_id, command, allowed, reason, nonce)
         self.records.append(rec)          # in-broker evidence: always kept first
+        if not allowed and self._probe_detector is not None:
+            try:
+                self._probe_detector.observe_refusal(actuator_id, reason.split(":")[0])
+            except Exception:
+                pass          # counting must never be able to break refusing
         # (red-team) BOUNDED. An unbounded list exhausts memory in a long-lived broker.
         # Oldest entries are dropped and the drop count is retained, so truncation is
         # visible rather than silent — an audit trail that quietly loses its head is
@@ -1461,6 +1604,22 @@ class ActuationBroker:
         # 5. COMMIT THE RESERVATION (burn the nonce), THEN ACT. Single-use: a replayed
         #    grant cannot re-actuate. Committing BEFORE the actuator runs is deliberate —
         #    if the actuator crashes we must not leave a spendable grant behind.
+        # WRITE-AHEAD INTENT. Written and fsynced BEFORE the nonce is burned and the
+        # actuator runs, so a crash between here and completion leaves a record saying
+        # what was about to happen. An action nobody can record is an action nobody can
+        # review, so when durable evidence is required a failed write REFUSES rather
+        # than proceeding unrecorded.
+        if not self._write_evidence("INTENT", actuator_id, command,
+                                    "about to commit and actuate", grant.nonce):
+            if self._require_durable_evidence:
+                self._verifier.release(grant)
+                self._record(actuator_id, command, False,
+                             "durable evidence could not be written; refusing")
+                return {"ok": False, "error": "evidence_unavailable",
+                        "error_code": "EVIDENCE_UNAVAILABLE",
+                        "detail": "the durable evidence record could not be written, "
+                                  "so this action could not be made reviewable. "
+                                  "Refusing rather than acting unrecorded."}
         self._verifier.commit(grant)
         try:
             if self._actuator_timeout is None:
@@ -1524,6 +1683,8 @@ class ActuationBroker:
                                f"({type(result).__name__}) is not JSON-serializable and was "
                                f"dropped. The action DID occur — do not retry."}
 
+        self._write_evidence("COMPLETION", actuator_id, command, "executed",
+                             grant.nonce)
         self._record(actuator_id, command, True, "executed", grant.nonce)
         return {"ok": True, "result": payload}
 
