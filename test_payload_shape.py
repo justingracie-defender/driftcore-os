@@ -8,6 +8,14 @@ from driftcore.kernel.payload_shape import (
 )
 from driftcore.kernel.egress_guard import EgressPolicy, EgressGuard
 
+# The summary below reports passed/EXPECTED_CHECKS, not passed/passed.
+# Self-red-team 2026-08: printing "{passed}/{passed}" is self-certifying — the
+# two numbers are equal BY CONSTRUCTION, so a file that exits early (an early
+# return, a swallowed exception, a conditional skip) reports "3/3 passed" and the
+# gate sees nothing wrong. The total just gets quietly smaller, and nobody
+# notices a smaller number. A declared expected count makes a shortfall visible.
+EXPECTED_CHECKS = 75
+
 passed = 0
 def ok(c, label):
     global passed
@@ -382,4 +390,4 @@ try:
 except UndeclarableTemplate as e:
     ok("prose" in str(e), "M7: non-prose purpose refused")
 
-print(f"\n{passed}/{passed} checks passed")
+print(f"\n{passed}/{EXPECTED_CHECKS} checks passed")

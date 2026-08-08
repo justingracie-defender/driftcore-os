@@ -12,6 +12,14 @@ from driftcore.kernel.payload_shape import (
     PathTemplate, ShapePolicy, PayloadShapeGuard, ShapedRequest,
 )
 
+# The summary below reports passed/EXPECTED_CHECKS, not passed/passed.
+# Self-red-team 2026-08: printing "{passed}/{passed}" is self-certifying — the
+# two numbers are equal BY CONSTRUCTION, so a file that exits early (an early
+# return, a swallowed exception, a conditional skip) reports "3/3 passed" and the
+# gate sees nothing wrong. The total just gets quietly smaller, and nobody
+# notices a smaller number. A declared expected count makes a shortfall visible.
+EXPECTED_CHECKS = 35
+
 passed = 0
 def ok(c, label):
     global passed
@@ -183,4 +191,4 @@ except SchemaRefused as e:
     ok("SECRETKEY" in e.operator_detail,
        "operator/audit view keeps the specific key for debugging")
 
-print(f"\n{passed}/{passed} checks passed")
+print(f"\n{passed}/{EXPECTED_CHECKS} checks passed")

