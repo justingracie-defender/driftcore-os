@@ -9,7 +9,7 @@ are historical record; do not read the most recent one as the current total eith
 - `SAFETY_CASE.md` — NEW. One-page assurance breakdown: TIER 1 interlock (real guarantees) / TIER 2 backstop (foolable, adopt-don't-build) / TIER 3 open frontier (named, not solved) + explicit "what we do NOT claim."
 - `DRIFTCORE_X_LAWZERO.md` — NEW. Pitch framing: DriftCore as the deterministic legible-rules FLOOR beneath LawZero's learned Scientist-AI monitor (complementary, not competing); consequence-invariance convergence as the hook; review-first ask; no overclaiming.
 - `eval_harness.py` + `EVAL_HARNESS_README.md` — the existence proof (already delivered; now improved with a CONTROL row proving the guard discriminates rather than rubber-stamps, and dead coordinator code removed).
-- Also still-to-add from prior blocks: `TO_WHATEVER_READS_THIS_NEXT.md`, `GOVERNED_LEARNING_LOOP.md`, `WHY_MACHINE_ERA_BANK_SECURITY.md`, `WHY_DRIFTCORE_MATTERS_MORE_WITH_SENSORY_LEARNING.md`, `DRIFTCORE_SESSION_HARNESS.md`.
+- Also still-to-add from prior blocks: `TO_WHATEVER_READS_THIS_NEXT.md`, `GOVERNED_LEARNING_LOOP.md`, `WHY_MACHINE_ERA_BANK_SECURITY.md`, `WHY_DRIFTCORE_MATTERS_MORE_WITH_SENSORY_LEARNING.md`, `000_AI_START_HERE.md`.
 
 ## CHANGED (Manus overwrites)
 - `README.md` — the 15 rules woven into the opening as a front door + pointer to THE_FAMILY_TABLE.md. NOTE: RESOLVED — the README's hardcoded count was removed in favour of pointing at `bash scripts/count_tests.sh` as the single source of truth, so it cannot go stale again.
@@ -345,7 +345,7 @@ Grok re-extracted correctly this time and RETRACTED its own earlier false critic
 
 **STILL OPEN from the whole-repo pass:** two disconnected stacks (13 of 38 verification modules reachable from the coordinator); ten modules with no test file including `coordinator.py`; orphan .md files describing modules that do not exist; ChatGPT CG4 (readers not taking the writer's lock) and CG6 (`bundle_key` optional).
 
-CHANGED: `verification/governed_actuator.py`, `verification/mediated_actuation.py`, `test_mediated_actuation.py` (63 tests), README.md, CHANGELOG.md, COMMIT_PLAN_v4.5.0.md, DRIFTCORE_SESSION_HARNESS.md.
+CHANGED: `verification/governed_actuator.py`, `verification/mediated_actuation.py`, `test_mediated_actuation.py` (63 tests), README.md, CHANGELOG.md, COMMIT_PLAN_v4.5.0.md, 000_AI_START_HERE.md.
 
 ## Suggested branch
 assistant/wholerepo-redteam-round2

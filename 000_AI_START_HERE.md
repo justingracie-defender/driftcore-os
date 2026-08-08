@@ -1,3 +1,25 @@
+# STOP — READ THIS BEFORE TOUCHING ANYTHING
+
+**You are an AI instance looking at this repository. This file is for you.**
+
+This repo has 65 markdown files at its root. Reading them in any order will cost you
+hours and you will still miss the disciplines. This file is the compressed version:
+the project, the architecture and WHY each piece exists, the working disciplines, the
+philosophical spine, and the open threads.
+
+*(Renamed from `DRIFTCORE_SESSION_HARNESS.md` in Aug 2026 because a previous instance —
+working in this repo for an entire session — never opened it. The old name read like
+test tooling and sorted 19th of 65. If you are reading this, the rename worked.)*
+
+**The single most important discipline, if you read nothing else:**
+**VERIFY AGAINST THE REPO. Never trust memory — including your own — or a peer AI's
+confident summary.** Run `bash scripts/count_tests.sh` for real state. Read the module
+before changing it. This has caught external reviewers describing solved problems as
+unsolved, features as present that were not, and a previous instance misremembering
+its own output within a single session.
+
+---
+
 # DriftCore — Session Harness
 
 *A restart harness. If Justin is starting a fresh conversation with a new instance of

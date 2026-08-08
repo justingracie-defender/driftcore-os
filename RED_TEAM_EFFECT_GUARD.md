@@ -232,7 +232,7 @@ claiming it is impossible.
 | `driftcore/kernel/effect_guard.py` | composition claim corrected (F3); `Effect` imported from its owner (F5); breach statistic + guard identity corrected (F1, F4) |
 | `driftcore/verification/challenger.py` | breach statistic annotated (F4) |
 | `CHALLENGER.md`, `EFFECT_GUARD.md`, `test_effect_guard.py`, `MANUS_HANDOFF.md` | breach statistic corrected to 18/21 as-measured, 19/21 description-only (F4) |
-| `README.md`, `DRIFTCORE_SESSION_HARNESS.md`, `MANUS_HANDOFF.md` | hardcoded test counts removed; `scripts/count_tests.sh` left as sole source |
+| `README.md`, `000_AI_START_HERE.md`, `MANUS_HANDOFF.md` | hardcoded test counts removed; `scripts/count_tests.sh` left as sole source |
 | `CHANGELOG.md` | release count corrected to 1745/63 and scoped as a historical record |
 | `COMMIT_PLAN_v4.5.0.md` | merge gate changed from a literal count match to exit-status + no-failures |
 

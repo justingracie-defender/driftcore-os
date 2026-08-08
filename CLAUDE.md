@@ -1,3 +1,7 @@
+**FIRST: read [`000_AI_START_HERE.md`](000_AI_START_HERE.md).** It carries the
+architecture, the working disciplines, and the open threads in compressed form.
+Then run `bash scripts/count_tests.sh` for real state — never trust a count in a doc.
+
 # CLAUDE.md — Core Identity & Safety Rules for DriftCore
 
 **Project:** LifeCore-16 + Prometheus-h + DriftCore OS

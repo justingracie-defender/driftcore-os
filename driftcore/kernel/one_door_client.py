@@ -291,17 +291,61 @@ class PinnedHTTPTransport:
 
         head, _, payload = raw_response.partition(b"\r\n\r\n")
         head_lines = head.decode("iso-8859-1").split("\r\n")
+        # A status line we cannot read is a response we cannot reason about.
+        if not head_lines or not head_lines[0].startswith("HTTP/1."):
+            raise TransportContractViolation(
+                "response has no readable HTTP/1.x status line; refusing rather "
+                "than guessing what the peer meant")
         status = 0
         if head_lines and head_lines[0].startswith("HTTP/"):
             try:
                 status = int(head_lines[0].split()[1])
             except (IndexError, ValueError):
                 status = 0
+        if not 100 <= status <= 599:
+            raise TransportContractViolation(
+                f"response status {status!r} is not a valid HTTP status code")
+        # 1xx are INTERIM: the real response follows. This minimal reader does
+        # not continue past them, so returning one as if it were the answer
+        # would hand the caller status=100 and an empty body as though the
+        # request had succeeded. Self-red-team via red team (ChatGPT, 2026-08).
+        if 100 <= status < 200:
+            raise TransportContractViolation(
+                f"response is an interim {status}; this reader does not continue "
+                f"to the final response, and returning the interim as the answer "
+                f"would look like success")
+
         resp_headers = {}
+        seen_counts = {}
         for line in head_lines[1:]:
+            if line[:1] in (" ", "\t"):
+                # obs-fold continuation: deprecated and a classic smuggling
+                # primitive, since intermediaries disagree about unfolding.
+                raise TransportContractViolation(
+                    "response uses obs-fold header continuation; parsers "
+                    "disagree about it, which is how smuggling happens")
             k, sep, v = line.partition(":")
             if sep:
-                resp_headers[k.strip()] = v.strip()
+                key = k.strip()
+                seen_counts[key.lower()] = seen_counts.get(key.lower(), 0) + 1
+                resp_headers[key] = v.strip()
+        # Duplicate framing headers, or Content-Length together with
+        # Transfer-Encoding, are the two canonical request-smuggling setups:
+        # two parsers read two different message boundaries. There is no safe
+        # "pick one" — the only correct answer is to refuse.
+        if seen_counts.get("content-length", 0) > 1:
+            raise TransportContractViolation(
+                "response carries multiple Content-Length headers; parsers would "
+                "disagree about where the body ends")
+        if seen_counts.get("transfer-encoding", 0) and seen_counts.get("content-length", 0):
+            raise TransportContractViolation(
+                "response carries both Content-Length and Transfer-Encoding; this "
+                "is the canonical smuggling ambiguity and has no safe resolution")
+        cl = resp_headers.get("Content-Length") or resp_headers.get("content-length")
+        if cl is not None:
+            if not str(cl).strip().isdigit():
+                raise TransportContractViolation(
+                    f"Content-Length {cl!r} is not a non-negative integer")
         # This is a deliberately minimal HTTP reader: it does not de-chunk. A
         # chunked reply would come back with its size prefixes still embedded,
         # so a caller parsing the body would read framing bytes as data. Refuse
@@ -568,15 +612,22 @@ def audit_bypasses(root: str = "driftcore") -> list:
 
     findings = []
     targets = {"urlopen", "create_connection", "socket"}
+    # Sanctioned holders of a socket, identified by PATH not basename. The skip
+    # list previously matched any file with these names ANYWHERE in the tree, so
+    # planting `driftcore/agents/sneaky/broker_process.py` made a bypass
+    # invisible to the gate. Self-red-team 2026-08.
+    sanctioned = {
+        os.path.normpath("driftcore/kernel/one_door_client.py"),
+        os.path.normpath("driftcore/verification/broker_process.py"),
+        os.path.normpath("driftcore/verification/mediated_actuation.py"),
+    }
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d != "__pycache__"]
         for fn in filenames:
             if not fn.endswith(".py"):
                 continue
             path = os.path.join(dirpath, fn)
-            # This module and the broker are the sanctioned holders of a socket.
-            if fn in ("one_door_client.py", "broker_process.py",
-                      "mediated_actuation.py"):
+            if os.path.normpath(path) in sanctioned:
                 continue
             try:
                 src = open(path, encoding="utf-8").read()
@@ -584,6 +635,21 @@ def audit_bypasses(root: str = "driftcore") -> list:
             except Exception:
                 continue
             lines = src.splitlines()
+
+            # Aliased imports: `from urllib.request import urlopen as u` then
+            # `u(...)` was invisible, because the call is a bare Name the scan
+            # did not know about. Collect local aliases for the target names.
+            aliases = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    for a in node.names:
+                        if a.name in targets:
+                            aliases.add(a.asname or a.name)
+                elif isinstance(node, ast.Import):
+                    for a in node.names:
+                        if a.name in ("socket", "_socket") and a.asname:
+                            aliases.add(a.asname)
+
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Call):
                     continue
@@ -592,7 +658,14 @@ def audit_bypasses(root: str = "driftcore") -> list:
                     fname = node.func.attr
                 elif isinstance(node.func, ast.Name):
                     fname = node.func.id
-                if fname in targets:
+                hit = fname in targets or fname in aliases
+                # getattr(socket, "socket")(...) and friends: the attribute name
+                # is a string literal, so the plain scan never sees it.
+                if fname == "getattr" and len(node.args) >= 2:
+                    second = node.args[1]
+                    if isinstance(second, ast.Constant) and second.value in targets:
+                        hit = True
+                if hit:
                     line = (lines[node.lineno - 1].strip()
                             if node.lineno <= len(lines) else "")
                     # AF_UNIX sockets cannot reach the network.
