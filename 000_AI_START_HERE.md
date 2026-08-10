@@ -52,14 +52,128 @@ as a systems thinker, prefers directness and pushback over validation, thinks in
 analogies and principles, is self-aware about his own reasoning.
 
 **Also:** LifeCore-16 ("Trusted Friend" biped) — the family-safety robot deployment
-layer. DriftCore is UNIVERSAL (no hardware-specific values); LifeCore is the robot-
-specific layer with hardware-enforced immutable invariants. In LifeCore's framing, the
-governance is "white blood cells" — preserve the host, target only dysregulation.
+layer. In LifeCore's framing, the governance is "white blood cells" — preserve the host,
+target only dysregulation. **The DriftCore/LifeCore split has its own section below (§0b)
+because instances keep getting it wrong. Read it.**
 
 **Current state:** run `bash scripts/count_tests.sh` — that is the CANONICAL runner
 and the only number worth quoting. This file carries no figure on purpose; a
 "current state" count in a doc is stale the next time a test lands. (A deprecated
 `_deprecated_check_driftcore_suite.py.bak` exists and must never be run/trusted.)
+
+---
+
+## 0b. DRIFTCORE vs LIFECORE — THE SPLIT INSTANCES KEEP GETTING WRONG
+
+**Justin has had to explain this to at least four separate Claude sessions.** If you are
+about to put a physical number in DriftCore, stop and read this instead.
+
+**The rule:**
+
+> **DriftCore** says: *an envelope must EXIST, be INDEPENDENTLY ENFORCED, and not be
+> SELF-WIDENABLE.*
+> **LifeCore** says: *for this body, in this environment, that envelope is 60N.*
+> **Hardware** says: *and here is the thing that makes it physically true.*
+
+DriftCore holds **no physical values at all**. Not 60N, not 10cm/s, not a torque cap.
+It is model-agnostic middleware; the moment it contains a number tuned to one body, it
+stops being universal and has to be rewritten for the next machine.
+
+**Why this is not a technicality.** The same principle produces different numbers:
+
+| Deployment | Envelope | Same universal rule |
+|---|---|---|
+| Home robot near a child | 60N | "AI may not autonomously grant itself additional physical capability" |
+| Industrial arm behind a fence | 800N | same rule |
+| Software agent, no body | (no physical envelope; the network *is* the actuator) | same rule |
+
+**What DriftCore actually contributes here is VERIFICATION, not enforcement** — the same
+shape as `netns_attestation.py`, which does not create isolation and instead refuses to
+run unless something else provably did. Three questions, no newtons:
+
+1. **Is an envelope declared?** No declaration → refuse to operate. Unconfigured is not
+   permissive (same rule as `EgressPolicy` refusing an empty allowlist).
+2. **Is it enforced BELOW the AI?** A limit the agent consults is a suggestion; a limit
+   in firmware or a mechanical clutch is a limit. (`mediated_actuation` pattern.)
+3. **Can it be self-widened?** Tightening free, widening needs a human + audit.
+   (Asymmetry, same as the media-retention policy.)
+
+**Two traps worth naming:**
+
+- **The envelope is body PLUS ENVIRONMENT, not body alone.** 800N is safe behind a fence
+  and lethal without one. A declaration must name the conditions it is valid under, and
+  leaving those conditions (gate opens, home robot carried into a workshop) is an ODD
+  violation that must fall back to the tightest envelope — not continue on the old one.
+- **"Appropriate to its body" is where the danger moves, not where it ends.** A deployer
+  can declare a permissive envelope and pass all three checks honestly: declared,
+  enforced, not self-widened — and still be 5000N in a kitchen. Same policy-composition
+  hazard as `allowlist_hygiene`: the mechanism is sound and the DECLARATION is the soft
+  spot. An implausible-envelope-for-embodiment-class lint is the analogous answer.
+
+**BUILT (Aug 2026): `driftcore/governance/physical_envelope.py`** — the three questions
+as code (`test_physical_envelope.py`, 36 checks). `EnforcementPoint` is the ladder
+(AGENT_SOFTWARE / SUPERVISOR_PROCESS / FIRMWARE / HARDWARE_MECHANICAL) and
+**AGENT_SOFTWARE is REFUSED, not warned** — that is the load-bearing check.
+`EnvelopeController` handles the ODD fallback (no declared conditions hold → the
+TIGHTEST envelope, never the last one and never fail-open) and the widen-needs-a-human
+asymmetry. The plausibility bands are REVIEW TRIGGERS, explicitly non-authoritative and
+operator-replaceable — a 5000N kitchen envelope passes all three structural checks
+honestly, so the lint surfaces it rather than pretending the mechanism caught it.
+Red team (Grok, Aug 2026) found the first version ordered envelopes
+LEXICOGRAPHICALLY, which picked a 20N/2.0m·s⁻¹ envelope over a 500N/0.1m·s⁻¹ one by
+comparing force alone, and compared a speed-only envelope against a force-only one by
+alphabetical key order. Fixed with a real dominance relation where **a missing dimension
+is UNBOUNDED, not zero** — and, more importantly, incomparable envelopes are now REFUSED
+AT CONSTRUCTION rather than tie-broken silently, because guessing a fallback during an
+incident is the worst possible moment to guess. The operator names it with
+`fallback_envelope=`. Audit is also fail-closed now: a physical limit that cannot be
+recorded is not changed.
+
+Red team (ChatGPT, Aug 2026) then found the deepest bug of the session and it is worth
+internalising as a PATTERN, not just a fix: **`request_change()` was carefully gated and
+`select_for()` was not.** Capability could be widened by SELECTING a permissive envelope
+instead of formally changing one — reproduced at 20N → 800N with no human, no sensor, no
+audit. The lesson generalises: *when you gate a decision, enumerate every path that
+reaches the same outcome.* An alternate decision surface is the thing a mature red team
+looks for. The rule now stated in the module: **conditions may EARN a previously
+authorised envelope; conditions may never CONSTITUTE authorisation to widen capability.**
+Fixed with `ConditionEvidence` + `ConditionAuthority` (trusted source, freshness TTL,
+monotonic sequence anti-replay, injected proof verification — authenticity is the
+integrator's seam and unsigned evidence is refused, not assumed). Also fixed: state was
+mutated BEFORE the mandatory audit, so a failing sink returned "refused" while the machine
+sat at 900N (commit-before-journal — now journal-then-commit); a named `fallback_envelope`
+was accepted without checking it was actually safe (must not be dominated by another
+declared envelope); `select_for` still used lexicographic `max()` — the same bug the
+fallback path had been fixed for; duplicate envelope names; and no lock on transitions.
+
+A cold self-pass on those fixes then found four more, one of which is a principle worth
+carrying: **direction matters for the audit ordering.** For a WIDEN, journal-before-commit
+is right (do not widen unless recorded). For a NARROW — an ODD fallback — the OPPOSITE is
+right: become safe first, record after. Conflating them meant a failing audit sink raised
+during an ODD event *before* demoting, so the caller got an exception AND the machine
+stayed at 800N. **Fail-closed for a safety layer means "end up safe", not "refuse to
+act".** Also fixed: `<=` on the anti-replay high-water burned the sequence on first read,
+so a control loop re-presenting the same still-fresh evidence flapped 800N/20N (`<` is
+correct — TTL is the time control, sequence only rejects SUPERSEDED readings); evidence
+freshness was checked only when someone called `select_for`, so a permissive envelope
+outlived its own evidence if nobody asked (reading `active` now self-demotes); and
+`ConditionAuthority` mutated its high-water map on the read path with no lock.
+
+STILL OPEN on this module (Grok + ChatGPT, correctly): the human-authoriser check is a string
+comparison, not an identity; there are no temporal invariants on widening (cooldown, max frequency, authorisation TTL);
+and `ConditionAuthority.verify_proof` is a seam with no shipped crypto — a real deployment
+must inject a verifier backed by the sensor supervisor's key.
+
+Note the pre-existing hardcoded `max_force_n > 100` warning in `skills/__init__.py`:
+same category (a warning, not a floor), but it belongs in the bands, not in skills.
+
+**Consequence for the immutability question:** "should the floor be software, firmware,
+or hardware?" is not a DriftCore question, because DriftCore has no floor values to
+burn. It is a LifeCore question, asked per-envelope, per-body. And the deciding factor is
+not which is most secure — it is **which floors you trust enough to lose the ability to
+fix.** Immutability and correctability are the same property. Every threshold in this
+project is currently a placeholder awaiting calibration; burning a placeholder into
+silicon converts "we will tune this later" into "we cannot."
 
 ---
 
@@ -92,6 +206,18 @@ credible to a serious reviewer.
 
 ## 2. THE DISCIPLINES (how the work is actually done — do not skip)
 
+- **IF JUSTIN EXPLAINS SOMETHING TWICE, IT BELONGS IN THIS FILE — WRITE IT IN.**
+  This file is only useful if it grows from what actually goes wrong. §0b exists because
+  the DriftCore/LifeCore split had to be re-taught to four consecutive sessions; the
+  STOP header exists because an instance worked here a full session without opening this
+  document. When you notice yourself being corrected on something a briefing could have
+  prevented, that is a defect in this file, not in Justin. Fix it before you leave, and
+  say what went wrong so the next instance inherits the reason and not just the rule.
+- **A RENAME OR DELETION MUST BE STATED TO MANUS EXPLICITLY, EVERY BATCH.** Zips express
+  additions only. If you rename or remove a file and only ship a zip, the old file stays
+  live and the repo ends up with two copies — one stale and actively misleading. Check
+  this on EVERY handoff, not only when it occurs to you: the check costs a second and the
+  failure is silent and long-lived.
 - **VERIFY AGAINST THE REPO, never trust memory or a peer AI's confident summary.**
   Repeatedly caught external AIs describing solved problems as unsolved, features as
   present that weren't, fixes at the wrong architectural layer, and once a whole false
