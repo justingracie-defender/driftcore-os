@@ -30,7 +30,7 @@ def move_arm(target=None):
 
 def make_broker(ledger_hook=None):
     v = PermissionVerifier()
-    v.register_key("operator", KEY)
+    v.register_key("operator", KEY, unrestricted=True)
     b = ActuationBroker(sock, v, ledger_hook=ledger_hook)
     b.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
     return b, v
@@ -137,7 +137,7 @@ calls = {"n": 0}
 def budget_hook(actuator_id, command, params):
     calls["n"] += 1
     return None if calls["n"] <= 1 else "cumulative budget exceeded"
-v2 = PermissionVerifier(); v2.register_key("operator", KEY)
+v2 = PermissionVerifier(); v2.register_key("operator", KEY, unrestricted=True)
 fired2 = []
 b2 = ActuationBroker(sock2, v2, ledger_hook=budget_hook)
 b2.register_actuator("arm_1", lambda target=None: fired2.append(target), required_scope=("arm:move",))
@@ -165,7 +165,7 @@ from driftcore.verification.mediated_actuation import _send as _ms, _recv as _mr
 
 # R1: a STALLED client must not freeze the wall (single-client DoS). Was: hung forever.
 _tmp = tempfile.mkdtemp(); _s = os.path.join(_tmp, "dos.sock")
-_v = PermissionVerifier(); _v.register_key("operator", KEY)
+_v = PermissionVerifier(); _v.register_key("operator", KEY, unrestricted=True)
 _b = ActuationBroker(_s, _v, conn_timeout=1.0)
 _b.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 _b.start(); time.sleep(0.1)
@@ -197,7 +197,7 @@ finally:
 # R2: a grant bound to one actuator cannot drive a DIFFERENT actuator (binding
 # includes actuator_id) — confirms cross-actuator replay is closed.
 _tmp2 = tempfile.mkdtemp(); _s2 = os.path.join(_tmp2, "x.sock")
-_v2 = PermissionVerifier(); _v2.register_key("operator", KEY)
+_v2 = PermissionVerifier(); _v2.register_key("operator", KEY, unrestricted=True)
 _b2 = ActuationBroker(_s2, _v2)
 _h = {"a": [], "b": []}
 _b2.register_actuator("arm_a", lambda **k: _h["a"].append(k), required_scope=("arm:move",))
@@ -222,7 +222,7 @@ print(f"\n{p}/{p} tests passed")
 from driftcore.verification.signed_permission import PermissionVerifier as _PV
 
 # H1: empty required_scope is REFUSED unless explicitly opted in
-_vh = PermissionVerifier(); _vh.register_key("operator", KEY)
+_vh = PermissionVerifier(); _vh.register_key("operator", KEY, unrestricted=True)
 _bh = ActuationBroker(os.path.join(tempfile.mkdtemp(), "h.sock"), _vh)
 try:
     _bh.register_actuator("x", lambda: 1, required_scope=()); ok(False, "empty scope should raise")
@@ -233,7 +233,7 @@ ok(True, "H1: empty scope allowed only with explicit allow_any_scope=True")
 
 # H2a: a ledger_hook that RAISES fails closed (refusal), never executes
 _tmp_h = tempfile.mkdtemp(); _s_h = os.path.join(_tmp_h, "lh.sock")
-_v2 = PermissionVerifier(); _v2.register_key("operator", KEY)
+_v2 = PermissionVerifier(); _v2.register_key("operator", KEY, unrestricted=True)
 _ran = []
 def _boom_hook(a, c, p): raise RuntimeError("ledger down")
 _b2 = ActuationBroker(_s_h, _v2, ledger_hook=_boom_hook)
@@ -251,7 +251,7 @@ finally:
 
 # H2b: a broken AUDIT logger must not crash the wall (best-effort, in-broker record kept)
 _tmp_a = tempfile.mkdtemp(); _s_a = os.path.join(_tmp_a, "au.sock")
-_v3 = PermissionVerifier(); _v3.register_key("operator", KEY)
+_v3 = PermissionVerifier(); _v3.register_key("operator", KEY, unrestricted=True)
 def _boom_audit(**kw): raise RuntimeError("audit sink down")
 _b3 = ActuationBroker(_s_a, _v3, audit_logger=_boom_audit)
 _b3.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
@@ -269,7 +269,7 @@ finally:
 # H3: start() refuses if the socket path exists as a NON-socket (tamper guard)
 _tmp_t = tempfile.mkdtemp(); _s_t = os.path.join(_tmp_t, "planted")
 with open(_s_t, "w") as _f: _f.write("planted file")   # attacker planted a regular file
-_v4 = PermissionVerifier(); _v4.register_key("operator", KEY)
+_v4 = PermissionVerifier(); _v4.register_key("operator", KEY, unrestricted=True)
 _b4 = ActuationBroker(_s_t, _v4)
 try:
     _b4.start(); _b4.stop(); ok(False, "should refuse to start over a planted file")
@@ -298,8 +298,8 @@ print(f"\n{p}/{p} tests passed")
 # for one must not execute on the other. And backward-compat: no broker_id still works.
 _tmpA = tempfile.mkdtemp(); _sA = os.path.join(_tmpA, "A.sock")
 _tmpB = tempfile.mkdtemp(); _sB = os.path.join(_tmpB, "B.sock")
-_vA = PermissionVerifier(); _vA.register_key("operator", KEY)
-_vB = PermissionVerifier(); _vB.register_key("operator", KEY)
+_vA = PermissionVerifier(); _vA.register_key("operator", KEY, unrestricted=True)
+_vB = PermissionVerifier(); _vB.register_key("operator", KEY, unrestricted=True)
 _hA = []; _hB = []
 _bA = ActuationBroker(_sA, _vA, broker_id="broker-A")
 _bA.register_actuator("arm_1", lambda **k: _hA.append(k), required_scope=("arm:move",))
@@ -337,7 +337,7 @@ import hmac as _hmac, hashlib as _hl
 from driftcore.verification.signed_permission import _canonical as _canon
 
 # R-nonfinite: NaN/Infinity timestamps must fail closed (were fail-OPEN: never expire)
-_vv = _PVV(); _vv.register_key("op", "k"*32)
+_vv = _PVV(); _vv.register_key("op", "k"*32, unrestricted=True)
 try:
     _G.issue("k"*32, key_id="op", role="r", scope=("a",), subject="s",
              ttl_seconds=float('inf'), nonce="rf1")
@@ -380,7 +380,7 @@ except Exception:
 
 # R-subject: the wall binds subject (a grant for one subject can't drive another's broker)
 _tmpS = tempfile.mkdtemp(); _sS = os.path.join(_tmpS, "subj.sock")
-_vS = _PVV(); _vS.register_key("operator", KEY); _fS = []
+_vS = _PVV(); _vS.register_key("operator", KEY, unrestricted=True); _fS = []
 _bS = ActuationBroker(_sS, _vS, expected_subject="robot-1")
 _bS.register_actuator("arm_1", lambda **k: _fS.append(k), required_scope=("arm:move",))
 _bS.start(); time.sleep(0.1)
@@ -416,7 +416,7 @@ _tmp2 = _tf2.mkdtemp()
 def _gated_broker(posture_source, name):
     """A broker wired to a breach-posture source, on its own socket."""
     _s = _os2.path.join(_tmp2, name)
-    _v = PermissionVerifier(); _v.register_key("operator", KEY)
+    _v = PermissionVerifier(); _v.register_key("operator", KEY, unrestricted=True)
     _b = ActuationBroker(_s, _v, posture_source=posture_source)
     _b.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
     return _b, _v, _s
@@ -548,7 +548,7 @@ ok(int(_P3.NORMAL) == 0 and int(_P3.HALT) == 3,
 # request — the one-client DoS conn_timeout already closed, reintroduced in front of it.
 _b_b3, _v_b3, _s_b3 = None, None, None
 _s3p = _os2.path.join(_tmp2, "b3_hang.sock")
-_v3p = PermissionVerifier(); _v3p.register_key("operator", KEY)
+_v3p = PermissionVerifier(); _v3p.register_key("operator", KEY, unrestricted=True)
 _b3p = ActuationBroker(_s3p, _v3p, posture_source=lambda: (_t3.sleep(5) or True),
                        posture_timeout=0.4)
 _b3p.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
@@ -574,7 +574,7 @@ class _Unserializable:
     pass
 _side = []
 _s2g = _os2.path.join(_tmp2, "g2_act.sock")
-_v2g = PermissionVerifier(); _v2g.register_key("operator", KEY)
+_v2g = PermissionVerifier(); _v2g.register_key("operator", KEY, unrestricted=True)
 _b2g = ActuationBroker(_s2g, _v2g)
 _b2g.register_actuator("arm_1", lambda **kw: (_side.append(1) or _Unserializable()),
                        required_scope=("arm:move",))
@@ -593,7 +593,7 @@ finally:
 
 # ChatGPT: silent actuator replacement repointed every existing grant at different code.
 _s6c = _os2.path.join(_tmp2, "dup.sock")
-_v6c = PermissionVerifier(); _v6c.register_key("operator", KEY)
+_v6c = PermissionVerifier(); _v6c.register_key("operator", KEY, unrestricted=True)
 _b6c = ActuationBroker(_s6c, _v6c)
 _b6c.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 try:
@@ -608,7 +608,7 @@ ok(True, "RED-TEAM (ChatGPT): replacement is still possible, but only as a delib
 
 # GROK #6 + ChatGPT: unbounded in-memory audit records.
 _s7c = _os2.path.join(_tmp2, "cap.sock")
-_v7c = PermissionVerifier(); _v7c.register_key("operator", KEY)
+_v7c = PermissionVerifier(); _v7c.register_key("operator", KEY, unrestricted=True)
 _b7c = ActuationBroker(_s7c, _v7c)
 _b7c.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 _b7c._records_cap = 50
@@ -642,7 +642,7 @@ import stat as _stat, grp as _grp
 
 # 1. DEFAULT stays owner-only — the safe default, and honest that it means same-uid.
 _sg1 = _os2.path.join(_tmp2, "sg_default.sock")
-_v_sg1 = PermissionVerifier(); _v_sg1.register_key("operator", KEY)
+_v_sg1 = PermissionVerifier(); _v_sg1.register_key("operator", KEY, unrestricted=True)
 _b_sg1 = ActuationBroker(_sg1, _v_sg1)
 _b_sg1.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 _b_sg1.start()
@@ -656,7 +656,7 @@ finally:
 # 2. WITH a shared group: 0660 owned by that group, so a separate-user agent can connect.
 _mygid = _os2.getgid()
 _sg2 = _os2.path.join(_tmp2, "sg_group.sock")
-_v_sg2 = PermissionVerifier(); _v_sg2.register_key("operator", KEY)
+_v_sg2 = PermissionVerifier(); _v_sg2.register_key("operator", KEY, unrestricted=True)
 _b_sg2 = ActuationBroker(_sg2, _v_sg2, socket_group=_mygid)
 _b_sg2.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 _b_sg2.start()
@@ -675,7 +675,7 @@ finally:
 
 # 3. Group may be given by NAME as well as gid.
 _sg3 = _os2.path.join(_tmp2, "sg_name.sock")
-_v_sg3 = PermissionVerifier(); _v_sg3.register_key("operator", KEY)
+_v_sg3 = PermissionVerifier(); _v_sg3.register_key("operator", KEY, unrestricted=True)
 _b_sg3 = ActuationBroker(_sg3, _v_sg3, socket_group=_grp.getgrgid(_mygid).gr_name)
 _b_sg3.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 _b_sg3.start()
@@ -688,7 +688,7 @@ finally:
 # 4. FAIL CLOSED: a group that cannot be resolved or applied refuses to start, and does
 #    not leave a permissive socket behind.
 _sg4 = _os2.path.join(_tmp2, "sg_bad.sock")
-_v_sg4 = PermissionVerifier(); _v_sg4.register_key("operator", KEY)
+_v_sg4 = PermissionVerifier(); _v_sg4.register_key("operator", KEY, unrestricted=True)
 _b_sg4 = ActuationBroker(_sg4, _v_sg4, socket_group="no_such_group_xyz")
 _b_sg4.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 try:
@@ -716,7 +716,7 @@ print(f"\n{p}/{p} tests passed")
 import threading as _th3
 from driftcore.verification.signed_permission import PermissionReplay as _PR3
 
-_vr = PermissionVerifier(); _vr.register_key("operator", KEY)
+_vr = PermissionVerifier(); _vr.register_key("operator", KEY, unrestricted=True)
 _rg = Grant.issue(KEY, key_id="operator", role="operator", subject=None,
                   scope=["arm:move"], ttl_seconds=60, nonce="resv-1")
 _wins = []
@@ -738,7 +738,7 @@ ok(len(_wins) == 1,
    "ONE success — reserve() checks and marks the nonce in-flight atomically (8/8 succeeded "
    "before the fix)")
 
-_vr2 = PermissionVerifier(); _vr2.register_key("operator", KEY)
+_vr2 = PermissionVerifier(); _vr2.register_key("operator", KEY, unrestricted=True)
 _rg2 = Grant.issue(KEY, key_id="operator", role="operator", subject=None,
                    scope=["arm:move"], ttl_seconds=60, nonce="resv-2")
 _vr2.reserve(_rg2, required_scope=["arm:move"])
@@ -757,7 +757,7 @@ ok(_vr2.in_flight() == 0,
    "in_flight() returns to zero after commit — a number that only grows would reveal "
    "callers that neither commit nor release")
 
-_vr3 = PermissionVerifier(); _vr3.register_key("operator", KEY)
+_vr3 = PermissionVerifier(); _vr3.register_key("operator", KEY, unrestricted=True)
 _rg3 = Grant.issue(KEY, key_id="operator", role="operator", subject=None,
                    scope=["arm:move"], ttl_seconds=60, nonce="resv-3")
 _vr3.reserve(_rg3, required_scope=["arm:move"])
@@ -770,7 +770,7 @@ except _PR3:
 
 # the broker refuses on a ledger veto WITHOUT spending the grant
 _lp = _os2.path.join(_tmp2, "resv_ledger.sock")
-_lv = PermissionVerifier(); _lv.register_key("operator", KEY)
+_lv = PermissionVerifier(); _lv.register_key("operator", KEY, unrestricted=True)
 _lb = ActuationBroker(_lp, _lv, ledger_hook=lambda a, c, pr: "cumulative cap reached")
 _lb.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 _lb.start()
@@ -833,7 +833,7 @@ ok(_ga2.reserve(_gg2, "arm", "move") is False
 # G-C2: the library default (0600) forces same-UID, which makes require_peer_uid a no-op.
 # require_isolation turns that documented assumption into a checked one.
 _iso = _os2.path.join(_tmp2, "iso.sock")
-_iv = PermissionVerifier(); _iv.register_key("operator", KEY)
+_iv = PermissionVerifier(); _iv.register_key("operator", KEY, unrestricted=True)
 _ib = ActuationBroker(_iso, _iv, require_isolation=True)
 _ib.register_actuator("arm_1", move_arm, required_scope=("arm:move",))
 try:
@@ -846,7 +846,7 @@ except PermissionError as e:
        "take the easy path and silently get weaker isolation than the docs imply")
 
 _iso2 = _os2.path.join(_tmp2, "iso_ok.sock")
-_iv2 = PermissionVerifier(); _iv2.register_key("operator", KEY)
+_iv2 = PermissionVerifier(); _iv2.register_key("operator", KEY, unrestricted=True)
 # NOTE: require_isolation now also requires enforce_effects (3-way external red-team
 # convergence: a broker that CLAIMS the wall property cannot leave undeclared actuators
 # reachable). So the positive isolation case must declare its effects too.

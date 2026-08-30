@@ -115,9 +115,20 @@ class HumanAttestation:
 class HumanIdentityVerifier:
     """Holds human principal keys and verifies attestations. Thread-safe."""
 
-    def __init__(self) -> None:
+    def __init__(self, used_nonces: Optional[Set[str]] = None) -> None:
         self._keys: Dict[str, bytes] = {}
-        self._used: Set[str] = set()
+        # (red-team, Grok 2026-08-14) An in-memory set means a restart RE-ARMS every
+        # outstanding attestation: the approvals a human spent before the crash become
+        # spendable again. Any container supporting `in` and `.add()` works here, so a
+        # deployment can pass an ExpiringNonceStore / SqliteNonceStore and get the
+        # durable, clock-guarded burn those modules already provide.
+        #
+        # HONEST LIMIT: the check and the add are atomic WITHIN this process because
+        # both happen under `self._lock`. A durable store shared by SEVERAL processes
+        # is not covered — these are two statements, not one transaction, and the store
+        # exposes no reserve primitive. Single-process durable: yes. Multi-process
+        # linearisable: no, and it must not be claimed.
+        self._used: Set[str] = set() if used_nonces is None else used_nonces
         self._lock = threading.RLock()
 
     def register_principal(self, principal: str, key: bytes | str) -> None:
@@ -157,9 +168,22 @@ class HumanIdentityVerifier:
             if att.action != action:
                 raise PermissionError(
                     f"attestation is for action {att.action!r}, not {action!r}")
-            if att.nonce in self._used:
-                raise PermissionError(f"attestation nonce already used: {att.nonce!r}")
-            self._used.add(att.nonce)
+            # Prefer an ATOMIC claim when the backing store offers one. `in` followed
+            # by `.add()` is two statements: `self._lock` makes them indivisible
+            # inside THIS process, but two processes sharing a durable store both see
+            # the nonce absent and both proceed — one approval, two physical actions.
+            # A store exposing `consume()` lets the database pick the winner.
+            # (red-team, ChatGPT 2026-08-14)
+            consume = getattr(self._used, "consume", None)
+            if callable(consume):
+                if not consume(att.nonce):
+                    raise PermissionError(
+                        f"attestation nonce already used: {att.nonce!r}")
+            else:
+                if att.nonce in self._used:
+                    raise PermissionError(
+                        f"attestation nonce already used: {att.nonce!r}")
+                self._used.add(att.nonce)
             return att.principal
 
     def known_principals(self) -> Set[str]:
@@ -205,6 +229,34 @@ def mode() -> str:
         if _registered:
             return "REGISTERED"
         return "LABEL_ONLY"
+
+
+def require_secure_mode(*, context: str = "production") -> str:
+    """Refuse to proceed in LABEL_ONLY. Call at deployment startup.
+
+    `status()` already reports `secure: False` for LABEL_ONLY, and the module
+    already documents that deployments SHOULD assert this. Red team (ChatGPT,
+    2026-08) made the correct objection: honest documentation is not
+    enforcement, and the entire original vulnerability returns if someone
+    deploys without registering a principal or installing a verifier.
+
+    So this is the assertion, in the library, callable as one line — an
+    unconfigured deployment stops at startup rather than running with string
+    authorization and finding out later.
+    """
+    m = mode()
+    if m == "LABEL_ONLY":
+        raise InsecureAuthorizationMode(
+            f"{context} refuses to start in LABEL_ONLY mode: human authorization "
+            f"would be a string comparison, on boundaries that include "
+            f"declassifying a secret and widening a physical envelope. Install a "
+            f"HumanIdentityVerifier (ATTESTED) or register principals "
+            f"(REGISTERED) before starting.")
+    return m
+
+
+class InsecureAuthorizationMode(RuntimeError):
+    """Raised when a deployment would run with string-only human authorization."""
 
 
 def status() -> dict:

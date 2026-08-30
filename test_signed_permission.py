@@ -25,9 +25,9 @@ KID_KEY    = "kid-authority-key"
 
 def verifier():
     v = PermissionVerifier()
-    v.register_key("parent", PARENT_KEY)   # the DEPLOYMENT installs these keys +
-    v.register_key("adult", ADULT_KEY)     # decides what each may sign. THAT is the
-    v.register_key("kid", KID_KEY)         # role hierarchy — as data, not code.
+    v.register_key("parent", PARENT_KEY, unrestricted=True)   # the DEPLOYMENT installs these keys +
+    v.register_key("adult", ADULT_KEY, unrestricted=True)     # decides what each may sign. THAT is the
+    v.register_key("kid", KID_KEY, unrestricted=True)         # role hierarchy — as data, not code.
     return v
 
 # 1. a validly signed, in-scope grant verifies

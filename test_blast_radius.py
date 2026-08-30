@@ -96,7 +96,7 @@ ok(r.verdict is BreadthVerdict.ERROR and not r.permitted,
    "a governor that cannot evaluate REFUSES, never falls through")
 
 print("== wired into the wall: breadth is enforced at the actuation choke point ==")
-v = PermissionVerifier(); v.register_key("operator", KEY)
+v = PermissionVerifier(); v.register_key("operator", KEY, unrestricted=True)
 b = ActuationBroker(SOCK, v, enforce_effects=True,
                     blast_radius=BlastRadiusGovernor(
                         BreadthPolicy(window_seconds=60, max_distinct_capabilities=3)))
