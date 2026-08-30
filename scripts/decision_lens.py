@@ -46,7 +46,7 @@ def build():
     """A broker with every layer on, so the lens shows the intended posture."""
     tmp = tempfile.mkdtemp()
     v = PermissionVerifier()
-    v.register_key("operator", KEY)
+    v.register_key("operator", KEY, unrestricted=True)
     alerts = []
     probe = ProbeDetector(
         ProbePolicy(window_seconds=300, max_refusals_per_capability=3),

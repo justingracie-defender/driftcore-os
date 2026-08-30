@@ -687,17 +687,31 @@ class EnvelopeController:
         widening = current is not None and not envelope.is_tighter_than(current) \
             and any(envelope.limits.get(d, 0) > current.limits.get(d, 0)
                     for d in envelope.limits)
-        human = authorised_by not in ("", "system", "auto", "agent",
-                                      "reflection", None)
+        # Same delegation as information_flow: a local denylist on a safety
+        # boundary is not authentication. See human_identity.status() for which
+        # mode a deployment is actually running in.
+        try:
+            from driftcore.authority.human_identity import is_human as _ih
+            human = _ih(authorised_by, action="envelope_widen")
+        except Exception:
+            human = False
 
         if widening and not human:
             self._log("ENVELOPE_WIDEN_DENIED", authorised_by or "system",
                       f"{envelope.name}: no human authoriser")
             return False, ("widening a physical envelope requires a human "
                            "authoriser; tightening does not")
-        if widening and not reason.strip():
-            return False, ("widening a physical envelope requires a reason "
-                           "(for the audit trail)")
+        if widening:
+            # Bound via the CENTRAL policy, not a local copy: the same
+            # caller-supplied-text-into-audit pattern exists in every governance
+            # module, and a lesson re-remembered per call site gets forgotten at
+            # one of them. Red team (ChatGPT, 2026-08).
+            from driftcore.audit.bounded_fields import (
+                bounded_reason, AuditFieldRefused)
+            try:
+                bounded_reason(reason, field="widen reason")
+            except AuditFieldRefused as e:
+                return False, str(e)
 
         v = self._verifier.verify(envelope, self._class,
                                   requires_physical=self._requires_physical)

@@ -196,6 +196,9 @@ class PermissionVerifier:
 
     def __init__(self, *, clock=time.time, used_nonces: Optional[set] = None):
         self._keys: Dict[str, bytes] = {}         # key_id -> verification key
+        # key_id -> tuple of scope patterns this signer may assert, or None for
+        # a deliberately unrestricted signer. THE ROLE HIERARCHY, as data.
+        self._envelopes: Dict[str, Optional[Tuple[str, ...]]] = {}
         self._clock = clock
         self._used = used_nonces if used_nonces is not None else set()
         # (red-team, external) verify() CHECKED the nonce but did not BURN it, and
@@ -212,25 +215,91 @@ class PermissionVerifier:
         self._nonce_lock = threading.RLock()
 
     # ── trusted key registry (deployment / broker populates) ──
-    def register_key(self, key_id: str, key: KeyLike) -> None:
-        """Install a signer the deployment trusts. Which keys exist, and what each
-        is allowed to sign, IS the role hierarchy — expressed as data, not code."""
+    def register_key(self, key_id: str, key: KeyLike, *,
+                     may_sign: Optional[Iterable[str]] = None,
+                     unrestricted: bool = False) -> None:
+        """Install a signer, and declare the ENVELOPE it is allowed to sign inside.
+
+        This docstring used to claim that "what each key is allowed to sign IS the
+        role hierarchy — expressed as data". THAT POLICY DID NOT EXIST (red-team,
+        Grok, 2026-08-29). Verified by execution: a key registered for a child's
+        media scope minted `scope=("*",)` and authorised `weapons:engage`,
+        `unlock:door` and a capability string invented on the spot. Every registered
+        key was a god key, and `role` was scenery.
+
+        `may_sign` is now that hierarchy, and it is checked in `verify`: a grant is
+        refused if ANY token in its scope falls outside its signer's envelope,
+        `"*"` included. Enforcement is at verification, not issuance — a holder of
+        the key bytes can always mint whatever it likes; what this changes is that
+        minting it no longer means anything here.
+
+        One of `may_sign` or `unrestricted=True` is REQUIRED. An unstated envelope
+        was the old behaviour and it is not a default worth keeping; a deployment
+        that genuinely wants a universal signer must now say so where a reader — and
+        a grep — can see it.
+        """
+        if unrestricted is not True and unrestricted is not False:
+            raise ValueError(
+                f"unrestricted must be the literal True or False, not "
+                f"{unrestricted!r}. Truthiness is not consent.")
+        if may_sign is None and not unrestricted:
+            raise ValueError(
+                f"register_key({key_id!r}) must declare what this key may sign: "
+                f"may_sign=('media:*', ...), or unrestricted=True to state "
+                f"deliberately that this signer has no envelope. An unstated "
+                f"envelope means every registered key is a god key.")
+        if may_sign is not None and unrestricted:
+            raise ValueError(
+                f"register_key({key_id!r}) passed both may_sign and "
+                f"unrestricted=True. Say one thing.")
+        env = None if unrestricted else tuple(str(x) for x in may_sign)
+        if env is not None and not env:
+            raise ValueError(
+                f"register_key({key_id!r}) has an EMPTY may_sign, which permits "
+                f"nothing. If that is intended, do not register the key.")
         self._keys[key_id] = _resolve(key)
+        self._envelopes[key_id] = env
 
     def revoke_key(self, key_id: str) -> None:
+        self._envelopes.pop(key_id, None)
         self._keys.pop(key_id, None)
 
     # ── verification ──
     def verify(self, grant: Grant, *, required_scope: Iterable[str] = (),
                expected_subject: Optional[str] = None,
                action_binding: Optional[str] = None,
-               allowed_signers: Optional[Iterable[str]] = None) -> Grant:
+               allowed_signers: Optional[Iterable[str]] = None,
+               allow_any_scope: bool = False) -> Grant:
         """Return the grant iff it is authentic, unexpired, unreplayed, and covers
         every capability in `required_scope`. Raises a specific PermissionError_
         subclass otherwise. `allowed_signers` optionally restricts WHICH key_ids are
         acceptable for THIS action (e.g. 'only a parent-tier key may authorize
         this') — that restriction is the deployment expressing its hierarchy.
         `action_binding`, if given, must match the grant's pinned action."""
+        # EMPTY REQUIRED SCOPE IS A CALLER SAYING "TRUST ME" (red-team, 2026-08-29).
+        # `required_scope` is what the ACTION needs, and this verifier cannot see the
+        # action — so an empty tuple means every scope check below is vacuous and any
+        # validly-signed grant authorises anything. Verified by execution: a
+        # `sensor:read` grant passed `verify(g, required_scope=[])`, and four of the
+        # six authority-expansion variants ran straight through this one hole.
+        #
+        # Derive the requirement from a registry keyed by the action (as
+        # `mediated_actuation` does, where the OPERATOR registers each actuator's
+        # scope and the caller cannot name it), or opt in explicitly and loudly. The
+        # opt-in mirrors `register_actuator(allow_any_scope=True)`: a config smell
+        # becomes a deliberate choice with a name on it.
+        required_scope = tuple(required_scope)
+        # `is True`, never truthiness: a caller that passes the string "false" —
+        # which is what a config file, env var or CLI flag actually delivers — must
+        # not thereby disable the check that string was trying to keep on.
+        if not required_scope and allow_any_scope is not True:
+            raise ScopeExceeded(
+                "verify() was called with an empty required_scope, which makes every "
+                "capability check below vacuous: any validly-signed grant would "
+                "authorise this action. Name the capabilities the ACTION needs — "
+                "preferably from an operator-side registry the caller cannot write — "
+                "or pass allow_any_scope=True to say deliberately that this call "
+                "accepts any grant.")
         key = self._keys.get(grant.key_id)
         if key is None:
             raise UnknownSigner(f"grant signed by unknown/untrusted key_id {grant.key_id!r}")
@@ -260,12 +329,23 @@ class PermissionVerifier:
             raise PermissionExpired(
                 f"grant issued too far in the future ({grant.issued_at} > now+300)")
 
-        if grant.nonce in self._used:
-            raise PermissionReplay(f"grant nonce already used: {grant.nonce!r}")
-        # (red-team) an IN-FLIGHT nonce is not yet burned but must not verify again.
-        if grant.nonce in getattr(self, "_reserved", ()):
-            raise PermissionReplay(
-                f"grant nonce {grant.nonce!r} is already in flight (concurrent use)")
+        # UNDER THE LOCK (red-team, Grok, 2026-08-29). These two reads were
+        # unsynchronised, so the race closed on `reserve` was still open on the API
+        # most callers actually use. Verified by execution: eight concurrent
+        # verify() calls on ONE single-use grant all succeeded.
+        #
+        # verify() STILL DOES NOT CONSUME. It answers "is this grant valid right
+        # now", never "may I spend it" — the production path is
+        # reserve -> gates -> commit/release. A caller that verifies and then acts
+        # holds a season pass until TTL.
+        with self._nonce_lock:
+            if grant.nonce in self._used:
+                raise PermissionReplay(f"grant nonce already used: {grant.nonce!r}")
+            # an IN-FLIGHT nonce is not yet burned but must not verify again.
+            if grant.nonce in self._reserved:
+                raise PermissionReplay(
+                    f"grant nonce {grant.nonce!r} is already in flight "
+                    f"(concurrent use)")
 
         if expected_subject is not None and grant.subject != expected_subject:
             raise ScopeExceeded(
@@ -274,6 +354,19 @@ class PermissionVerifier:
         if action_binding is not None and grant.action_binding != action_binding:
             raise ScopeExceeded("grant is not bound to this action (action_binding mismatch)")
 
+        # THE SIGNER'S ENVELOPE. Checked before the action's requirement, because a
+        # token the key was never allowed to assert is not a capability this grant
+        # has — it is a claim the deployment never authorised anyone to make.
+        envelope = self._envelopes.get(grant.key_id)
+        if envelope is not None:
+            outside = [tok for tok in grant.scope
+                       if not _scope_covers(envelope, tok)]
+            if outside:
+                raise ScopeExceeded(
+                    f"key {grant.key_id!r} signed scope {tuple(outside)} outside its "
+                    f"declared envelope {envelope}. The key bytes can mint anything; "
+                    f"what a signer is ALLOWED to assert is policy, and this grant "
+                    f"asserts more than the deployment gave this key.")
         for cap in required_scope:
             if not _scope_covers(grant.scope, cap):
                 raise ScopeExceeded(
@@ -283,7 +376,8 @@ class PermissionVerifier:
 
     def reserve(self, grant: Grant, *, required_scope: Iterable[str] = (),
                 expected_subject: Optional[str] = None,
-                action_binding: Optional[str] = None) -> Grant:
+                action_binding: Optional[str] = None,
+                allow_any_scope: bool = False) -> Grant:
         """ATOMIC check-and-hold. Verifies the grant and marks its nonce IN-FLIGHT under
         one lock, so a concurrent caller cannot verify the same single-use grant.
 
@@ -303,13 +397,26 @@ class PermissionVerifier:
                     f"grant nonce {grant.nonce!r} is already in flight (concurrent use)")
             g = self.verify(grant, required_scope=required_scope,
                             expected_subject=expected_subject,
-                            action_binding=action_binding)
+                            action_binding=action_binding,
+                            allow_any_scope=allow_any_scope)
             self._reserved.add(grant.nonce)
             return g
 
     def commit(self, grant: Grant) -> None:
-        """The action happened: burn the nonce permanently and drop the reservation."""
+        """The action happened: burn the nonce permanently and drop the reservation.
+
+        REQUIRES AN OUTSTANDING RESERVATION (red-team, Grok, 2026-08-29). This used
+        to burn any nonce handed to it, so anyone holding a copy of a grant could
+        pre-burn it and deny the legitimate holder their single use. Committing
+        something that was never reserved is not a commit; it is a write to the
+        replay set by a caller that never passed a check.
+        """
         with self._nonce_lock:
+            if grant.nonce not in self._reserved:
+                raise PermissionReplay(
+                    f"commit() for nonce {grant.nonce!r} with no outstanding "
+                    f"reservation. Burning a nonce nobody reserved lets a holder of "
+                    f"a grant COPY deny the real holder its single use.")
             self._used.add(grant.nonce)
             self._reserved.discard(grant.nonce)
 
@@ -326,15 +433,25 @@ class PermissionVerifier:
             return len(self._reserved)
 
     def consume(self, grant: Grant) -> None:
-        """Burn the grant's nonce so it cannot be replayed. Call after a
-        single-use grant has been acted on. (Durable/shared burn: back `used_nonces`
-        with AuthorizationState.)"""
-        self._used.add(grant.nonce)
+        """Burn the grant's nonce so it cannot be replayed.
+
+        Now under the lock, which it was not (red-team, Grok, 2026-08-29). It still
+        does NOT verify the grant and does not require a reservation, so it remains
+        a nonce oracle for anyone who can call it: prefer reserve -> commit. Kept
+        because callers outside this file depend on the shape; the honest statement
+        is that this burns a string, and the string is caller-chosen.
+        """
+        with self._nonce_lock:
+            self._used.add(grant.nonce)
 
     @staticmethod
     def bind_action(actuator_id: str, command: str, params: Optional[dict] = None,
                     broker_id: Optional[str] = None,
-                    effects_hash: Optional[str] = None) -> str:
+                    effects_hash: Optional[str] = None,
+                    envelope_hash: Optional[str] = None,
+                    attestation_hash: Optional[str] = None,
+                    subject: Optional[str] = None,
+                    intent_digest: Optional[str] = None) -> str:
         """Compute the action_binding hash a grant should carry to pin a specific
         actuation. The actuation layer recomputes this from what it is about to
         execute and checks it matches — so the executor cannot substitute the
@@ -359,7 +476,30 @@ class PermissionVerifier:
         in parallel; it only keeps each pre-approved action bound to the exact broker
         it was approved for. BACKWARD-COMPATIBLE: when broker_id is omitted, the hash
         is byte-identical to the pre-broker-binding behavior, so existing grants and
-        single-broker deployments are unaffected."""
+        single-broker deployments are unaffected.
+
+        envelope_hash (optional) BINDS THE GRANT TO THE SAFETY CONSTRAINTS IN FORCE when
+        it was approved. DriftCore does not know what those constraints MEAN — per the
+        DriftCore/LifeCore split it holds no physical values — it pins the digest of
+        whatever the deployment declared. If the envelope is widened between approval and
+        execution the digest changes, the binding stops matching, and the action is
+        refused rather than running under a permission the approver never saw.
+
+        attestation_hash (optional) BINDS THE GRANT TO ONE SPECIFIC HUMAN APPROVAL.
+        Without it a grant proves only that SOMETHING HOLDING THE SIGNING KEY authorised
+        the action — a stolen key, an automation, or an agent that reached the key store
+        each produce a grant that verifies perfectly and looks approved. Pinning the
+        attestation makes the grant and one human approval a matched pair: neither works
+        with a different partner. Computed and verified in human_authorization.py.
+        BACKWARD-COMPATIBLE exactly as the two fields above are.
+
+        subject (optional) BINDS THE GRANT TO THE PHYSICAL SUBJECT it was approved for.
+        `Grant.subject` is checked against a broker's `expected_subject` when one is
+        configured, and that default is None — so on a broker that drives more than one
+        body, an approval for robot-1 rode unchanged into a grant naming robot-2 and
+        executed (reproduced 2026-08-14). The effect identity named the arm and the
+        command and not WHOSE arm. Binding the subject means an approval for one body
+        does not verify against another. BACKWARD-COMPATIBLE as above."""
         # NaN / Infinity are refused rather than hashed. json.dumps accepts them by
         # default and emits the non-standard tokens NaN/Infinity, which other languages
         # serialize differently or reject outright — so a grant minted by one runtime
@@ -371,6 +511,14 @@ class PermissionVerifier:
             payload["broker_id"] = broker_id
         if effects_hash is not None:
             payload["effects_hash"] = effects_hash
+        if envelope_hash is not None:
+            payload["envelope_hash"] = envelope_hash
+        if attestation_hash is not None:
+            payload["attestation_hash"] = attestation_hash
+        if subject is not None:
+            payload["subject"] = subject
+        if intent_digest is not None:
+            payload["intent_digest"] = intent_digest
         try:
             return hashlib.sha256(_canonical(payload)).hexdigest()
         except ValueError as e:
