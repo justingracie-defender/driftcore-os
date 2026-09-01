@@ -45,6 +45,7 @@ What this module deliberately does NOT do (kept honest):
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Tuple
@@ -125,6 +126,7 @@ class ReadSession:
                           notes: str = "") -> Read:
         if self._human_read is not None:
             raise SecondReaderError("initial human read already committed; it is immutable")
+        elapsed_seconds = _finite_elapsed(elapsed_seconds)
         rushed = elapsed_seconds < self._policy.min_seconds_per_read
         self._human_read = Read(self.reader_id, disposition, elapsed_seconds, notes, rushed)
         self.state = SessionState.HUMAN_COMMITTED
@@ -165,6 +167,7 @@ class ReadSession:
             raise SecondReaderError("second read only applies to an unresolved disagreement")
         if reader_id == self.reader_id:
             raise SecondReaderError("the arbiter must be a different human (no self-arbitration)")
+        elapsed_seconds = _finite_elapsed(elapsed_seconds)
         rushed = elapsed_seconds < self._policy.min_seconds_per_read
         self._second_read = Read(reader_id, disposition, elapsed_seconds, notes, rushed)
         self.state = SessionState.RESOLVED
@@ -188,6 +191,34 @@ class ReadSession:
                 "cannot close: a human/AI disagreement is still open and needs a second read")
         self.state = SessionState.RESOLVED
         return self.final_disposition()
+
+
+def _finite_elapsed(elapsed_seconds) -> float:
+    """A reading time that is not a number is not a reading time.
+
+    `rushed = elapsed_seconds < min_seconds_per_read` is the workload floor — the one
+    thing in this module the AI is not allowed to lower. NaN is false against `<`, so
+    a NaN elapsed made `rushed` False and the floor passed. The gate whose entire
+    purpose is a workload the AI cannot lower could be cleared with a value that
+    means "no measurement" (found by the repo-wide non-finite sweep, 2026-08-25).
+
+    Refusing is the only safe direction: an unmeasured read is not a fast read, and
+    treating it as a slow one is exactly the reassurance this module exists to deny.
+    """
+    try:
+        v = float(elapsed_seconds)
+    except (TypeError, ValueError):
+        raise SecondReaderError(
+            "elapsed_seconds must be a number of seconds; an unmeasurable read "
+            "cannot clear a workload floor")
+    if not math.isfinite(v):
+        raise SecondReaderError(
+            "elapsed_seconds is not finite. NaN compares false against the workload "
+            "floor, which reads as 'not rushed' — a read that was never measured "
+            "must not clear a floor the AI is forbidden to lower.")
+    if v < 0:
+        raise SecondReaderError("a read cannot have taken negative time")
+    return v
 
 
 class SecondReaderGate:

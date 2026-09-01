@@ -22,7 +22,8 @@ Design rules baked in here:
   * Conservative default. The safe default (software agent) keeps nothing.
   * Asymmetric change. Tightening the policy is always allowed; LOOSENING
     it (more capture / longer retention / more context) requires a human
-    authoriser and is written to the audit chain.
+    authoriser — checked through the SHARED human_identity gate, and bound to
+    this specific action — and is written to the audit chain.
   * "No retained media of people" covers video, stills AND audio — not
     just moving video — so the rule can't be sidestepped by format.
 
@@ -36,6 +37,42 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Optional, Tuple
+
+
+# ── human identity ────────────────────────────────────────────────
+# The action string a loosening is authorised AGAINST. Not decoration: in ATTESTED
+# mode `is_human` falls back to the attestation's OWN action when none is supplied,
+# so an attestation issued to authorise "restart_the_robot" would authorise retaining
+# raw video of people. Verified: is_human(att) -> True with no action bound, False
+# once bound. That is the same defect closed in mediated_actuation this cycle — an
+# approval for one thing executing another — and a red-team patch that delegated to
+# the shared primitive without binding the action would have inherited it.
+LOOSEN_ACTION = "media_policy_loosen"
+
+
+def _is_human(authorised_by, *, action: str = LOOSEN_ACTION) -> bool:
+    """Thin wrapper over the shared gate.
+
+    (red-team F-003, Grok 2026-08-15.) This module carried its own reserved-word
+    denylist — `authorised_by not in ("", "system", "auto", "auto-sign", None)` — so
+    any other string counted as human, and, worse, the module could never leave that
+    weakest mode. A deployment that had configured REGISTERED or ATTESTED identity
+    everywhere else still had media retention gated by a five-item word list. Same
+    bug class as recovery.py's `authorized_by == "agent"`, found the same day.
+
+    The import is guarded because this module is deliberately standalone (see
+    `_audit`, which does the same). An ImportError at an authorization site would
+    turn a refusal into a crash — and `is_human` exists precisely so callers can use
+    it as a boolean gate. Unavailable identity means NOT human, never an exception.
+    """
+    try:
+        from driftcore.authority.human_identity import is_human
+    except Exception:
+        return False
+    try:
+        return bool(is_human(authorised_by, action=action))
+    except Exception:
+        return False
 
 
 # ── Perception signal (injected; not produced here) ───────────────
@@ -191,10 +228,11 @@ class MediaPolicyController:
         """
         Tightening (equal or more restrictive) is always allowed.
         Loosening (more permissive on any axis) requires a human authoriser
-        (anything other than 'system'/'auto'/empty). Every attempt is audited.
+        (via the shared human_identity gate, bound to LOOSEN_ACTION). Every
+        attempt is audited.
         """
         loosening = new_policy.is_looser_than(self._policy)
-        human = authorised_by not in ("", "system", "auto", "auto-sign", None)
+        human = _is_human(authorised_by)
 
         if loosening and not human:
             self._audit("MEDIA_POLICY_CHANGE_DENIED", authorised_by,

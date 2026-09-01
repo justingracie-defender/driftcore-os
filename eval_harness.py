@@ -325,7 +325,7 @@ def demo_what_leaves():
                  declared_by="operator", purpose="our own notes service"),
         ], audit=_A())
 
-        secret = Labeled("47 Norris Court, Kingston", family,
+        secret = Labeled("12 Example Street, Springfield", family,
                          frozenset({"memory:family"}))
         prompt = Labeled.public("Summarise this for me: ").combine(secret)
 

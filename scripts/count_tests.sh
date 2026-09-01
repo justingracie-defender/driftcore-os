@@ -32,10 +32,18 @@ for f in test_*.py; do
     # `set -euo pipefail` is active, so a plain assignment from a failing
     # command aborts the whole script. The || branch keeps the loop alive
     # so the crash can be REPORTED rather than silently ending the run.
-    out="$(python3 "$f" 2>&1)" && rc=0 || rc=$?
+    # (red-team, ChatGPT) A test file that HANGS used to stall the gate forever, so
+    # "the suite has not finished" was indistinguishable from "the suite is still
+    # working". A bounded timeout makes a hang a FAILURE (timeout exits 124, which the
+    # non-zero branch below reports as CRASHED) instead of an indefinite wait.
+    out="$(timeout "${PER_TEST_TIMEOUT:-180}" python3 "$f" 2>&1)" && rc=0 || rc=$?
     line="$(printf '%s\n' "$out" | grep -iE '[0-9]+/[0-9]+ (tests?|checks?) passed|ALL [0-9]+ CHECKS? PASSED' | tail -1 || true)"
     if [ "$rc" -ne 0 ]; then
-        printf '  %-28s CRASHED (exit %s) after: %s\n' "$f" "$rc" "${line:-no summary}"
+        if [ "$rc" -eq 124 ]; then
+            printf '  %-28s TIMED OUT (>%ss) after: %s\n' "$f" "${PER_TEST_TIMEOUT:-180}" "${line:-no summary}"
+        else
+            printf '  %-28s CRASHED (exit %s) after: %s\n' "$f" "$rc" "${line:-no summary}"
+        fi
         printf '      %s\n' "$(printf '%s\n' "$out" | tail -1)"
         fail=$((fail + 1))
         continue

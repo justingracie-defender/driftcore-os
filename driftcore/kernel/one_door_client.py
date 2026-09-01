@@ -213,7 +213,22 @@ class PinnedHTTPTransport:
         if parts.query:
             target += "?" + parts.query
 
-        ip = getattr(pinned, "ip", None) or getattr(pinned, "address", None)
+        # (red-team, ChatGPT) This read used to be `pinned.ip` / `pinned.address`.
+        # `resolve_and_pin()` returns a PinnedDestination whose verified addresses live
+        # in `.ips` (a tuple, and the class uses __slots__ so the singular names do not
+        # exist at all). The result: the real GuardedEgress -> PinnedDestination ->
+        # PinnedHTTPTransport path raised TransportContractViolation every time — the
+        # pinned path was fail-closed but UNUSABLE as shipped. Fail-closed meant this
+        # was never a bypass; the danger was that someone would "fix" it operationally
+        # by routing around the transport, which would be far worse. Every address in
+        # `.ips` was checked by the guard, so connecting to any of them is safe; the
+        # first is used. The singular names are still accepted for other pinned shapes.
+        ip = None
+        _ips = getattr(pinned, "ips", None)
+        if _ips:
+            ip = next(iter(_ips), None)
+        if not ip:
+            ip = getattr(pinned, "ip", None) or getattr(pinned, "address", None)
         if not ip:
             raise TransportContractViolation(
                 "no pinned address supplied; connecting by name would re-resolve "

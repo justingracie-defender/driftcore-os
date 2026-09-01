@@ -34,9 +34,27 @@ def sep(title=""):
         print(f"{'='*65}")
 
 
+# The demo operator. A DEPLOYMENT registers a real principal, or installs an
+# attestation verifier; what it must never do is boot in LABEL_ONLY, where
+# `is_human()` is a six-word denylist and any string that is not "agent" or "system"
+# passes as a person.
+DEMO_OPERATOR = "demo_operator"
+
+
 def main():
     sep("DriftCore OS v3.0 — Truth / Creative / Discovery")
     print("Initializing all systems...\n")
+
+    # ── Identity posture, asserted BEFORE anything is constructed ─────────────
+    # (red-team, Law Zero readiness pass, 2026-08-30.) `require_secure_mode()`
+    # existed and this entry point never called it, so the shipped boot posture was
+    # LABEL_ONLY: `kernel.release(authorized_by="human_operator")` cleared the
+    # emergency stop because that string is not on the denylist. The module already
+    # said deployments SHOULD assert this. Saying it is not doing it.
+    from driftcore.authority import human_identity as _hi
+    _hi.register_human_principal(DEMO_OPERATOR)
+    _mode = _hi.require_secure_mode(context="main.py demo")
+    print(f"  identity mode: {_mode} (LABEL_ONLY would have refused to boot)\n")
 
     # ── Core ──────────────────────────────────────────────────
     kernel           = SafetyKernel()
@@ -180,11 +198,11 @@ def main():
     sep("Demo 6: CREATIVE MODE + Abduction")
 
     # Release kernel first so agent can run
-    kernel.release(authorized_by="human_operator")
+    kernel.release(authorized_by=DEMO_OPERATOR)
     state_machine.state = SystemState.NORMAL
 
-    mode_ctrl.set_mode(CognitiveMode.CREATIVE, requested_by="human_operator")
-    narrator.narrate_mode_change("TRUTH", "CREATIVE", "human_operator")
+    mode_ctrl.set_mode(CognitiveMode.CREATIVE, requested_by=DEMO_OPERATOR)
+    narrator.narrate_mode_change("TRUTH", "CREATIVE", DEMO_OPERATOR)
 
     observations = [
         "Children learn language from far less data than LLMs need",
@@ -200,7 +218,7 @@ def main():
     # ══════════════════════════════════════════════════════════
     sep("Demo 7: DISCOVERY MODE — Calibrated uncertainty")
 
-    mode_ctrl.set_mode(CognitiveMode.DISCOVERY, requested_by="human_operator")
+    mode_ctrl.set_mode(CognitiveMode.DISCOVERY, requested_by=DEMO_OPERATOR)
     narrator.narrate_mode_change("CREATIVE", "DISCOVERY", "human_operator")
 
     claims = [
@@ -289,7 +307,10 @@ def run_hardware_demos(narrator, audit):
 
     hub.register_sensor("gpio:17",                    SensorType.SMOKE,          InterfaceType.GPIO,    threshold=1.0,   location="server_room")
     hub.register_sensor("gpio:18",                    SensorType.WATER_CONTACT,  InterfaceType.GPIO,    threshold=1.0,   location="floor_under_rack")
-    hub.register_sensor("gpio:19",                    SensorType.EMERGENCY_STOP, InterfaceType.GPIO,    threshold=1.0,   location="front_panel")
+    # Wiring must be stated for an e-stop: this demo panel is normally-OPEN (button
+    # closes the circuit). A real installation is usually normally-CLOSED so that a cut
+    # wire trips the stop — pass normally_closed=True there.
+    hub.register_sensor("gpio:19",                    SensorType.EMERGENCY_STOP, InterfaceType.GPIO,    threshold=1.0,   location="front_panel", normally_closed=False)
     hub.register_sensor("mqtt/sensors/smoke/kitchen", SensorType.SMOKE,          InterfaceType.MQTT,    threshold=1.0,   location="kitchen")
     hub.register_sensor("mqtt/sensors/water/basement",SensorType.WATER_LEVEL,    InterfaceType.MQTT,    threshold=30.0,  unit="cm", location="basement")
     hub.register_sensor("mqtt/sensors/temp/cpu",      SensorType.TEMPERATURE,    InterfaceType.MQTT,    threshold=85.0,  unit="C",  location="cpu")

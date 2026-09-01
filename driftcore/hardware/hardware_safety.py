@@ -107,6 +107,11 @@ class ResponseLevel(Enum):
     Not all hazards need the same response.
     Graduated responses prevent unnecessary shutdowns
     while ensuring dangerous situations are always stopped.
+
+    CLAIM ladder-descends: a commanded level fires that level and every LESSER
+    one, never a greater one, so a mild hazard cannot trigger a severe response.
+    CLAIM state-matches-relays: reported system state reflects only what a relay
+    actually returned, never what was merely commanded.
     """
     ALERT        = 0   # Log and notify. No action yet.
     THROTTLE     = 1   # Reduce speed/power. Stay running.
@@ -202,7 +207,14 @@ class HardwareEvent:
         reading: float = 0.0, # Raw sensor reading
         threshold: float = 0.0,
         location: str = "unknown",
+        quality: str = "VALID",
     ):
+        # VALID  = the sensor produced a real measurement.
+        # CORRUPT = it could not be trusted and was tripped as a precaution.
+        # Both are unsafe, but they call for different human responses, so they must
+        # not be collapsed — and `source` stays clean provenance rather than being
+        # overloaded to smuggle this.
+        self.quality   = quality
         self.hazard    = hazard
         self.source    = source
         self.interface = interface
@@ -220,6 +232,7 @@ class HardwareEvent:
             "reading":   self.reading,
             "threshold": self.threshold,
             "location":  self.location,
+            "quality":   self.quality,
             "response":  self.response.value,
             "timestamp": self.timestamp,
         }
@@ -250,6 +263,9 @@ class HardwareSafetyController:
         self.isolated         = False
         self.power_cut        = False
         self.actuators_active = True
+        # Commanded stops whose physical action could NOT be confirmed. Non-empty means
+        # a hazard fired and the machine may still be live — see status().
+        self.unconfirmed_stops: list = []
 
         # Physical relay callbacks
         # In production: replace stubs with real GPIO/relay calls
@@ -260,7 +276,8 @@ class HardwareSafetyController:
         # Register default stub handlers
         self._register_default_handlers()
 
-    def register_relay(self, level: ResponseLevel, callback: Callable):
+    def register_relay(self, level: ResponseLevel, callback: Callable, *,
+                       simulated: bool = False):
         """
         Register a real hardware callback for a response level.
 
@@ -270,7 +287,15 @@ class HardwareSafetyController:
               GPIO.output(17, GPIO.LOW)   # Open relay — cuts power
           controller.register_relay(ResponseLevel.POWER_CUT, cut_main_power)
         """
-        self._relay_callbacks[level].append(callback)
+        # A SIMULATED relay is recorded as commanded and NEVER as confirmed.
+        # (red-team, Law Zero readiness pass, 2026-08-30.) The default handlers print
+        # "[HARDWARE STUB] Main power relay OPEN" and returned normally, so a
+        # controller with no wiring at all reported stop_confirmed=True, power_cut=True
+        # and an EMPTY unconfirmed_stops list. Verified by execution on a fire event.
+        # Every layer above then believes the machine is dead. A stub that CONFIRMS is
+        # worse than no stub: the no-relay state was already honest, and this made the
+        # dishonest state look better than it.
+        self._relay_callbacks[level].append((callback, bool(simulated)))
 
     def receive_event(self, event: HardwareEvent) -> dict:
         """
@@ -306,28 +331,123 @@ class HardwareSafetyController:
 
         self._narrate_response(level, event)
 
-        # Execute all registered callbacks for this level and above
-        for resp_level in ResponseLevel:
-            if resp_level.value >= level.value:
-                for callback in self._relay_callbacks.get(resp_level, []):
+        # (red-team) COMMANDED is not CONFIRMED. This loop used to swallow a relay
+        # exception into a string and then set power_cut/isolated/actuators_active
+        # regardless — so a relay that raised ("stuck closed, power did NOT cut"), or a
+        # level with no relay wired at all, still produced system_state{power_cut:True}
+        # and status() reporting the machine as stopped. That is `lambda: True` at the
+        # physical layer: the software believing the machine is safe while it is live.
+        # A stop is now only recorded as achieved when a relay actually returned.
+        # (red-team) THE LADDER RAN THE WRONG WAY. This loop used to fire every level
+        # AT OR ABOVE the commanded one, which inverted the whole point of a graduated
+        # response: a THERMAL warning mapped to THROTTLE ("reduce speed, stay running")
+        # commanded SOFT_HALT, HARD_HALT, POWER_CUT and ISOLATE as well — a routine
+        # over-temperature physically disconnected the machine. ResponseLevel's own
+        # docstring says graduation exists to PREVENT unnecessary shutdowns.
+        #
+        # Correct semantics: a commanded level implies every LESSER action (isolating
+        # implies cutting power implies halting implies alerting), never a greater one.
+        # Severity descends so the most consequential relay is commanded FIRST —
+        # time-to-stop matters, and a fire should not wait on the alert relay.
+        #
+        # A level BELOW the commanded one with no relay wired is a deployment choice,
+        # not a fault: a rig with no PWM throttle can still isolate. Only the COMMANDED
+        # level must be physically achievable, so unwired lesser levels are reported
+        # separately in `not_wired` instead of raising a false integrity breach. Under
+        # the old rule a thermal warning on a rig without an isolation contactor
+        # latched stop_integrity_ok=False and screamed "treat the machine as LIVE" —
+        # alarm fatigue on the one signal that cannot afford it.
+        confirmed_levels = set()
+        failures = []
+        not_wired = []
+        commanded_levels = []
+        for resp_level in sorted(ResponseLevel, key=lambda l: l.value, reverse=True):
+            if resp_level.value <= level.value:
+                callbacks = self._relay_callbacks.get(resp_level, [])
+                commanded_levels.append(resp_level)
+                if not callbacks:
+                    if resp_level is level:
+                        failures.append(
+                            f"{resp_level.name}: NO RELAY REGISTERED — nothing physical "
+                            f"was commanded at this level")
+                    else:
+                        not_wired.append(
+                            f"{resp_level.name}: no relay wired (lesser level, "
+                            f"not required for this stop)")
+                    continue
+                for entry in callbacks:
+                    callback, simulated = (entry if isinstance(entry, tuple)
+                                           else (entry, False))
                     try:
                         callback()
+                        if simulated:
+                            actions_taken.append(
+                                f"{resp_level.name}: SIMULATED relay ran (no physical "
+                                f"effect)")
+                            if resp_level is level:
+                                failures.append(
+                                    f"{resp_level.name}: SIMULATED RELAY ONLY — a stub "
+                                    f"printed a message; nothing physical was "
+                                    f"commanded at this level")
+                            continue
                         actions_taken.append(f"{resp_level.name}: callback executed")
+                        confirmed_levels.add(resp_level)
                     except Exception as e:
-                        actions_taken.append(f"{resp_level.name}: callback FAILED — {e}")
+                        actions_taken.append(
+                            f"{resp_level.name}: callback FAILED — {e}")
+                        failures.append(f"{resp_level.name}: relay raised — {e}")
 
-        # Update system state
-        if level.value >= ResponseLevel.POWER_CUT.value:
+        def _achieved(target: "ResponseLevel") -> bool:
+            """True only if some relay at or above `target` actually returned."""
+            return any(l.value >= target.value for l in confirmed_levels)
+
+        # State reflects what was CONFIRMED, never merely what was commanded.
+        if level.value >= ResponseLevel.POWER_CUT.value and _achieved(ResponseLevel.POWER_CUT):
             self.power_cut = True
-        if level.value >= ResponseLevel.HARD_HALT.value:
+        if level.value >= ResponseLevel.HARD_HALT.value and _achieved(ResponseLevel.HARD_HALT):
             self.actuators_active = False
-        if level.value >= ResponseLevel.ISOLATE.value:
+        if level.value >= ResponseLevel.ISOLATE.value and _achieved(ResponseLevel.ISOLATE):
             self.isolated = True
+
+        # A stop is confirmed only when the COMMANDED level itself physically happened.
+        # `not failures` alone is not enough: with the ladder corrected, a commanded
+        # level with no relay is the only absence that counts, and it is already a
+        # failure — but stating the conjunct explicitly keeps the invariant readable
+        # and survives future edits to the failure list.
+        commanded_achieved = _achieved(level)
+        stop_confirmed = commanded_achieved and not failures
+        if not stop_confirmed:
+            # A human must learn this without parsing strings out of a list.
+            self.unconfirmed_stops.append({
+                "hazard": event.hazard.value,
+                "commanded": level.name,
+                "failures": list(failures),
+                "timestamp": event.timestamp,
+            })
+            self._narrate_unconfirmed(level, event, failures)
 
         return {
             "hazard":        event.hazard.value,
             "response_level": level.name,
             "actions_taken": actions_taken,
+            # Explicit, machine-checkable: did the physical stop actually happen?
+            "stop_confirmed": stop_confirmed,
+            "failures":       list(failures),
+            # Lesser levels with no relay: visible for review, deliberately NOT a failure.
+            "not_wired":      list(not_wired),
+            # (red-team, cold pass 2026-08-14.) A state flag can be satisfied by a
+            # HIGHER confirmed level than the one it names: an ISOLATE relay that
+            # returns sets power_cut=True even when no POWER_CUT relay exists. That
+            # is sound ONLY under the load-bearing deployment assumption that a relay
+            # registered at level L achieves level L — an ISOLATE relay wired to a
+            # siren makes this a false report of a physical fact. The inference is
+            # listed rather than left in a comment, so a reviewer can see which parts
+            # of the state were OBSERVED and which were DEDUCED.
+            "inferred_state": [
+                name for name, lv in (("power_cut", ResponseLevel.POWER_CUT),
+                                      ("isolated", ResponseLevel.ISOLATE))
+                if _achieved(lv) and lv not in confirmed_levels],
+            "commanded_levels": [l.name for l in commanded_levels],
             "system_state": {
                 "isolated":         self.isolated,
                 "power_cut":        self.power_cut,
@@ -335,6 +455,24 @@ class HardwareSafetyController:
             },
             "restart_requires_human": level.value >= ResponseLevel.HARD_HALT.value,
         }
+
+    def _narrate_unconfirmed(self, level, event, failures):
+        """A commanded stop that could not be confirmed is the worst state the system
+        can be in: the hazard is real and the machine may still be live. Say so."""
+        msg = (f"UNCONFIRMED STOP — {event.hazard.value} commanded {level.name} but "
+               f"the physical action was NOT confirmed: {'; '.join(failures)}. "
+               f"Treat the machine as LIVE and intervene physically.")
+        print(f"  🚨🚨 {msg}", flush=True)
+        if self.narrator:
+            try:
+                self.narrator.narrate(msg)
+            except Exception:
+                pass
+        if self.audit:
+            try:
+                self.audit.record("HARDWARE_STOP_UNCONFIRMED", msg, event.to_dict())
+            except Exception:
+                pass
 
     def _narrate_hazard(self, event: HardwareEvent):
         if not self.narrator:
@@ -373,6 +511,8 @@ class HardwareSafetyController:
             "isolated":         self.isolated,
             "power_cut":        self.power_cut,
             "actuators_active": self.actuators_active,
+            "unconfirmed_stops": list(self.unconfirmed_stops),
+            "stop_integrity_ok": not self.unconfirmed_stops,
             "events_received":  len(self.event_log),
             "last_event":       self.event_log[-1] if self.event_log else None,
         }
@@ -405,9 +545,9 @@ class HardwareSafetyController:
             print("  [HARDWARE STUB] *** In production: trigger all safety relays  ***")
             print("  [HARDWARE STUB] *** Sound alarm. Alert emergency services.    ***")
 
-        self.register_relay(ResponseLevel.ALERT,     stub_alert)
-        self.register_relay(ResponseLevel.THROTTLE,  stub_throttle)
-        self.register_relay(ResponseLevel.SOFT_HALT, stub_soft_halt)
-        self.register_relay(ResponseLevel.HARD_HALT, stub_hard_halt)
-        self.register_relay(ResponseLevel.POWER_CUT, stub_power_cut)
-        self.register_relay(ResponseLevel.ISOLATE,   stub_isolate)
+        self.register_relay(ResponseLevel.ALERT,     stub_alert, simulated=True)
+        self.register_relay(ResponseLevel.THROTTLE,  stub_throttle, simulated=True)
+        self.register_relay(ResponseLevel.SOFT_HALT, stub_soft_halt, simulated=True)
+        self.register_relay(ResponseLevel.HARD_HALT, stub_hard_halt, simulated=True)
+        self.register_relay(ResponseLevel.POWER_CUT, stub_power_cut, simulated=True)
+        self.register_relay(ResponseLevel.ISOLATE,   stub_isolate, simulated=True)

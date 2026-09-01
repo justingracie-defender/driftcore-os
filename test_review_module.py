@@ -289,15 +289,15 @@ print("\n  [13] setup_review() helper configures correctly")
 reset_all()
 
 config13 = setup_review(
-    admin_email     = "justin@gmail.com",
-    smtp_user       = "alerts@gmail.com",
+    admin_email     = "admin@example.invalid",
+    smtp_user       = "alerts@example.invalid",
     smtp_password   = "test_password",
     phone_number    = "6135551234",
     carrier_gateway = "txt.bell.ca",
     sms_enabled     = True,
 )
 
-check("admin email set",               config13.admin_email == "justin@gmail.com")
+check("admin email set",               config13.admin_email == "admin@example.invalid")
 check("SMS enabled",                   config13.sms_enabled == True)
 check("SMS address correct",           "6135551234@txt.bell.ca" in config13.sms_address)
 check("config file written",           os.path.exists("_config/.driftcore/review_config.json"))

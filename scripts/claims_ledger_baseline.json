@@ -1,0 +1,1033 @@
+{
+  "_note": "Governance data, not build output.\n\nTHREE DISPOSITIONS, AND ONLY ONE OF THEM SUPPRESSES.\n\n`waived` with a valid `attestation` \u2014 a human signed that this specific sentence needs no test. Suppresses the untagged count. The reason must be unique: if the same reason fits two claims it is naming neither.\n\n`waived` without an attestation \u2014 a PROPOSAL. Drafted by whoever wrote the code. Does NOT suppress. It is a request for a human to read one sentence.\n\n`acknowledged` \u2014 measured technical debt. Nobody has read it. Does NOT suppress, and counts toward the ceiling, because unjudged prose IS unreviewed governance material. It used to suppress, which made bulk-acknowledging into bulk-waiving with a nicer word \u2014 41 claims went through that door on 2026-08-20.\n\nTHE CEILING IS A CAPABILITY BOUNDARY, NOT A SETTING. Lowering it is ordinary. Raising it increases the unjudged surface the system tolerates, which is an authority-expanding operation, and needs a signed `ceiling_raise` from a registered human. The reason does not matter; the direction does. Verified 2026-08-23: before this rule, editing 1309 to 99999 was accepted in silence.\n\nTHE CURRENT 1407 IS THE HONEST NUMBER. The previous 1309 excluded 97 acknowledged items and 1 unsigned waiver that were suppressing without anyone having read them. Nothing was added to the repo; the measurement was corrected. It still requires a human signature, because 'the measurement changed' is exactly the reasoning this gate exists to refuse on its own.",
+  "untagged_ceiling": 1407,
+  "waived": {
+    "driftcore/kernel/state_machine.py::severity::a7dddc774eeb": {
+      "text": "Explicit severity, never the enum value.",
+      "reason": "Restates the tagged claim severity-is-not-enum-value as an instruction to the reader. The property itself is tagged and paired; demanding a second test for the imperative form would reward rewording over testing.",
+      "date": "2026-08-14",
+      "proposed_by": "claude (cold pass)",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/safety/amplification_guard.py::clear_fault::0f1a8fc01d13": {
+      "text": "A named human takes a faulted channel out of fault.",
+      "reason": "Prose on the latched-fault mechanism added after Grok's HIGH finding. Exercised by test_amplification_guard.py: the 1..12 trace, refusal of smaller values while faulted, agent clear refused, human recovery, and ceiling-breach latching.",
+      "date": "2026-08-15",
+      "proposed_by": "claude (latch)",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    }
+  },
+  "acknowledged": {
+    "driftcore/safety/amplification_guard.py::<module>::158cd96dbb88": {
+      "text": "Nothing it does is forbidden.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::17a755d5d967": {
+      "text": "The TRAJECTORY is the hazard, and a system that only asks \"is this step permitted?\" cannot see it.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::73b8619fd634": {
+      "text": "Run against DriftCore, every AUTHORITY step of that sequence is already refused: an unregistered caller cannot capture a",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::a47128c1f447": {
+      "text": "It simply never stops growing.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::a4f5157ec52a": {
+      "text": "amplification_guard.py \u2014 a system does not have to turn hostile to become dangerous.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::AmplificationError::4db0c1e8a8be": {
+      "text": "A PermissionError subclass so a caller already failing closed on PermissionError cannot let it through as something else",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::AmplificationError::aa0489f5b41a": {
+      "text": "Raised when a trajectory is unbounded.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::AmplificationGuard::7fc8ccbc346b": {
+      "text": "Watches magnitudes per channel and refuses unbounded growth.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::_is_human::903e30b668fd": {
+      "text": "Shared identity gate, guarded.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::declare_ceiling::98d3295e7c70": {
+      "text": "A human bounds a channel.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::log::9921bc410425": {
+      "text": "A copy \u2014 the record must not be editable through the accessor that returns it.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::observe::09679bb50e04": {
+      "text": "Record one magnitude on a channel and judge the trajectory.",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/amplification_guard.py::observe::bdd640c00843": {
+      "text": "Refuses on two independent grounds, either sufficient: * the magnitude exceeds a declared ceiling; * it has not decrease",
+      "batch": "claude (amplification guard)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::49ee651822c7": {
+      "text": "intent_ledger.py \u2014 the goal cannot be quietly replaced by the metric.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::58612114ba7e": {
+      "text": "A purpose constraint is recorded verbatim when it is said, with speaker and timestamp \u2014 never inferred later from behavi",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::Citation::27c8e6dd79c9": {
+      "text": "A claim about one constraint, with the span of text it rests on.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::Disposition::8af0812c0bfa": {
+      "text": "What an actor claims about one active constraint.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::IntentError::503533b1790b": {
+      "text": "Raised when an action is not accountable to the stated purpose.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::IntentError::b2a145482312": {
+      "text": "A PermissionError subclass so a caller already failing closed on PermissionError cannot let this through as some other e",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::PurposeConstraint::116b4d9d2ff3": {
+      "text": "A purpose stated by a human, recorded verbatim.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::_is_human::903e30b668fd": {
+      "text": "Shared identity gate, guarded.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::_principal_of::7ce6ef9bdad5": {
+      "text": "The principal name behind a bare string or a HumanAttestation.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::authorise::e6e292dadb43": {
+      "text": "Decide whether an action is accountable to every stated purpose.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::capture::6ffc43634f44": {
+      "text": "Record a purpose constraint verbatim, at the moment it is stated.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::declare_authority::02f8a5ac7551": {
+      "text": "Record who holds a named authority, so its removal can be checked.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::log::70ec7cad1a3a": {
+      "text": "The record must not be editable through the accessor that returns it \u2014 the defect found in hardware_isolation and ai_bus",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::revoke::3d262df5a1af": {
+      "text": "Explicitly repeal a constraint BY NAME.",
+      "batch": "claude (intent_ledger build)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/narrowing_channel.py::<module>::0c31c76ebd0a": {
+      "text": "So this module does not ask who is speaking, or through how many hops.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::<module>::1ea41d56d4f3": {
+      "text": "An infected message that can only narrow is a message that cannot escalate, whatever it says and however many well-behav",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::<module>::9212cc06386f": {
+      "text": "It may never grow it.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::<module>::9727ab5709ab": {
+      "text": "It may never EXPAND the set, relax an envelope, or create a constraint that was not there.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::<module>::c4701a1569c9": {
+      "text": "A visitor who says \"that's a child, not an adult\" or \"use the lower-force grasp\" is doing something valuable, and a syst",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::<module>::e85bff3b557e": {
+      "text": "narrowing_channel.py \u2014 conversation may shrink the action space.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::NarrowingChannel::aa4b55c837bd": {
+      "text": "The absence is the mechanism: a capability the class does not have cannot be reached by argument.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::NarrowingChannel::d6b23ae1c541": {
+      "text": "The one-way door for conversational input.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::NarrowingError::4db0c1e8a8be": {
+      "text": "A PermissionError subclass so a caller already failing closed on PermissionError cannot let it through as something else",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::NarrowingError::c27834dabd7f": {
+      "text": "Raised when an input would widen.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::_is_human::903e30b668fd": {
+      "text": "Shared identity gate, guarded.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::apply::434ba94851c6": {
+      "text": "Apply one conversational input.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::apply::ce482f12f8f9": {
+      "text": "`speaker` and `hops` are RECORDED and never consulted.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/verification/narrowing_channel.py::log::9921bc410425": {
+      "text": "A copy \u2014 the record must not be editable through the accessor that returns it.",
+      "batch": "claude (narrowing channel)",
+      "date": "2026-08-19"
+    },
+    "driftcore/governance/information_flow.py::_is_human::d16d70f73bbf": {
+      "text": "Delegate to the repo's authorization primitive.",
+      "batch": "claude (authority_sites sweep)",
+      "date": "2026-08-15"
+    },
+    "driftcore/governance/information_flow.py::_is_human::d0d9babe3662": {
+      "text": "Its three modes matter here: ATTESTED \u2192 requires a signed HumanAttestation; a bare string is NEVER human.",
+      "batch": "claude (authority_sites sweep)",
+      "date": "2026-08-15"
+    },
+    "driftcore/governance/information_flow.py::_is_human::bdd5cecaa80d": {
+      "text": "REGISTERED \u2192 the name must be a pre-registered principal.",
+      "batch": "claude (authority_sites sweep)",
+      "date": "2026-08-15"
+    },
+    "driftcore/governance/information_flow.py::_is_human::18d22d2722ab": {
+      "text": "Fail-closed on import failure: if the identity module cannot be loaded, no caller is human, so declassification stops rather than falling back to a string check nobody is checking.",
+      "batch": "claude (authority_sites sweep)",
+      "date": "2026-08-15"
+    },
+    "driftcore/safety/safe_halt.py::_is_human::903e30b668fd": {
+      "text": "Shared identity gate, guarded.",
+      "batch": "claude (authority_sites sweep)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/edge_loop.py::_is_human::903e30b668fd": {
+      "text": "Shared identity gate, guarded.",
+      "batch": "claude (authority_sites sweep)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::may_execute::41dabcb7d2bb": {
+      "text": "No verdict but AUTHORISED permits action.",
+      "batch": "claude (execution binding)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::redeem::c11b12356b58": {
+      "text": "Spend a decision on ONE action.",
+      "batch": "claude (execution binding)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::redeem::f5d9db018dcf": {
+      "text": "The digest is recomputed from what is presented, so a decision obtained for \"buy advertising\" cannot be spent on \"remove",
+      "batch": "claude (execution binding)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/objective_integrity.py::may_execute::0ba35adcca29": {
+      "text": "No plan executes unless objective integrity verified this cycle.",
+      "batch": "claude (execution binding)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::ActionSpec::15a552d79313": {
+      "text": "What an action DOES, declared by a human at setup \u2014 never by the caller.",
+      "batch": "claude (intent_ledger hardening)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::ActionSpec::958afd971222": {
+      "text": "That is the exact principle this repo applies everywhere else \u2014 a safety property cannot depend on the untrusted caller ",
+      "batch": "claude (intent_ledger hardening)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::register_action::7997c8907b68": {
+      "text": "A human declares what an action does.",
+      "batch": "claude (intent_ledger hardening)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::register_action::71f38ae95e4a": {
+      "text": "The caller of `authorise` cannot.",
+      "batch": "claude (intent_ledger hardening)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::grant_authority::6118ee9f6081": {
+      "text": "Capture an utterance that IS an authority grant.",
+      "batch": "claude (intent_ledger hardening)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::grant_authority::56a1e5c59e64": {
+      "text": "A grant is now its own operation, and the human performing it must BE the current holder of that authority.",
+      "batch": "claude (intent_ledger hardening)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::authorise::4266462bc039": {
+      "text": "The caller describes WHAT it wants to do and never WHAT THAT DOES.",
+      "batch": "claude (intent_ledger hardening)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::2df6c6c364e5": {
+      "text": "Deployments that mean this seriously must register principals (REGISTERED) or install a verifier (ATTESTED), and `prefli",
+      "batch": "claude (cold pass)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::d7000c13cce7": {
+      "text": "The ledger deliberately does not enforce that itself \u2014 a library that refuses to run in development is a library that ge",
+      "batch": "claude (cold pass)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::seal::4d0f4c0f77d3": {
+      "text": "End the bootstrap window.",
+      "batch": "claude (cold pass)",
+      "date": "2026-08-15"
+    },
+    "driftcore/kernel/preflight.py::IdentityModeIsSecure::bd99eff998da": {
+      "text": "The single pathway every human gate depends on must not be a word list.",
+      "batch": "claude (preflight identity)",
+      "date": "2026-08-15"
+    },
+    "driftcore/kernel/preflight.py::IdentityModeIsSecure::ec6b874380f1": {
+      "text": "A deployment that has not stated a requirement gets UNVERIFIABLE, never PASS \u2014 a check that fails every development inst",
+      "batch": "claude (preflight identity)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::c999e4ba37e5": {
+      "text": "A decision obtained for \"buy advertising\" cannot be spent on \"remove the founder\", replayed, or used after a human has c",
+      "batch": "claude (execution binding)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::_decision_digest::69f801c62b81": {
+      "text": "Canonical digest of a decision, recomputable from what is about to execute.",
+      "batch": "claude (execution binding)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::_decision_digest::7efdcedd9b40": {
+      "text": "Deliberately covers the CITATIONS, not just the action: two decisions for the same action resting on different claims ar",
+      "batch": "claude (execution binding)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::6c90466ee4fb": {
+      "text": "Constraints ratchet: added, or explicitly revoked, never eroded.",
+      "batch": "claude (docstring repair)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::17ab5a8a4026": {
+      "text": "EVERY ACTIVE CONSTRAINT MUST BE ADDRESSED \u2014 the load-bearing rule.",
+      "batch": "claude (docstring repair)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::f86862edef1e": {
+      "text": "The ledger cannot read meaning and does not try; it enforces COMPLETENESS OF ACCOUNTING.",
+      "batch": "claude (docstring repair)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::3a3559d5e4bd": {
+      "text": "AN AUTHORITY CHANGE MUST BE AUTHORISED BY WHOEVER LOSES IT.",
+      "batch": "claude (docstring repair)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::dbfe97430aea": {
+      "text": "The system never has to understand betrayal.",
+      "batch": "claude (docstring repair)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::eb32eb2150e2": {
+      "text": "Deployments that mean this seriously must register principals (REGISTERED) or install a verifier (ATTESTED).",
+      "batch": "claude (docstring repair)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::capture::fbef88a05c82": {
+      "text": "This method cannot mint an authority grant \u2014 that is `grant_authority`, which additionally requires the caller to BE the",
+      "batch": "claude (docstring repair)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::_decision_digest::8e35498aab1c": {
+      "text": "A digest alone was never proof of provenance \u2014 see `redeem`, where the issued-set does that work \u2014 but binding the epoch",
+      "batch": "claude (provenance fix)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::_expire_issued::998e7d38699a": {
+      "text": "Drop issued-but-unredeemed decisions past their TTL.",
+      "batch": "claude (provenance fix)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::_expire_issued::5d4c91ba676b": {
+      "text": "Unbounded growth in a governance structure is its own denial of service, and an expired decision cannot be redeemed anyw",
+      "batch": "claude (provenance fix)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::cb2df5f81d17": {
+      "text": "THE LEDGER AUTHORISES AN AUTHORITY CHANGE; IT DOES NOT PERFORM ONE.",
+      "batch": "claude (fourth pass)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::<module>::89d1c3f929a5": {
+      "text": "The consequence is worth stating because a reviewer asked whether a grantee can re-delegate onward: they cannot, but onl",
+      "batch": "claude (fourth pass)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::canonical_action::abf24a5a0942": {
+      "text": "The machine identity of an operation.",
+      "batch": "claude (alias ratchet)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/intent_ledger.py::canonical_action::33c5216f6e80": {
+      "text": "Deliberately AGGRESSIVE: two operations that differ only by case are treated as one, so a deployment whose dispatcher IS",
+      "batch": "claude (alias ratchet)",
+      "date": "2026-08-15"
+    },
+    "driftcore/verification/narrowing_channel.py::Risk::7b4b3b767349": {
+      "text": "Which way a belief moves the estimated risk.",
+      "batch": "claude (belief monotonicity)",
+      "date": "2026-08-20"
+    },
+    "driftcore/verification/narrowing_channel.py::Risk::d3dccd5898d2": {
+      "text": "RAISES is always accepted: an observation that makes things look worse can never be an escalation.",
+      "batch": "claude (belief monotonicity)",
+      "date": "2026-08-20"
+    },
+    "driftcore/verification/narrowing_channel.py::Risk::abdbb21556c5": {
+      "text": "LOWERS is recorded and cannot pull the floor below anything a RAISES belief established \u2014 reassurance is the direction a",
+      "batch": "claude (belief monotonicity)",
+      "date": "2026-08-20"
+    },
+    "driftcore/verification/narrowing_channel.py::risk_floor::4a107ac6ebea": {
+      "text": "How many risk-raising observations stand.",
+      "batch": "claude (belief monotonicity)",
+      "date": "2026-08-20"
+    },
+    "driftcore/verification/narrowing_channel.py::risk_floor::d3a71c56647e": {
+      "text": "Never decreases through this channel.",
+      "batch": "claude (belief monotonicity)",
+      "date": "2026-08-20"
+    },
+    "driftcore/kernel/preflight.py::InstrumentedChannelsHaveCeilings::cce05fd5c58a": {
+      "text": "Every channel the amplification guard watches must have a declared ceiling.",
+      "batch": "claude (ceiling invariant)",
+      "date": "2026-08-20"
+    },
+    "driftcore/kernel/preflight.py::InstrumentedChannelsHaveCeilings::ad5769458587": {
+      "text": "A self-referential rule \u2014 \"every time you emit X, emit another X\" \u2014 diverges INSIDE a single generation, so the guard is",
+      "batch": "claude (ceiling invariant)",
+      "date": "2026-08-20"
+    },
+    "driftcore/kernel/preflight.py::InstrumentedChannelsHaveCeilings::9a2af80067d8": {
+      "text": "Verified: one observation of 1,000,000 on a channel with no ceiling is permitted; the same observation against a declare",
+      "batch": "claude (ceiling invariant)",
+      "date": "2026-08-20"
+    },
+    "driftcore/kernel/preflight.py::InstrumentedChannelsHaveCeilings::996cdfc125e3": {
+      "text": "Read the guard's own refusal text and it says so: an unbounded trajectory is refused BECAUSE no ceiling is declared.",
+      "batch": "claude (ceiling invariant)",
+      "date": "2026-08-20"
+    },
+    "driftcore/kernel/preflight.py::InstrumentedChannelsHaveCeilings::a5a51b5c02a3": {
+      "text": "A deployment that has not said it runs physical channels gets UNVERIFIABLE, never PASS \u2014 a check that fails every develo",
+      "batch": "claude (ceiling invariant)",
+      "date": "2026-08-20"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::0431c7b526ee": {
+      "text": "A self-referential rule (\"every time you emit X, emit another X\") diverges INSIDE a single generation, so this module is",
+      "batch": "claude (ceiling preflight)",
+      "date": "2026-08-20"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::60b26bff0558": {
+      "text": "Read the refusal text below and it already said so \u2014 an unbounded trajectory is refused BECAUSE no ceiling is declared.",
+      "batch": "claude (ceiling preflight)",
+      "date": "2026-08-20"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::6c815a0f6ce4": {
+      "text": "A self-referential rule \u2014 \"every time you emit X, emit another X\" \u2014 diverges inside a single generation, so this guard i",
+      "batch": "claude (ceiling preflight)",
+      "date": "2026-08-20"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::b82c5b85674b": {
+      "text": "Verified: one observation of 1,000,000 on an unbounded channel is PERMITTED; against a declared ceiling of 500 it is ref",
+      "batch": "claude (ceiling preflight)",
+      "date": "2026-08-20"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::ac42ff26c862": {
+      "text": "Read the refusal text below and it already said so: an unbounded trajectory is refused BECAUSE no ceiling is declared.",
+      "batch": "claude (ceiling preflight)",
+      "date": "2026-08-20"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::a6e09be727c0": {
+      "text": "The same observation against a declared ceiling of 500 is refused immediately.",
+      "batch": "claude (ceiling preflight)",
+      "date": "2026-08-20"
+    },
+    "driftcore/safety/amplification_guard.py::<module>::595db26a997d": {
+      "text": "A deployment running physical channels without ceilings is defended against half the problem, which is why `preflight.In",
+      "batch": "claude (ceiling preflight)",
+      "date": "2026-08-20"
+    },
+    "driftcore/verification/clarification_channel.py::<module>::46ae1c3f5986": {
+      "text": "clarification_channel.py \u2014 the agent may ask.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::<module>::3ba027f98b34": {
+      "text": "Against DriftCore specifically: an agent cannot capture a purpose constraint.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::_is_human::903e30b668fd": {
+      "text": "Shared identity gate, guarded.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationError::1f44d3c6fffb": {
+      "text": "Raised when an elicited answer is used as something it is not.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationError::669d341e833d": {
+      "text": "A PermissionError subclass so a caller already failing closed cannot let it through as another exception.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::_echoes::39b4d9dd880d": {
+      "text": "Is the restatement substantially the answer's own words?",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::Exchange::7d8a03f0f140": {
+      "text": "One question the agent chose, and the answer it received.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel::d033652124a7": {
+      "text": "Records agent-initiated questions and holds their answers at belief status.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::ask::9f22163f875d": {
+      "text": "Record an agent-chosen question and the human's answer.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::as_belief::b5d0d32e6f3a": {
+      "text": "The ONLY status an elicited answer has by default.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::promote::38a88bbf1efb": {
+      "text": "Turn an elicited answer into text eligible to become a purpose constraint.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::promote::e19e045a38dd": {
+      "text": "An echo of the answer is refused: if the agent chose the question and the agent's phrasing comes back unchanged, the age",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::elicited_answers::f8934ce6e1c2": {
+      "text": "Every answer this channel produced, for the ledger to refuse.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::log::9921bc410425": {
+      "text": "A copy \u2014 the record must not be editable through the accessor that returns it.",
+      "batch": "claude (clarification channel)",
+      "date": "2026-08-24"
+    },
+    "driftcore/verification/clarification_channel.py::Risk::aa95100da462": {
+      "text": "What an elicited answer does to estimated risk.",
+      "batch": "claude (provenance + risk downgrade)",
+      "date": "2026-08-25"
+    },
+    "driftcore/verification/clarification_channel.py::Risk::2def78ccc2b5": {
+      "text": "The channel cannot verify the classification \u2014 nothing here reads meaning \u2014 so the fix is not a better default but a thi",
+      "batch": "claude (provenance + risk downgrade)",
+      "date": "2026-08-25"
+    },
+    "driftcore/verification/clarification_channel.py::as_belief::008b45146f7a": {
+      "text": "The caller cannot verify its own classification, so LOWERS is not a claim this channel will pass on as fact: it is downg",
+      "batch": "claude (provenance + risk downgrade)",
+      "date": "2026-08-25"
+    },
+    "driftcore/verification/clarification_channel.py::as_belief::281c49db66ed": {
+      "text": "The invariant is stronger than \"the caller must set the boolean correctly\": NO UNVERIFIED ELICITED INFORMATION MAY DECRE",
+      "batch": "claude (provenance + risk downgrade)",
+      "date": "2026-08-25"
+    },
+    "driftcore/verification/clarification_channel.py::elicited_ratio::7295893d7e2d": {
+      "text": "What fraction of a belief set this channel produced.",
+      "batch": "claude (provenance + risk downgrade)",
+      "date": "2026-08-25"
+    },
+    "driftcore/verification/clarification_channel.py::elicited_ratio::2da6917a9ed9": {
+      "text": "This module cannot stop a planner reasoning; the planner is outside it.",
+      "batch": "claude (provenance + risk downgrade)",
+      "date": "2026-08-25"
+    },
+    "driftcore/verification/clarification_channel.py::elicited_ratio::0c6474b47f3c": {
+      "text": "What it can do is make the provenance countable, so a consumer can refuse to act on a belief set that is mostly its own ",
+      "batch": "claude (provenance + risk downgrade)",
+      "date": "2026-08-25"
+    },
+    "driftcore/verification/belief_use.py::<module>::073243e0b288": {
+      "text": "belief_use.py \u2014 what a belief was USED FOR, recorded at the use site.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::<module>::423b6ccf7edd": {
+      "text": "ELICITED INFORMATION MAY INFORM FACTUAL STATE ESTIMATION AND MAY NEVER BE EVIDENCE FOR AUTHORITY, PURPOSE, PREFERENCE, PERMISSION, RISK REDUCTION, OR CAPABILITY EXPANSION.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::<module>::91d6603b801e": {
+      "text": "Nothing here reads meaning, so the semantic question is converted into a declaration: a STATE_ESTIMATION use must name its subject as WORLD or PERSON, and PERSON-indexed state estimation from an elicited belief is REFUSED.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::BeliefUseError::9605b57babd7": {
+      "text": "Raised when a belief is used as something it may not be.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::BeliefUseError::669d341e833d": {
+      "text": "A PermissionError subclass so a caller already failing closed cannot let it through as another exception.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::UseKind::a470448d5bf8": {
+      "text": "What a belief was used FOR \u2014 not what it says.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::StateSubject::8c66746ebf75": {
+      "text": "What a state estimate is ABOUT.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::StateSubject::30d437db36fc": {
+      "text": "This is the category the rule's own exception was leaking through, so it is named and refused rather than trusted to a reader's judgement at each call site.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::BeliefRef::40029b334ff3": {
+      "text": "A belief admitted to one decision.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::UseRecord::f2624e16b648": {
+      "text": "One declared use of one belief.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::BeliefUseLedger::d4d697f1057b": {
+      "text": "Records what each belief in a decision was used for, and refuses the uses the rule forbids.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::register::6e295c515156": {
+      "text": "Admit a belief to a decision.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::register_belief::25dfb27e6750": {
+      "text": "Admit a belief dict as produced by `clarification_channel.as_belief`.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::record_use::ee6303751d6d": {
+      "text": "Declare what a belief is being used for.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::record_use::884d71691c67": {
+      "text": "Refuses the forbidden uses.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::record_use::5dc4bc53cb53": {
+      "text": "Default-deny throughout: an unregistered belief, an undeclared kind, and a STATE_ESTIMATION use that does not name its subject are all refusals.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::_refuse::cf6b10ba5354": {
+      "text": "Record the attempt, then raise.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::_refuse::735dc26deca5": {
+      "text": "A refused use is evidence.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::contamination::fb9522ec775f": {
+      "text": "How much of this decision came from the agent's own questions.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::contamination::1c94e91b95c4": {
+      "text": "The denominator is the beliefs REGISTERED here, never a number the caller supplies.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::contamination::5bb481402a23": {
+      "text": "`touched` is the answer to the question a ratio cannot ask: one elicited belief doing load-bearing work in an otherwise unprompted set reads as a low ratio and is not clean.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::uses::20d38a40d22a": {
+      "text": "The record, copied.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::uses::ad3b57d4556d": {
+      "text": "Includes refused attempts \u2014 a refusal is evidence.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/belief_use.py::assert_untouched::dfca58707191": {
+      "text": "Refuse to proceed if any agent-elicited belief entered this decision.",
+      "batch": "claude (belief_use \u2014 use-site ledger closing the caller-supplied denominator and the person-indexed state leak; red-team by Ox Alpha and Meta)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::<module>::b90bb00cfd0f": {
+      "text": "HMAC DOES NOT ANSWER THIS, AND NEITHER DOES THIS MODULE.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::<module>::97948f63d454": {
+      "text": "AND THE SECRET MUST SIT OUTSIDE THE ADVERSARY'S BOUNDARY.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::<module>::0c1dd9e40463": {
+      "text": "This module cannot verify where it is running.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::<module>::13f01264318c": {
+      "text": "The invariant is architectural: THE SIGNING SECRET MUST RESIDE OUTSIDE THE AUTHORITY BOUNDARY OF THE COMPONENT WHOSE CLAIMS IT AUTHENTICATES \u2014 which in this repo means the safety wall's OS user, not the agent's.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::_us::2b3907520263": {
+      "text": "A timestamp as integer microseconds.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::_identity_mode::c4dc37c2d8f7": {
+      "text": "The identity policy in force, or UNAVAILABLE.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::_canonical::aee6c21f1d26": {
+      "text": "Length-prefixed join.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::Promotion::466ae15101b7": {
+      "text": "An elicited answer a human has restated, with its origin still attached.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::Promotion::4dce0d11ad19": {
+      "text": "A constraint whose elicited origin is unrecoverable cannot be audited for the aggregation failure this module openly does not close.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::_principal::2588d46b9a77": {
+      "text": "A stable label for the record.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::_principal::7a99c36ac483": {
+      "text": "Never \"?\" \u2014 an audit line on the one path that creates a constraint has to say something a reader can act on, and an unattributable promoter is a fact worth recording as itself.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::_authentic::649e8ce38b39": {
+      "text": "Was this signed by a holder of this channel's secret, under this epoch?",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::_usable::8cb46c51dd32": {
+      "text": "May this authenticated exchange be used, right now, for `what`?",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::revoke::f3f8fb5e3d08": {
+      "text": "Withdraw an answer.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::consumed_tokens::794c2ce3ad2d": {
+      "text": "Spent single-use exchange tokens, for the store that holds the rest.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::revoked_tokens::203993544658": {
+      "text": "The deny-list, for the store that also holds the secret and the count.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::is_authentic::2550453da7f2": {
+      "text": "Was this signed here?",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::is_promotable::757fea9d4749": {
+      "text": "Is this answer authentic AND live AND unspent, right now?",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::promote::4e47f635d2d7": {
+      "text": "An echo of the answer is refused, and so is an echo of the QUESTION: if the agent chose the question and the agent's phrasing comes back either way, the agent authored the purpose.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::promote::096adb0bf2f1": {
+      "text": "This does NOT establish that the restatement was unprompted \u2014 see the honest limits in the module header.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::verify_promotion::43ee09675f90": {
+      "text": "Did THIS channel issue this promotion, with this text?",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::verify_promotion::719243a4710d": {
+      "text": "AUTHENTICITY ONLY, and a Promotion is HISTORICAL EVIDENCE \u2014 a record that a human once restated something \u2014 never a live authorisation.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::is_promotion_live::786324c08257": {
+      "text": "Authentic AND its source has not been withdrawn.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::is_promotion_live::147f655749fc": {
+      "text": "This does NOT re-check the source's freshness \u2014 a promotion is deliberately allowed to outlive the five-minute answer window, because a constraint a human stated is not a transient observation.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::elicited_ratio::fb4c515b6f4e": {
+      "text": "A total smaller than the number of exchanges is impossible and is refused rather than clamped to 1.0, because a clamp turns a provably wrong input into a plausible reading.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::elicited_ratio::b206aa2b57b4": {
+      "text": "Use `elicited_count` and the consumer's own belief record if the number has to mean anything \u2014 or use `belief_use.BeliefUseLedger`, which owns its denominator and records what each belief was USED FOR, which is what the rule was always about.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::elicited_count::d6a1da6b4080": {
+      "text": "The numerator on its own \u2014 the only half of the ratio this channel knows.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    },
+    "driftcore/verification/clarification_channel.py::status::2f5227ff459b": {
+      "text": "What this channel is actually enforcing, including where it is weak.",
+      "batch": "claude (clarification_channel v3 \u2014 HMAC field binding, epoch, revocation, single-use, non-finite guards; red-team rounds 1-4 by Ox Alpha, Meta, ChatGPT, GLM, Grok)",
+      "date": "2026-08-25",
+      "proposed_by": "claude",
+      "reviewer": null,
+      "status": "AWAITING_HUMAN"
+    }
+  },
+  "previous_ceiling": 1309,
+  "proposed_ceiling": null,
+  "_ceiling_note": "1407 was the honest number before clarification_channel.py was added. That module introduced 14 new claims of prose, so the unreviewed surface genuinely grew to 1422. Raising the ceiling to match is an authority-expanding operation and needs a signed ceiling_raise. It is left UNSIGNED and the ratchet fails, which is the correct state: the model that wrote the prose cannot authorise tolerating it."
+}

@@ -1,0 +1,11 @@
+{
+  "_note": "Governance data. A waiver here says 'this literal comparison is not an authorization decision' \u2014 a judgement someone must own. Adding one converts a live finding into 'known', which is the hole this check exists to shut.",
+  "waived": {
+    "driftcore/verification/content_mode.py::set_mode::by": {
+      "reason": "NOT WAIVED AS SAFE \u2014 flagged for Justin. `by != \"user\"` uses a string literal as a sentinel for 'a real authority was given', deciding who becomes the kid-mode lock owner. Whether that is intended semantics or the same denylist shape is a design question about child-safety behaviour, and guessing at it is worse than naming it. Waived ONLY to keep the ratchet actionable; must be resolved, not inherited.",
+      "reviewer": "claude (authority_sites sweep)",
+      "date": "2026-08-15",
+      "status": "OPEN \u2014 needs a human decision"
+    }
+  }
+}

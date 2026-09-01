@@ -132,6 +132,33 @@ MODE_STORAGE_RULES = {
 }
 
 
+# ── shared human gate ─────────────────────────────────────────────────────────
+# (red-team, Grok F-003 follow-up 2026-08-15.) This module carried `if requested_by == "agent"` — a denylist of one string, so
+# every principal EXCEPT the literal "agent" was treated as human, and the parameter
+# defaulted to "human_operator", meaning the no-argument call authorised itself.
+# Same bug class as recovery.py and media/policy.py, both found the same day; a
+# red-team note calling media/policy "the last known copy" was checked and was wrong.
+#
+# Delegates to the shared primitive so this site gets stronger when a deployment
+# configures REGISTERED or ATTESTED identity, instead of being frozen at the weakest
+# mode forever. The action is BOUND: in ATTESTED mode `is_human` otherwise falls back
+# to the attestation's own action, and an attestation issued for something else would
+# pass. Import and call are both guarded — an exception at an authorization site turns
+# a refusal into a crash, which is the failure `is_human` exists to prevent.
+def _is_human(authorised_by, *, action: str) -> bool:
+    try:
+        from driftcore.authority.human_identity import is_human
+    except Exception:
+        return False
+    try:
+        return bool(is_human(authorised_by, action=action))
+    except Exception:
+        return False
+
+
+MODE_CHANGE_ACTION = "cognitive_mode_change"
+
+
 class CognitiveModeController:
     """
     Controls which cognitive mode DriftCore is operating in.
@@ -163,11 +190,12 @@ class CognitiveModeController:
         ONLY humans can change the mode.
         Agents cannot switch their own mode.
         """
-        if requested_by == "agent":
+        if not _is_human(requested_by, action=MODE_CHANGE_ACTION):
             return {
                 "status":       "DENIED",
-                "reason":       "Agents cannot change their own cognitive mode. "
-                                "Human authorization required.",
+                "reason":       f"{requested_by!r} is not an authorised human. "
+                                f"Agents cannot change their own cognitive mode. "
+                                f"Human authorization required.",
                 "current_mode": self.mode.value,
             }
 

@@ -128,6 +128,40 @@ class RulingLedger:
         return len(self._ledger)
 
 
+# ── shared human gate ─────────────────────────────────────────────────────────
+# (red-team, Grok F-003 follow-up 2026-08-15.) This module carried `if by == "agent"` — a denylist of one string, so
+# every principal EXCEPT the literal "agent" was treated as human, and the parameter
+# defaulted to "human_operator", meaning the no-argument call authorised itself.
+# Same bug class as recovery.py and media/policy.py, both found the same day; a
+# red-team note calling media/policy "the last known copy" was checked and was wrong.
+#
+# Delegates to the shared primitive so this site gets stronger when a deployment
+# configures REGISTERED or ATTESTED identity, instead of being frozen at the weakest
+# mode forever. The action is BOUND: in ATTESTED mode `is_human` otherwise falls back
+# to the attestation's own action, and an attestation issued for something else would
+# pass. Import and call are both guarded — an exception at an authorization site turns
+# a refusal into a crash, which is the failure `is_human` exists to prevent.
+def _is_human(authorised_by, *, action: str) -> bool:
+    """Shared identity gate, guarded.
+
+    CLAIM gate-never-raises: no value of `authorised_by`, and no failure to import
+    the identity module, produces an exception here — an unavailable identity means
+    NOT human, never a crash at an authorization site.
+    """
+    try:
+        from driftcore.authority.human_identity import is_human
+    except Exception:
+        return False
+    try:
+        return bool(is_human(authorised_by, action=action))
+    except Exception:
+        return False
+
+
+RATIFY_ACTION = "edge_ruling_ratify"
+OVERTURN_ACTION = "edge_ruling_overturn"
+
+
 class EdgeLoop:
     def __init__(self, guard: Optional[InvariantGuard] = None,
                  ledger: Optional[RulingLedger] = None):
@@ -173,9 +207,11 @@ class EdgeLoop:
                by: str = "human_operator", rationale: str = "",
                custom_outcome: Optional[str] = None,
                custom_effect: Optional[str] = None) -> dict:
-        if by == "agent":
+        if not _is_human(by, action=RATIFY_ACTION):
             return {"status": "DENIED",
-                    "reason": "Agents cannot ratify rulings. Human authority required."}
+                    "reason": f"{by!r} is not an authorised human. Ratifying a ruling "
+                              f"requires human authority, checked against the shared "
+                              f"identity gate rather than a one-word denylist."}
         if not report.is_edge:
             return {"status": "NO_EDGE", "reason": "Nothing to ratify."}
 
@@ -209,7 +245,9 @@ class EdgeLoop:
 
     # ── 4. revise ──────────────────────────────────────────────────
     def overturn(self, rid: str, by: str = "human_operator", rationale: str = "") -> dict:
-        if by == "agent":
-            return {"status": "DENIED", "reason": "Agents cannot overturn rulings."}
+        if not _is_human(by, action=OVERTURN_ACTION):
+            return {"status": "DENIED",
+                    "reason": f"{by!r} is not an authorised human. Overturning a "
+                              f"ruling requires human authority."}
         self.ledger.overturn(rid, by, rationale)
         return {"status": "OVERTURNED", "rid": rid}

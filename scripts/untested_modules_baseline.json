@@ -1,0 +1,162 @@
+{
+  "waived": {
+    "driftcore/__init__.py": {
+      "api_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "date": "2026-01-24",
+      "lines": 7,
+      "reason": "needs a physical relay rig to test",
+      "sha256": "7861b0e2bb6f9289900225e08ef4994fd0b90045c4637e3d28efd52e266424fe",
+      "tier": "LOW"
+    },
+    "driftcore/agents/agent_protocol.py": {
+      "api_sha256": "44049e60c7dde5099051bac5a2a0896fac1bf9e298b50740e25b5d0736cd7d5e",
+      "lines": 40,
+      "sha256": "5b5813d4ba8743e5a140d711ce27f2fe4e21475caadef118cf8decac03259256",
+      "tier": "HIGH"
+    },
+    "driftcore/agents/agent_runtime.py": {
+      "api_sha256": "ee0c796a99535c206b119c1c2d93cbad4e44b5222127e5973ff0ac9dca314ea8",
+      "lines": 71,
+      "sha256": "5db341247ea2d3d9838059fbe6e218fb1de8efd4e5b35324c74d99effcbaa2ee",
+      "tier": "HIGH"
+    },
+    "driftcore/cognition/abduction_engine.py": {
+      "api_sha256": "0a7000f6243aa0fe8a8cdbdfd1f8f10cca2fe1af7ab106e76243bd07efa6af88",
+      "lines": 197,
+      "sha256": "4f6899e4a6adda50e4059a59bec3ec3bb2115b691f6f287887eeec7505060dbd",
+      "tier": "HIGH"
+    },
+    "driftcore/cognition/mode_controller.py": {
+      "api_sha256": "3c139f8455ceaf90be18da097180573a8ef5a7a4bbf6d58b76a4764a69255821",
+      "lines": 263,
+      "sha256": "b355d757c7b8b038b96c3f04d965192d507f77207643630eb5d1334e94c65323",
+      "tier": "HIGH"
+    },
+    "driftcore/cognition/sycophancy_detector.py": {
+      "api_sha256": "82c7eb412b448cd181c30706586456667297dfca9dded6384f20fcb1638c3c78",
+      "lines": 136,
+      "sha256": "cd76489375d5bf02b28d44616316f295959b3bc38b27cffa4e297753eb91d50a",
+      "tier": "HIGH"
+    },
+    "driftcore/drift/drift_detector.py": {
+      "api_sha256": "29920a888b8e0f660ec34c5d073cf36c0c89508c714d91fb327ab8aca3c73387",
+      "lines": 53,
+      "sha256": "2f2f2d784b0471c99f4090e7c3d51106f1324d2848876cb28df01ad45230df18",
+      "tier": "HIGH"
+    },
+    "driftcore/drift/drift_model.py": {
+      "api_sha256": "c90c3ed73ef5842e65772b29f0d7eb96279eb4f864b9513f2e88a790ca483298",
+      "lines": 69,
+      "sha256": "a91a67a6f59fd4bc4f4939d19f0f7df36177a90a92512701091d48afcba3b485",
+      "tier": "HIGH"
+    },
+    "driftcore/fable/__init__.py": {
+      "api_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 1,
+      "sha256": "bfd404c109ad119fc99c68fc8a21f76ffad6c9f1dd229220c090e774d29634fe",
+      "tier": "LOW"
+    },
+    "driftcore/fable/audit_story.py": {
+      "api_sha256": "e3f0b56ee97795ddabb6858cd4306a06750e428425fa1181cbbe57a4aa258731",
+      "lines": 79,
+      "sha256": "7f65819cb9f29c56dd507401142639e7e553e72e285005df380117d4b90f353b",
+      "tier": "LOW"
+    },
+    "driftcore/fable/glossary.py": {
+      "api_sha256": "6187eb0050e50ad9742b03898de5895b73a50177442f8c141eb7586e089f3a21",
+      "lines": 69,
+      "sha256": "a049bc2923003aba827ce73fe3cd56ddf5e6d794ce4effd47ebc517cc17f4f80",
+      "tier": "LOW"
+    },
+    "driftcore/fable/narrator.py": {
+      "api_sha256": "88ad7a3e4eba0f1f2dc6d35fccd36b8d2c4f956ec664580d86b4a18930be9053",
+      "lines": 285,
+      "sha256": "93134283ad5bebd317692d95411b0afe460cbb6e865b6295b12a828613961712",
+      "tier": "LOW"
+    },
+    "driftcore/fable/trust_bridge.py": {
+      "api_sha256": "05b50fd04277f94cf5619ee9a49c424b10ed4c78a4206e71e4befd0ebc766b6d",
+      "lines": 90,
+      "sha256": "50879bc9485effa4881ca151e479a5500758f86642a9f95c30e4a284ad04d062",
+      "tier": "LOW"
+    },
+    "driftcore/fable/voice.py": {
+      "api_sha256": "d227cadeef18d208fef6734387553ebaaa742f7e2a9f1d4d206e7f336c42019c",
+      "lines": 223,
+      "sha256": "699874bec69c68602e8604f6294bc4692f2eb771726a4cea12e891c1afda3e9d",
+      "tier": "LOW"
+    },
+    "driftcore/governance/builder_path.py": {
+      "api_sha256": "84672524ddf2fbc898c0befb7bda0fa41f67f115756910b1fac0118fa7c84597",
+      "lines": 263,
+      "sha256": "8e2a326097610b38d2356eb9a8bc27d2abcd6a3d4d8f304faa1f721664161692",
+      "tier": "CRITICAL"
+    },
+    "driftcore/governance/embodiment.py": {
+      "api_sha256": "0db753a6f3c35d001b3fd3f5721b5e306c433ca800af8e7664f627e58fa6c76c",
+      "lines": 178,
+      "sha256": "dd3696f6a16aeaa54436128767fe1cad653e8fb1b2aa4d4ecf44d1b66db709c1",
+      "tier": "CRITICAL"
+    },
+    "driftcore/memory/memory_core.py": {
+      "api_sha256": "30b76b4502b5baeb43f55aabbd3fef4d8d32654ddc67c86d55cbb74af841a801",
+      "lines": 247,
+      "sha256": "3cde881685f53082dec1bd0beaaa64c52acb1a0b0211a1f0079ff946a3c7953d",
+      "tier": "CRITICAL"
+    },
+    "driftcore/memory/memory_fs.py": {
+      "api_sha256": "2eb1b807c98b995e9b79fdaa23fb71d0c5bf77fe4d4f8b8295b252b7145d3ebb",
+      "lines": 43,
+      "sha256": "80a5f10269d6dc1d28c1a9eaf9875428b67a867e5811cebbb907345a011fc3a9",
+      "tier": "CRITICAL"
+    },
+    "driftcore/objectives/coverage.py": {
+      "api_sha256": "d244b9e542710b6b518c67e74fb45298c94bd9b98081a6a32c0ee7c025525b19",
+      "lines": 226,
+      "sha256": "08b94769fe97ce38a72c6d2165ab8f295928a93b83723334a5686f5853080e7c",
+      "tier": "HIGH"
+    },
+    "driftcore/objectives/engine.py": {
+      "api_sha256": "e08f0cd2539e40ca8748faa1c42a675b4adc30eb8cc2b99692bb145e585e9ec7",
+      "lines": 299,
+      "sha256": "8cbcb98bec98d34691d2d332a427fcd04f3d684be1b828b2c5af985dce2a89e5",
+      "tier": "HIGH"
+    },
+    "driftcore/recovery/manager.py": {
+      "api_sha256": "312aa3750e44dd8b82edc85d9110c32eb8bad8f4222849a6b61f8b5ce4b41ad6",
+      "lines": 159,
+      "sha256": "99913264c35d47ee0c3adc1b604dbba59a0016223157d526cf05719e2b96c93f",
+      "tier": "CRITICAL"
+    },
+    "driftcore/redteam/multi_model_sim.py": {
+      "api_sha256": "65e28795935864f3bbd7680bc637fc89eba859d89444c662de29c7d783adee36",
+      "lines": 54,
+      "sha256": "09eb2555f8bc1a8cbada09c3c212ec5b3c5556c4ed577ebbfb17e533d01fb770",
+      "tier": "LOW"
+    },
+    "driftcore/redteam/scenarios.py": {
+      "api_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 51,
+      "sha256": "08d748f98a54eece78fff2260b276d67e754a14cf736bc85cd9b75361ea6987d",
+      "tier": "LOW"
+    },
+    "driftcore/uncertainty/bayesian_uncertainty.py": {
+      "api_sha256": "9d2b9d878baed0be9ced04082fbf50dd174b6dac7b666cf6206f2010ed61cfdf",
+      "lines": 148,
+      "sha256": "778437e974f2afbf99b05ed2a922496535c10e906d45ddc2d810447e6261f8e0",
+      "tier": "HIGH"
+    },
+    "driftcore/verification/authority_invariants.py": {
+      "api_sha256": "57370744cc8820ad478f37c6a0aa3325c6e3f28144af96c7b0cdbe59bbe29b1e",
+      "lines": 243,
+      "sha256": "003931929ecb8f2dfa1b7cccc24165998283b746bcbfedec95a3899da0093699",
+      "tier": "CRITICAL"
+    },
+    "driftcore/verification/red_team_toolkit.py": {
+      "api_sha256": "994780197da38eed4f462e9405a9ebdf89cb2b2314edca9fb34864295a8992ba",
+      "lines": 392,
+      "sha256": "5b8ebbd23c92fd52cdcec8189c80040617bb66de753f2fa4b878b3d93d678635",
+      "tier": "CRITICAL"
+    }
+  }
+}

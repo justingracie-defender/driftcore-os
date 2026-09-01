@@ -509,6 +509,63 @@ and reports SUCCESS anyway. In both cases an unverified state was converted into
 affirmative result — and here the affirmative result went into a report a human
 acted on.
 
+## 0g. A NUMBER YOU MEASURED IS A CLAIM ABOUT YOUR INSTRUMENT
+
+**Run `bash scripts/count_tests.sh`. Do not write your own counting command, and do
+not quote a bare number into a document.**
+
+This has now gone wrong in both directions, and the two failures look nothing alike
+until you notice they are the same one.
+
+**The instrument that undercounts (2026-09-01).** An instance grepped
+`"[0-9]+/[0-9]+ tests passed"` across the suite, got **3310**, and told Justin that
+the **3939** recorded in his own handoff was "not reproducible." It was reproducible.
+The suite uses `checks passed` as well as `tests passed`, and the grep was blind to
+half of it. Told to widen, the same instance matched `(tests|checks) passed`, got
+**3975**, and believed it was finished. A third format — `ALL n CHECKS PASSED` —
+existed in 17 more files. The real figure was **4619**, and `scripts/count_tests.sh`
+had been printing it correctly the entire time, unread.
+
+**The instrument that overcounts (recorded in the script's own comments).**
+`count_tests.sh` used to pipe `python3` straight into `grep`, discarding the exit
+code. A file that printed `ALL 50 CHECKS PASSED`, then hit an assertion and died,
+counted as **50 passing**. A crashed test file was indistinguishable from a passing
+one, in the gate every claim about this repository rests on. Separately, a file that
+*hung* stalled the gate forever, so "the suite has not finished" was
+indistinguishable from "the suite is still working." Both are fixed; neither was
+found by reading.
+
+### What makes this dangerous
+
+Undercounting feels safe, so nobody audits it. That is the trap. The blindness that
+makes a grep miss a summary format is the same blindness that makes it miss a
+stack trace — and in the second direction the number comes out **higher** and reads
+as green. An instrument nobody checks because its errors are conservative today is
+an instrument nobody checks when its errors stop being conservative.
+
+Note also the shape of the first failure, because it is §0f's shape one level up: the
+instance did not merely get a number wrong. It used a broken instrument to **dispute
+a correct recorded figure**, and reported that dispute to the human as a finding.
+
+### The rule
+
+**When your measurement disagrees with a recorded one, suspect your instrument
+before you suspect the record.** Both can be wrong; only one of them is a thing you
+built five seconds ago.
+
+```bash
+bash scripts/count_tests.sh        # the only number. It runs every file, reads
+                                   # three summary formats, and treats a crash, a
+                                   # hang, or a missing summary as a FAILURE
+                                   # rather than as zero.
+python3 scripts/doc_counts.py      # no document quotes a bare count
+```
+
+Four documents were carrying live counts of 2,228 / 1400+ / 343 / 2080 when the
+real figure was 4619. A number written into prose is a claim with a timestamp nobody
+recorded. Cite the command instead, so the reader can re-derive it — and so a stale
+figure is impossible rather than merely unlikely.
+
 ## 1. THE CORE THESIS (the one thing to understand)
 
 **Architecturally-enforced safety over documented safety.** A guardrail the model can

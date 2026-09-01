@@ -179,6 +179,89 @@ check("deleted handle cannot be read (working copy gone)",
       reads_after_delete is False)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# F-003 (red-team, Grok 2026-08-15) — the loosening gate was a local denylist.
+#
+#     human = authorised_by not in ("", "system", "auto", "auto-sign", None)
+#
+# Any other string counted as human, and worse, the module could never leave that
+# weakest mode: a deployment running REGISTERED or ATTESTED identity everywhere else
+# still had media retention gated by a five-word list. Same bug class as recovery.py's
+# `authorized_by == "agent"`, found the same day.
+#
+# The supplied patch delegated to the shared gate but bound no ACTION. In ATTESTED
+# mode `is_human` falls back to the attestation's own action when none is given, so an
+# attestation issued for "restart_the_robot" would have authorised retaining raw video
+# of people — verified True unbound, False once bound. These tests pin the binding,
+# not merely the delegation.
+# ─────────────────────────────────────────────────────────────────────────────
+
+from driftcore.authority import human_identity as _hi
+from driftcore.authority.human_identity import (
+    HumanAttestation as _Att, HumanIdentityVerifier as _HIV)
+from driftcore.media.policy import LOOSEN_ACTION as _LOOSEN, _is_human as _ih
+
+_KEY = b"media-test-key"
+_LOOSE = MediaPolicy(ingest=True, retain=RetentionMode.RAW,
+                     retention_window_days=365, load_to_context=LoadMode.ALWAYS)
+_TIGHT = MediaPolicy(ingest=False, retain=RetentionMode.NONE,
+                     retention_window_days=0, load_to_context=LoadMode.NEVER)
+
+
+def _ctl():
+    return MediaPolicyController.for_embodiment(EmbodimentClass.SOFTWARE_AGENT)
+
+
+print("\nF-003: LABEL_ONLY behaviour preserved (upgrade-safe)")
+_hi.reset_policy()
+check("a non-reserved name can still loosen",
+      _ctl().change_policy(_LOOSE, authorised_by="justin")[0])
+for _label in ("", "system", "auto", "auto-sign"):
+    check(f"{_label!r} still cannot loosen",
+          not _ctl().change_policy(_LOOSE, authorised_by=_label)[0])
+check("tightening remains unrestricted",
+      _ctl().change_policy(_TIGHT, authorised_by="system")[0])
+
+print("\nF-003: REGISTERED mode makes the check real")
+_hi.reset_policy()
+_hi.register_human_principal("justin")
+check("an UNREGISTERED label can no longer loosen",
+      not _ctl().change_policy(_LOOSE, authorised_by="mallory")[0])
+check("a registered principal can",
+      _ctl().change_policy(_LOOSE, authorised_by="justin")[0])
+check("tightening is still free for anyone",
+      _ctl().change_policy(_TIGHT, authorised_by="system")[0])
+
+print("\nF-003: ATTESTED mode binds the ACTION")
+_hi.reset_policy()
+_v = _HIV()
+_v.register_principal("justin", _KEY)
+_hi.set_verifier(_v)
+check("the module is in ATTESTED mode", _hi.mode() == "ATTESTED")
+check("a bare NAME is no longer enough",
+      not _ctl().change_policy(_LOOSE, authorised_by="justin")[0])
+_unrelated = _Att.issue(_KEY, principal="justin", action="restart_the_robot",
+                        ttl_seconds=300, nonce="mp-unrelated")
+check("an attestation for ANOTHER action does not authorise a loosening",
+      not _ctl().change_policy(_LOOSE, authorised_by=_unrelated)[0])
+_right = _Att.issue(_KEY, principal="justin", action=_LOOSEN,
+                    ttl_seconds=300, nonce="mp-right")
+check("an attestation bound to THIS action does",
+      _ctl().change_policy(_LOOSE, authorised_by=_right)[0])
+_forged = _Att.issue(b"wrong-key", principal="justin", action=_LOOSEN,
+                     ttl_seconds=300, nonce="mp-forged")
+check("a forged attestation does not",
+      not _ctl().change_policy(_LOOSE, authorised_by=_forged)[0])
+_hi.reset_policy()
+
+print("\nF-003: the gate never turns a refusal into a crash")
+check("None is not human", not _ih(None))
+check("an int is not human", not _ih(42))
+check("a list is not human", not _ih(["justin"]))
+check("an object with a friendly __str__ is not human",
+      not _ih(type("X", (), {"__str__": lambda s: "justin"})()))
+
+
 # ── Summary ────────────────────────────────────────────────────────
 print("\n" + "=" * 56)
 passed, total = sum(_results), len(_results)

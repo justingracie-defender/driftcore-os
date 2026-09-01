@@ -1,0 +1,1839 @@
+{
+  "schema": 1,
+  "root": "driftcore",
+  "files_scanned": 145,
+  "_note": "Findings are an IDENTITY SET, not a count: swapping one finding for another leaves the count unchanged and fails the run. These are UNJUDGED - a backlog, not a decision. Each needs a human to say 'this value cannot be non-finite here, and here is why' or 'guard it'. UNJUDGED IS NOT WAIVED.",
+  "findings": {
+    "driftcore/adapters/llm_adapter.py::SafeLLMAdapter.generate::8c7a8fb055fc": {
+      "module": "driftcore/adapters/llm_adapter.py",
+      "function": "SafeLLMAdapter.generate",
+      "expr": "confidence < 0.70",
+      "values": [
+        "confidence"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/adapters/mediated_llm.py::LLMBroker._parse_reply._depth::62fb2d53bac0": {
+      "module": "driftcore/adapters/mediated_llm.py",
+      "function": "LLMBroker._parse_reply._depth",
+      "expr": "d > MAX_RESPONSE_DEPTH",
+      "values": [
+        "d"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/authority/authorization_gate.py::Authorization.unexpired::7f1d74b61516": {
+      "module": "driftcore/authority/authorization_gate.py",
+      "function": "Authorization.unexpired",
+      "expr": "(now if now is not None else time.time()) < self.expires_at",
+      "values": [
+        "now"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/authority/human_identity.py::HumanIdentityVerifier.verify::02bd93b88cf4": {
+      "module": "driftcore/authority/human_identity.py",
+      "function": "HumanIdentityVerifier.verify",
+      "expr": "t >= att.expires_at",
+      "values": [
+        "att"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/authority/human_identity.py::HumanIdentityVerifier.verify::2352e06a4069": {
+      "module": "driftcore/authority/human_identity.py",
+      "function": "HumanIdentityVerifier.verify",
+      "expr": "t < att.issued_at - 1",
+      "values": [
+        "att"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/authority/scoped_authorization.py::DailyBudget.remaining_ok::667bf739a348": {
+      "module": "driftcore/authority/scoped_authorization.py",
+      "function": "DailyBudget.remaining_ok",
+      "expr": "(used + amount) <= day_cap",
+      "values": [
+        "amount",
+        "day_cap"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/authority/scoped_authorization.py::OnDemandKeyIssuer.verify_and_consume::84cc809c868f": {
+      "module": "driftcore/authority/scoped_authorization.py",
+      "function": "OnDemandKeyIssuer.verify_and_consume",
+      "expr": "request.amount > key.spend_cap",
+      "values": [
+        "request"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/abduction_engine.py::AbductiveHypothesis._label::31b350486dfe": {
+      "module": "driftcore/cognition/abduction_engine.py",
+      "function": "AbductiveHypothesis._label",
+      "expr": "self.leap_distance < 0.3",
+      "values": [
+        "leap_distance"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/abduction_engine.py::AbductiveHypothesis._label::323119386ae3": {
+      "module": "driftcore/cognition/abduction_engine.py",
+      "function": "AbductiveHypothesis._label",
+      "expr": "self.leap_distance < 0.6",
+      "values": [
+        "leap_distance"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/cognitive_mode.py::CognitiveModeController.is_output_safe_to_present::8c7a8fb055fc": {
+      "module": "driftcore/cognition/cognitive_mode.py",
+      "function": "CognitiveModeController.is_output_safe_to_present",
+      "expr": "confidence < 0.70",
+      "values": [
+        "confidence"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/cognitive_mode.py::CognitiveModeController.is_output_safe_to_present::be413d3f86f9": {
+      "module": "driftcore/cognition/cognitive_mode.py",
+      "function": "CognitiveModeController.is_output_safe_to_present",
+      "expr": "confidence >= 0.5",
+      "values": [
+        "confidence"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/sycophancy_detector.py::SycophancyDetector._level::34eb2e9dd975": {
+      "module": "driftcore/cognition/sycophancy_detector.py",
+      "function": "SycophancyDetector._level",
+      "expr": "score < 0.20",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/sycophancy_detector.py::SycophancyDetector._level::76bf59e9f3ff": {
+      "module": "driftcore/cognition/sycophancy_detector.py",
+      "function": "SycophancyDetector._level",
+      "expr": "score < 0.40",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/sycophancy_detector.py::SycophancyDetector._level::984def4685a4": {
+      "module": "driftcore/cognition/sycophancy_detector.py",
+      "function": "SycophancyDetector._level",
+      "expr": "score < 0.60",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/cognition/sycophancy_detector.py::SycophancyDetector._level::9d0e09d474f9": {
+      "module": "driftcore/cognition/sycophancy_detector.py",
+      "function": "SycophancyDetector._level",
+      "expr": "score < 0.80",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/drift/__init__.py::DriftLevel.from_score::b949753d39dd": {
+      "module": "driftcore/drift/__init__.py",
+      "function": "DriftLevel.from_score",
+      "expr": "score < 0.30",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/drift/__init__.py::DriftLevel.from_score::984def4685a4": {
+      "module": "driftcore/drift/__init__.py",
+      "function": "DriftLevel.from_score",
+      "expr": "score < 0.60",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/drift/__init__.py::DriftLevel.from_score::9d0e09d474f9": {
+      "module": "driftcore/drift/__init__.py",
+      "function": "DriftLevel.from_score",
+      "expr": "score < 0.80",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/drift/__init__.py::DriftDetector.current_scores::6b602e628b9d": {
+      "module": "driftcore/drift/__init__.py",
+      "function": "DriftDetector.current_scores",
+      "expr": "time.time() < (self._policy.vigilance_until or 0)",
+      "values": [
+        "_policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator.narrate_step::c098d1974ab3": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator.narrate_step",
+      "expr": "drift_score >= DRIFT_WARN",
+      "values": [
+        "drift_score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator.narrate_transition::c924fa45b918": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator.narrate_transition",
+      "expr": "SystemState[to_state].value > SystemState[from_state].value",
+      "values": [
+        "from_state",
+        "to_state"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator.narrate_sycophancy_warning::a0a1739eb35f": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator.narrate_sycophancy_warning",
+      "expr": "score >= 0.60",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_warning_line::d04f280f072e": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_warning_line",
+      "expr": "score >= 0.75",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_warning_line::a0a1739eb35f": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_warning_line",
+      "expr": "score >= 0.60",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_warning_line::baa55dab1bfb": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_warning_line",
+      "expr": "score >= 0.40",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_label::34eb2e9dd975": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_label",
+      "expr": "score < 0.20",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_label::76bf59e9f3ff": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_label",
+      "expr": "score < 0.40",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_label::984def4685a4": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_label",
+      "expr": "score < 0.60",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_label::404105418d27": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_label",
+      "expr": "score < 0.75",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._drift_label::9341e2f8d1ae": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._drift_label",
+      "expr": "score < 0.90",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._syco_level::34eb2e9dd975": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._syco_level",
+      "expr": "score < 0.20",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._syco_level::76bf59e9f3ff": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._syco_level",
+      "expr": "score < 0.40",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._syco_level::984def4685a4": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._syco_level",
+      "expr": "score < 0.60",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/narrator.py::Narrator._syco_level::9d0e09d474f9": {
+      "module": "driftcore/fable/narrator.py",
+      "function": "Narrator._syco_level",
+      "expr": "score < 0.80",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/trust_bridge.py::TrustBridge._label::849e4f5e88ee": {
+      "module": "driftcore/fable/trust_bridge.py",
+      "function": "TrustBridge._label",
+      "expr": "score >= 0.8",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/trust_bridge.py::TrustBridge._label::4b052b434631": {
+      "module": "driftcore/fable/trust_bridge.py",
+      "function": "TrustBridge._label",
+      "expr": "score >= 0.5",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/fable/trust_bridge.py::TrustBridge._label::79ce283bfa8c": {
+      "module": "driftcore/fable/trust_bridge.py",
+      "function": "TrustBridge._label",
+      "expr": "score >= 0.2",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/information_flow.py::Level.__lt__::a5c4fef5ce3d": {
+      "module": "driftcore/governance/information_flow.py",
+      "function": "Level.__lt__",
+      "expr": "self.value < other.value",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/information_flow.py::Level.__le__::a2b2663c71f2": {
+      "module": "driftcore/governance/information_flow.py",
+      "function": "Level.__le__",
+      "expr": "self.value <= other.value",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/information_flow.py::Label.dominates::0b341dbd9c8b": {
+      "module": "driftcore/governance/information_flow.py",
+      "function": "Label.dominates",
+      "expr": "self.level.value >= other.level.value",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/information_flow.py::Label.dominates::5621afebed46": {
+      "module": "driftcore/governance/information_flow.py",
+      "function": "Label.dominates",
+      "expr": "other.compartments <= self.compartments",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/information_flow.py::Label.join::0b341dbd9c8b": {
+      "module": "driftcore/governance/information_flow.py",
+      "function": "Label.join",
+      "expr": "self.level.value >= other.level.value",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/information_flow.py::Sink.may_receive::63e95345d828": {
+      "module": "driftcore/governance/information_flow.py",
+      "function": "Sink.may_receive",
+      "expr": "label.level.value > self.clearance.level.value",
+      "values": [
+        "label"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/physical_envelope.py::ConditionEvidence.is_fresh::9b99971f8790": {
+      "module": "driftcore/governance/physical_envelope.py",
+      "function": "ConditionEvidence.is_fresh",
+      "expr": "self.issued_at <= now <= self.issued_at + self.ttl_seconds",
+      "values": [
+        "now"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/physical_envelope.py::PhysicalEnvelope.dominates::e168e76203b9": {
+      "module": "driftcore/governance/physical_envelope.py",
+      "function": "PhysicalEnvelope.dominates",
+      "expr": "self.limits.get(d, INF) <= other.limits.get(d, INF)",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/physical_envelope.py::PhysicalEnvelope.is_tighter_than::d207747d7a0a": {
+      "module": "driftcore/governance/physical_envelope.py",
+      "function": "PhysicalEnvelope.is_tighter_than",
+      "expr": "self.limits.get(d, INF) < other.limits.get(d, INF)",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/physical_envelope.py::EnvelopeController.active::637a01c2540f": {
+      "module": "driftcore/governance/physical_envelope.py",
+      "function": "EnvelopeController.active",
+      "expr": "self._clock() > self._authorised_until",
+      "values": [
+        "_clock"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/physical_envelope.py::EnvelopeController._request_locked::01e1d517327c": {
+      "module": "driftcore/governance/physical_envelope.py",
+      "function": "EnvelopeController._request_locked",
+      "expr": "envelope.limits.get(d, 0) > current.limits.get(d, 0)",
+      "values": [
+        "envelope"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/governance/restart_authority.py::Approval.expired::b7f290066d5e": {
+      "module": "driftcore/governance/restart_authority.py",
+      "function": "Approval.expired",
+      "expr": "(datetime.now(timezone.utc) - issued).total_seconds() > self.ttl_seconds",
+      "values": [
+        "ttl_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/hardware/hardware_safety.py::HardwareSafetyController._execute_response._achieved::08cb7ef7c456": {
+      "module": "driftcore/hardware/hardware_safety.py",
+      "function": "HardwareSafetyController._execute_response._achieved",
+      "expr": "l.value >= target.value",
+      "values": [
+        "target"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/hardware/hardware_safety.py::HardwareSafetyController._narrate_response::23f6faf6ddb0": {
+      "module": "driftcore/hardware/hardware_safety.py",
+      "function": "HardwareSafetyController._narrate_response",
+      "expr": "level.value >= ResponseLevel.HARD_HALT.value",
+      "values": [
+        "level"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/hardware/sensor_interfaces.py::SensorReading.__init__::89b18d8e4c0a": {
+      "module": "driftcore/hardware/sensor_interfaces.py",
+      "function": "SensorReading.__init__",
+      "expr": "float(value) < threshold",
+      "values": [
+        "threshold",
+        "value"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/hardware/sensor_interfaces.py::SensorReading.__init__::f4208ce37349": {
+      "module": "driftcore/hardware/sensor_interfaces.py",
+      "function": "SensorReading.__init__",
+      "expr": "float(value) >= threshold",
+      "values": [
+        "threshold",
+        "value"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/hardware/sensor_interfaces.py::SensorHub.stale_sensors::3f24b486904b": {
+      "module": "driftcore/hardware/sensor_interfaces.py",
+      "function": "SensorHub.stale_sensors",
+      "expr": "age > max_age_seconds",
+      "values": [
+        "max_age_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_manifest.py::IsolationManifest.more_permissive_than::32577a5ceeac": {
+      "module": "driftcore/kernel/isolation_manifest.py",
+      "function": "IsolationManifest.more_permissive_than",
+      "expr": "self.max_fds > other.max_fds",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_manifest.py::IsolationManifest.more_permissive_than::29ad34de138f": {
+      "module": "driftcore/kernel/isolation_manifest.py",
+      "function": "IsolationManifest.more_permissive_than",
+      "expr": "getattr(self, \"min_verifier_version\", 1) < getattr(other, \"min_verifier_version\"",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_manifest.py::IsolationManifest.more_permissive_than::44799e9ced76": {
+      "module": "driftcore/kernel/isolation_manifest.py",
+      "function": "IsolationManifest.more_permissive_than",
+      "expr": "getattr(self, \"manifest_version\", 1) < getattr(other, \"manifest_version\", 1)",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_monitor.py::IsolationMonitor.__init__::8cd555835ce4": {
+      "module": "driftcore/kernel/isolation_monitor.py",
+      "function": "IsolationMonitor.__init__",
+      "expr": "interval_seconds <= 0",
+      "values": [
+        "interval_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_monitor.py::IsolationMonitor.check_once::b280e460cf3d": {
+      "module": "driftcore/kernel/isolation_monitor.py",
+      "function": "IsolationMonitor.check_once",
+      "expr": "streak >= self._max_consecutive_failures",
+      "values": [
+        "_max_consecutive_failures"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_monitor.py::IsolationMonitor._dispatch_drift::3b296231ab90": {
+      "module": "driftcore/kernel/isolation_monitor.py",
+      "function": "IsolationMonitor._dispatch_drift",
+      "expr": "consecutive >= self._max_consecutive_failures",
+      "values": [
+        "_max_consecutive_failures"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_monitor.py::IsolationMonitor.is_watching::9129a86560ad": {
+      "module": "driftcore/kernel/isolation_monitor.py",
+      "function": "IsolationMonitor.is_watching",
+      "expr": "(time.monotonic() - last) <= self._stall_seconds",
+      "values": [
+        "_stall_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/isolation_monitor.py::IsolationMonitor.is_watching::1f7619dfdebb": {
+      "module": "driftcore/kernel/isolation_monitor.py",
+      "function": "IsolationMonitor.is_watching",
+      "expr": "(time.monotonic() - self._started_monotonic) <= self._first_grace",
+      "values": [
+        "_first_grace"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/one_door_client.py::PinnedHTTPTransport.__call__::b8d3e19bf33f": {
+      "module": "driftcore/kernel/one_door_client.py",
+      "function": "PinnedHTTPTransport.__call__",
+      "expr": "total < self._max_response",
+      "values": [
+        "_max_response"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/policies.py::PolicyEngine.should_auto_escalate::b0fe263172d2": {
+      "module": "driftcore/kernel/policies.py",
+      "function": "PolicyEngine.should_auto_escalate",
+      "expr": "drift_score >= threshold",
+      "values": [
+        "drift_score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/probe_detector.py::ProbeDetector.observe_refusal::f110358c4166": {
+      "module": "driftcore/kernel/probe_detector.py",
+      "function": "ProbeDetector.observe_refusal",
+      "expr": "(now - last) > self._policy.window_seconds",
+      "values": [
+        "_policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/probe_detector.py::ProbeDetector.observe_refusal::7efde7ed2a06": {
+      "module": "driftcore/kernel/probe_detector.py",
+      "function": "ProbeDetector.observe_refusal",
+      "expr": "now - ts > self._policy.window_seconds * 2",
+      "values": [
+        "_policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/request_schema.py::BodySchema.build::e8daf736d4d2": {
+      "module": "driftcore/kernel/request_schema.py",
+      "function": "BodySchema.build",
+      "expr": "bits > capacity_budget * 8",
+      "values": [
+        "capacity_budget"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/request_schema.py::order_channel_bits::f3e1359d1628": {
+      "module": "driftcore/kernel/request_schema.py",
+      "function": "order_channel_bits",
+      "expr": "n_keys > 1",
+      "values": [
+        "n_keys"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/state_machine.py::StateMachine._target::c2e668b3118e": {
+      "module": "driftcore/kernel/state_machine.py",
+      "function": "StateMachine._target",
+      "expr": "score < 0",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/kernel/state_machine.py::StateMachine._target::e07bc361e7ac": {
+      "module": "driftcore/kernel/state_machine.py",
+      "function": "StateMachine._target",
+      "expr": "score < upper",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/media/policy.py::MediaPolicy.is_looser_than::8e2c4b68a71a": {
+      "module": "driftcore/media/policy.py",
+      "function": "MediaPolicy.is_looser_than",
+      "expr": "self.retain.permissiveness > other.retain.permissiveness",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/media/policy.py::MediaPolicy.is_looser_than::7f29353efa8d": {
+      "module": "driftcore/media/policy.py",
+      "function": "MediaPolicy.is_looser_than",
+      "expr": "self.retention_window_days > other.retention_window_days",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/media/policy.py::MediaPolicy.is_looser_than::3a6ca422dcca": {
+      "module": "driftcore/media/policy.py",
+      "function": "MediaPolicy.is_looser_than",
+      "expr": "self.load_to_context.permissiveness > other.load_to_context.permissiveness",
+      "values": [
+        "other"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/memory/__init__.py::_judge_tier2_item::9026bc5faf3a": {
+      "module": "driftcore/memory/__init__.py",
+      "function": "_judge_tier2_item",
+      "expr": "item.access_count > 0",
+      "values": [
+        "item"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/memory/__init__.py::_score_relevance::44259058b603": {
+      "module": "driftcore/memory/__init__.py",
+      "function": "_score_relevance",
+      "expr": "item.idle_seconds() < 86400",
+      "values": [
+        "item"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/memory/vector.py::VectorMemory._compute_safety_level::48d6f6a22f5b": {
+      "module": "driftcore/memory/vector.py",
+      "function": "VectorMemory._compute_safety_level",
+      "expr": "metadata.get(\"drift_score\", 0) > MAX_DRIFT_SCORE",
+      "values": [
+        "metadata"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/network/trust_model.py::TrustModel.update::36785b9d73cc": {
+      "module": "driftcore/network/trust_model.py",
+      "function": "TrustModel.update",
+      "expr": "self.trust[agent] <= self.QUARANTINE_THRESHOLD",
+      "values": [
+        "agent"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/network/trust_model.py::TrustModel.is_quarantined::26a9e4e215a3": {
+      "module": "driftcore/network/trust_model.py",
+      "function": "TrustModel.is_quarantined",
+      "expr": "self.trust.get( agent, self.INITIAL_TRUST) <= self.QUARANTINE_THRESHOLD",
+      "values": [
+        "agent"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/probe/__init__.py::ConsistencyProbe.check_responses::990fdc474bdd": {
+      "module": "driftcore/probe/__init__.py",
+      "function": "ConsistencyProbe.check_responses",
+      "expr": "h_signal > self._profile.anomaly_threshold()",
+      "values": [
+        "_profile"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/review/__init__.py::AuditReviewer._detect_patterns::bc45a723e480": {
+      "module": "driftcore/review/__init__.py",
+      "function": "AuditReviewer._detect_patterns",
+      "expr": "score >= self._config.drift_critical_score",
+      "values": [
+        "_config"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/safety/amplification_guard.py::AmplificationGuard.__init__::552867c7206a": {
+      "module": "driftcore/safety/amplification_guard.py",
+      "function": "AmplificationGuard.__init__",
+      "expr": "window < 2",
+      "values": [
+        "window"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/safety/amplification_guard.py::AmplificationGuard.observe::6419189da549": {
+      "module": "driftcore/safety/amplification_guard.py",
+      "function": "AmplificationGuard.observe",
+      "expr": "m >= run[-1] - self._tolerance",
+      "values": [
+        "_tolerance"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/safety/safe_halt.py::SafeHalt._escalate_to_locked::d97463614668": {
+      "module": "driftcore/safety/safe_halt.py",
+      "function": "SafeHalt._escalate_to_locked",
+      "expr": "self._RANK[level] <= self._RANK[self.level]",
+      "values": [
+        "level"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/__init__.py::SkillLibrary.validate::492e4e767f1f": {
+      "module": "driftcore/skills/__init__.py",
+      "function": "SkillLibrary.validate",
+      "expr": "skill.max_force_n > 100",
+      "values": [
+        "skill"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/__init__.py::SkillLibrary._check_invariants::c5d99b21bb3e": {
+      "module": "driftcore/skills/__init__.py",
+      "function": "SkillLibrary._check_invariants",
+      "expr": "skill.max_force_n > 500",
+      "values": [
+        "skill"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::wilson_lower_bound::8a88e5de9b00": {
+      "module": "driftcore/skills/governance.py",
+      "function": "wilson_lower_bound",
+      "expr": "n <= 0",
+      "values": [
+        "n"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::MaturityController.may_run::77212a5583ed": {
+      "module": "driftcore/skills/governance.py",
+      "function": "MaturityController.may_run",
+      "expr": "maturity.rank < need.rank",
+      "values": [
+        "maturity"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::MaturityController.may_run::86ceed073d72": {
+      "module": "driftcore/skills/governance.py",
+      "function": "MaturityController.may_run",
+      "expr": "stats.confidence < floor",
+      "values": [
+        "stats"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::MaturityController.evidence_promotion::64b672b937fa": {
+      "module": "driftcore/skills/governance.py",
+      "function": "MaturityController.evidence_promotion",
+      "expr": "current.rank >= EVIDENCE_PROMOTION_CEILING.rank",
+      "values": [
+        "current"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::MaturityController.evidence_promotion::8468f8231552": {
+      "module": "driftcore/skills/governance.py",
+      "function": "MaturityController.evidence_promotion",
+      "expr": "stats.sample_size >= min_samples",
+      "values": [
+        "min_samples",
+        "stats"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::MaturityController.evidence_promotion::d293f483194a": {
+      "module": "driftcore/skills/governance.py",
+      "function": "MaturityController.evidence_promotion",
+      "expr": "stats.confidence >= min_confidence",
+      "values": [
+        "min_confidence",
+        "stats"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::MaturityController.human_promote::05fe099bce59": {
+      "module": "driftcore/skills/governance.py",
+      "function": "MaturityController.human_promote",
+      "expr": "target.rank <= current.rank",
+      "values": [
+        "current",
+        "target"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::MaturityController.demote::c808152086f5": {
+      "module": "driftcore/skills/governance.py",
+      "function": "MaturityController.demote",
+      "expr": "target.rank >= current.rank",
+      "values": [
+        "current",
+        "target"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/skills/governance.py::FailureCaseLibrary.find_similar::997a7190a102": {
+      "module": "driftcore/skills/governance.py",
+      "function": "FailureCaseLibrary.find_similar",
+      "expr": "sim >= min_overlap",
+      "values": [
+        "min_overlap"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/uncertainty/bayesian_uncertainty.py::classify_confidence::af075bee37f0": {
+      "module": "driftcore/uncertainty/bayesian_uncertainty.py",
+      "function": "classify_confidence",
+      "expr": "score > 0.85",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/uncertainty/bayesian_uncertainty.py::classify_confidence::6ba91f17d5fc": {
+      "module": "driftcore/uncertainty/bayesian_uncertainty.py",
+      "function": "classify_confidence",
+      "expr": "score > 0.60",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/uncertainty/bayesian_uncertainty.py::classify_confidence::1259d415c1d8": {
+      "module": "driftcore/uncertainty/bayesian_uncertainty.py",
+      "function": "classify_confidence",
+      "expr": "score > 0.30",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/approval_governance.py::ApprovalThrottle.register_approval::6111c5873965": {
+      "module": "driftcore/verification/approval_governance.py",
+      "function": "ApprovalThrottle.register_approval",
+      "expr": "self._count[approver] >= self._policy.max_approvals_per_window",
+      "values": [
+        "_policy",
+        "approver"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/approval_governance.py::ApprovalThrottle.second_approver_required::63fa9f6ebacf": {
+      "module": "driftcore/verification/approval_governance.py",
+      "function": "ApprovalThrottle.second_approver_required",
+      "expr": "self.count_irreversible(operations) > thr",
+      "values": [
+        "operations"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_state.py::AuthorizationState._resync_locked::ae4c16c3f7cc": {
+      "module": "driftcore/verification/authorization_state.py",
+      "function": "AuthorizationState._resync_locked",
+      "expr": "rec.get(\"seq\", 0) <= self._seq",
+      "values": [
+        "_seq"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::default_stakes::7de3ac83a572": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "default_stakes",
+      "expr": "cumulative_pressure >= 0.95",
+      "values": [
+        "cumulative_pressure"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::default_stakes::daac5eaecc09": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "default_stakes",
+      "expr": "cumulative_pressure >= 0.8",
+      "values": [
+        "cumulative_pressure"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::default_stakes::ebc4e95b9e75": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "default_stakes",
+      "expr": "0.0 <= cumulative_pressure <= 1.0",
+      "values": [
+        "cumulative_pressure"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::default_stakes::08ee39f268ba": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "default_stakes",
+      "expr": "cumulative_pressure >= 0.5",
+      "values": [
+        "cumulative_pressure"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::AuthorizationLease.expired::137f2ed3c8c5": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "AuthorizationLease.expired",
+      "expr": "now_mono >= self.expires_mono()",
+      "values": [
+        "now_mono"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::AuthorizationTTLEngine.check::2b49a5d7b577": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "AuthorizationTTLEngine.check",
+      "expr": "lease.silent_renews + 1 >= self.policy.max_silent_renews",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::AuthorizationTTLEngine._apply_quiet_hours::8ef559afa344": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "AuthorizationTTLEngine._apply_quiet_hours",
+      "expr": "stakes < self.policy.quiet_hours_min_interrupt",
+      "values": [
+        "policy",
+        "stakes"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/authorization_ttl.py::AuthorizationTTLEngine.morning_digest::c0a8951d81a8": {
+      "module": "driftcore/verification/authorization_ttl.py",
+      "function": "AuthorizationTTLEngine.morning_digest",
+      "expr": "(now - g.parked_at) > self.policy.parked_stale_after",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/belief_use.py::BeliefUseLedger.__init__::04ea618704aa": {
+      "module": "driftcore/verification/belief_use.py",
+      "function": "BeliefUseLedger.__init__",
+      "expr": "max_elicited_per_decision < 1",
+      "values": [
+        "max_elicited_per_decision"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/belief_use.py::BeliefUseLedger.register::16de94fdcb67": {
+      "module": "driftcore/verification/belief_use.py",
+      "function": "BeliefUseLedger.register",
+      "expr": "n_elicited >= self._cap",
+      "values": [
+        "_cap"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/breach_response.py::BreachResponse.record_breach::0fa49a7cb0ec": {
+      "module": "driftcore/verification/breach_response.py",
+      "function": "BreachResponse.record_breach",
+      "expr": "severity >= Severity.HARD",
+      "values": [
+        "severity"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/breach_response.py::BreachResponse.record_breach::88bc29a1e4b0": {
+      "module": "driftcore/verification/breach_response.py",
+      "function": "BreachResponse.record_breach",
+      "expr": "self._severity_score >= self._severity_escalation_score",
+      "values": [
+        "_severity_escalation_score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/breach_response.py::BreachResponse.record_breach::520324c22fd1": {
+      "module": "driftcore/verification/breach_response.py",
+      "function": "BreachResponse.record_breach",
+      "expr": "self._near_miss_count >= self._near_miss_threshold",
+      "values": [
+        "_near_miss_threshold"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::_echoes::6da32f620ed8": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "_echoes",
+      "expr": "_overlap(restatement, answer) >= 0.6",
+      "values": [
+        "answer",
+        "restatement"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel.__init__::79cc11cc1a43": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "ClarificationChannel.__init__",
+      "expr": "max_questions < 0",
+      "values": [
+        "max_questions"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel.__init__::0c459049e877": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "ClarificationChannel.__init__",
+      "expr": "prior_questions < 0",
+      "values": [
+        "prior_questions"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel.is_promotable::4776bbd0e97f": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "ClarificationChannel.is_promotable",
+      "expr": "self._age_s(exchange) > self._ttl",
+      "values": [
+        "_ttl",
+        "exchange"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel.ask::022311b79674": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "ClarificationChannel.ask",
+      "expr": "self._prior + len(self._exchanges) >= self._max",
+      "values": [
+        "_max",
+        "_prior"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel._require_fresh::f92f1a3fe782": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "ClarificationChannel._require_fresh",
+      "expr": "age > self._ttl",
+      "values": [
+        "_ttl"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel.elicited_ratio::e9f29ac79ae3": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "ClarificationChannel.elicited_ratio",
+      "expr": "total_beliefs < 0",
+      "values": [
+        "total_beliefs"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/clarification_channel.py::ClarificationChannel.elicited_ratio::2dd7f5f96306": {
+      "module": "driftcore/verification/clarification_channel.py",
+      "function": "ClarificationChannel.elicited_ratio",
+      "expr": "total_beliefs < n",
+      "values": [
+        "total_beliefs"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/content_mode.py::ContentModeController.evaluate::ce253b7101a4": {
+      "module": "driftcore/verification/content_mode.py",
+      "function": "ContentModeController.evaluate",
+      "expr": "request.subject_tier > ceiling",
+      "values": [
+        "request"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coordinator.py::VerificationCoordinator._objective_preflight::be46035265d5": {
+      "module": "driftcore/verification/coordinator.py",
+      "function": "VerificationCoordinator._objective_preflight",
+      "expr": "self._get_cycles() >= self._max_cycles",
+      "values": [
+        "_max_cycles"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::_wilson_interval::8a88e5de9b00": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "_wilson_interval",
+      "expr": "n <= 0",
+      "values": [
+        "n"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::effective_min_occurrences::d23d53d217e9": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "effective_min_occurrences",
+      "expr": "b[1] < coverage_floor",
+      "values": [
+        "coverage_floor"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.__init__::21322bb852ef": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.__init__",
+      "expr": "window_seconds <= 0",
+      "values": [
+        "window_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.observe_action::7401b4dafd8b": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.observe_action",
+      "expr": "t < self._max_ts_seen - self._max_skew",
+      "values": [
+        "_max_skew",
+        "_max_ts_seen"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.observe_action::9106df279015": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.observe_action",
+      "expr": "t > self._max_ts_seen + self._max_skew",
+      "values": [
+        "_max_skew",
+        "_max_ts_seen"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.scan::c817226e6623": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.scan",
+      "expr": "occ < self._effective_min",
+      "values": [
+        "_effective_min"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.scan::43a3d82fc2e1": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.scan",
+      "expr": "hi >= self._coverage_floor",
+      "values": [
+        "_coverage_floor"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.scan::ada320f70496": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.scan",
+      "expr": "(t_now - last_ts) >= self._reemit_after",
+      "values": [
+        "_reemit_after"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.watch_zone::c817226e6623": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.watch_zone",
+      "expr": "occ < self._effective_min",
+      "values": [
+        "_effective_min"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.watch_zone::b3dbfe067f0c": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.watch_zone",
+      "expr": "self._coverage_floor <= b[1] < ceiling",
+      "values": [
+        "_coverage_floor"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.evidence_sufficient::c1691d7593b4": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.evidence_sufficient",
+      "expr": "occ_nar[0] >= self._effective_min",
+      "values": [
+        "_effective_min"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.status::761fbf315ce0": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.status",
+      "expr": "self._configured_min >= self._effective_min",
+      "values": [
+        "_configured_min",
+        "_effective_min"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/coverage_gap.py::CoverageGapDetector.status::ecb6cc248e07": {
+      "module": "driftcore/verification/coverage_gap.py",
+      "function": "CoverageGapDetector.status",
+      "expr": "occ >= self._effective_min",
+      "values": [
+        "_effective_min"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/cumulative_ledger.py::CumulativeLedger._window::c6571930ff01": {
+      "module": "driftcore/verification/cumulative_ledger.py",
+      "function": "CumulativeLedger._window",
+      "expr": "(now - w[\"start_mono\"]) >= self.policy.window_seconds",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/deception_measurement.py::wilson_interval::8a88e5de9b00": {
+      "module": "driftcore/verification/deception_measurement.py",
+      "function": "wilson_interval",
+      "expr": "n <= 0",
+      "values": [
+        "n"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/deception_review.py::DeceptionReviewEngine.check_latency::a4ed859f3850": {
+      "module": "driftcore/verification/deception_review.py",
+      "function": "DeceptionReviewEngine.check_latency",
+      "expr": "delay <= self._latency_bound",
+      "values": [
+        "_latency_bound"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/deception_review.py::DeceptionReviewEngine.check_flooding::b0cf73ed9f33": {
+      "module": "driftcore/verification/deception_review.py",
+      "function": "DeceptionReviewEngine.check_flooding",
+      "expr": "report_count_in_window <= self._flooding_threshold",
+      "values": [
+        "_flooding_threshold",
+        "report_count_in_window"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/deception_review.py::DeceptionReviewEngine.adjudicate::30015f6dd718": {
+      "module": "driftcore/verification/deception_review.py",
+      "function": "DeceptionReviewEngine.adjudicate",
+      "expr": "index < 0",
+      "values": [
+        "index"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/edge_loop.py::EdgeLoop.detect::edaa03d0bbb1": {
+      "module": "driftcore/verification/edge_loop.py",
+      "function": "EdgeLoop.detect",
+      "expr": "signal_quality < INSUFFICIENT_THRESHOLD",
+      "values": [
+        "signal_quality"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/harm_estimate.py::_crosses::423761d0e515": {
+      "module": "driftcore/verification/harm_estimate.py",
+      "function": "_crosses",
+      "expr": "value > thr.cutoff",
+      "values": [
+        "thr"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/harm_target.py::HarmTargetGuard.evaluate::ba8322a52627": {
+      "module": "driftcore/verification/harm_target.py",
+      "function": "HarmTargetGuard.evaluate",
+      "expr": "m > self.policy.human_harm_requires_human_above",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/harm_target.py::HarmTargetGuard.evaluate::d42a74b3f931": {
+      "module": "driftcore/verification/harm_target.py",
+      "function": "HarmTargetGuard.evaluate",
+      "expr": "m > self.policy.animal_requires_human_above",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/harm_target.py::HarmTargetGuard.evaluate::424d07154c3f": {
+      "module": "driftcore/verification/harm_target.py",
+      "function": "HarmTargetGuard.evaluate",
+      "expr": "m > self.policy.animal_minor_requires_gentler_above",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/human_authorization.py::HumanApprovalGate._coerce::6aed7e4a0235": {
+      "module": "driftcore/verification/human_authorization.py",
+      "function": "HumanApprovalGate._coerce",
+      "expr": "float(attestation[\"expires_at\"]) <= float(attestation[\"issued_at\"])",
+      "values": [
+        "attestation"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/intent_ledger.py::IntentLedger.redeem::2c8acf5c9b48": {
+      "module": "driftcore/verification/intent_ledger.py",
+      "function": "IntentLedger.redeem",
+      "expr": "t > decision.expires_at",
+      "values": [
+        "decision"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/interpretation_guard.py::assess::9203bcf04077": {
+      "module": "driftcore/verification/interpretation_guard.py",
+      "function": "assess",
+      "expr": "i.plausibility >= plausibility_floor",
+      "values": [
+        "plausibility_floor"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/mediated_actuation.py::_find_destinations::d85f10737b53": {
+      "module": "driftcore/verification/mediated_actuation.py",
+      "function": "_find_destinations",
+      "expr": "_depth > _DEST_MAX_DEPTH",
+      "values": [
+        "_depth"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/mediated_actuation.py::ActuationBroker._attestation_stale_reason::d005c024c49a": {
+      "module": "driftcore/verification/mediated_actuation.py",
+      "function": "ActuationBroker._attestation_stale_reason",
+      "expr": "age > self._attestation_max_age",
+      "values": [
+        "_attestation_max_age"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/mediated_actuation.py::_stable_value::0fdb61c91f3e": {
+      "module": "driftcore/verification/mediated_actuation.py",
+      "function": "_stable_value",
+      "expr": "depth > 4",
+      "values": [
+        "depth"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/mediated_actuation.py::_code_identity::0fdb61c91f3e": {
+      "module": "driftcore/verification/mediated_actuation.py",
+      "function": "_code_identity",
+      "expr": "depth > 4",
+      "values": [
+        "depth"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/mediated_actuation.py::_callable_identity::0fdb61c91f3e": {
+      "module": "driftcore/verification/mediated_actuation.py",
+      "function": "_callable_identity",
+      "expr": "depth > 4",
+      "values": [
+        "depth"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/narrowing_channel.py::NarrowingChannel.apply::8ce5b2681ac3": {
+      "module": "driftcore/verification/narrowing_channel.py",
+      "function": "NarrowingChannel.apply",
+      "expr": "prop_active <= self._constraints",
+      "values": [
+        "_constraints"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store.py::ExpiringNonceStore._check_clock::8095e599d265": {
+      "module": "driftcore/verification/nonce_store.py",
+      "function": "ExpiringNonceStore._check_clock",
+      "expr": "now < hw - self.skew_seconds",
+      "values": [
+        "skew_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store.py::ExpiringNonceStore._load::d4c067875d53": {
+      "module": "driftcore/verification/nonce_store.py",
+      "function": "ExpiringNonceStore._load",
+      "expr": "now - t < self.retention_seconds",
+      "values": [
+        "retention_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store.py::ExpiringNonceStore._rewrite_locked::d4c067875d53": {
+      "module": "driftcore/verification/nonce_store.py",
+      "function": "ExpiringNonceStore._rewrite_locked",
+      "expr": "now - t < self.retention_seconds",
+      "values": [
+        "retention_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store.py::ExpiringNonceStore.add::e9c1ae33b238": {
+      "module": "driftcore/verification/nonce_store.py",
+      "function": "ExpiringNonceStore.add",
+      "expr": "self._since_prune >= self._prune_every",
+      "values": [
+        "_prune_every"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store.py::ExpiringNonceStore.__contains__::84795648fb74": {
+      "module": "driftcore/verification/nonce_store.py",
+      "function": "ExpiringNonceStore.__contains__",
+      "expr": "self._time() - t >= self.retention_seconds",
+      "values": [
+        "_time",
+        "retention_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store.py::ExpiringNonceStore._prune_locked::acafb80af794": {
+      "module": "driftcore/verification/nonce_store.py",
+      "function": "ExpiringNonceStore._prune_locked",
+      "expr": "now - t >= self.retention_seconds",
+      "values": [
+        "retention_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store_sqlite.py::SqliteNonceStore.__init__::7766035c6452": {
+      "module": "driftcore/verification/nonce_store_sqlite.py",
+      "function": "SqliteNonceStore.__init__",
+      "expr": "retention_seconds <= 0",
+      "values": [
+        "retention_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store_sqlite.py::SqliteNonceStore.__init__::b36482629d35": {
+      "module": "driftcore/verification/nonce_store_sqlite.py",
+      "function": "SqliteNonceStore.__init__",
+      "expr": "retention_seconds < need",
+      "values": [
+        "retention_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store_sqlite.py::SqliteNonceStore._check_clock::8095e599d265": {
+      "module": "driftcore/verification/nonce_store_sqlite.py",
+      "function": "SqliteNonceStore._check_clock",
+      "expr": "now < hw - self.skew_seconds",
+      "values": [
+        "skew_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store_sqlite.py::SqliteNonceStore.consume::e9c1ae33b238": {
+      "module": "driftcore/verification/nonce_store_sqlite.py",
+      "function": "SqliteNonceStore.consume",
+      "expr": "self._since_prune >= self._prune_every",
+      "values": [
+        "_prune_every"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/nonce_store_sqlite.py::SqliteNonceStore.add::e9c1ae33b238": {
+      "module": "driftcore/verification/nonce_store_sqlite.py",
+      "function": "SqliteNonceStore.add",
+      "expr": "self._since_prune >= self._prune_every",
+      "values": [
+        "_prune_every"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/psychological_interlock.py::PsychologicalInterlock._maybe_exit::9befc7f81074": {
+      "module": "driftcore/verification/psychological_interlock.py",
+      "function": "PsychologicalInterlock._maybe_exit",
+      "expr": "self._calm_streak >= self.policy.min_calm_exchanges_before_exit_eligible",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/psychological_interlock.py::PsychologicalInterlock.review_response::85c1ba7cbe42": {
+      "module": "driftcore/verification/psychological_interlock.py",
+      "function": "PsychologicalInterlock.review_response",
+      "expr": "self._explicit_count >= self.policy.explicit_statements_before_escalation",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/psychological_interlock.py::PsychologicalInterlock.review_response::0181f3d105dc": {
+      "module": "driftcore/verification/psychological_interlock.py",
+      "function": "PsychologicalInterlock.review_response",
+      "expr": "self._exchanges_since_nudge >= self.policy.exchanges_without_nudge_before_escala",
+      "values": [
+        "policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/red_team_toolkit.py::RedTeamToolkit.attack_drift_manipulation::e4a52e747f39": {
+      "module": "driftcore/verification/red_team_toolkit.py",
+      "function": "RedTeamToolkit.attack_drift_manipulation",
+      "expr": "self.state_machine.state.value >= SystemState.HARD_HALT.value",
+      "values": [
+        "state_machine"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/red_team_toolkit.py::RedTeamToolkit.attack_drift_manipulation::1cdfec802b90": {
+      "module": "driftcore/verification/red_team_toolkit.py",
+      "function": "RedTeamToolkit.attack_drift_manipulation",
+      "expr": "self.state_machine.state.value >= SystemState.SOFT_HALT.value",
+      "values": [
+        "state_machine"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/risk_classifier.py::RiskTier.from_score::b949753d39dd": {
+      "module": "driftcore/verification/risk_classifier.py",
+      "function": "RiskTier.from_score",
+      "expr": "score < 0.30",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/risk_classifier.py::RiskTier.from_score::6d462f028549": {
+      "module": "driftcore/verification/risk_classifier.py",
+      "function": "RiskTier.from_score",
+      "expr": "score < 0.65",
+      "values": [
+        "score"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/second_reader.py::ReadSession.commit_human_read::bf7e08d5e570": {
+      "module": "driftcore/verification/second_reader.py",
+      "function": "ReadSession.commit_human_read",
+      "expr": "elapsed_seconds < self._policy.min_seconds_per_read",
+      "values": [
+        "_policy",
+        "elapsed_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/second_reader.py::ReadSession.second_read::bf7e08d5e570": {
+      "module": "driftcore/verification/second_reader.py",
+      "function": "ReadSession.second_read",
+      "expr": "elapsed_seconds < self._policy.min_seconds_per_read",
+      "values": [
+        "_policy",
+        "elapsed_seconds"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/second_reader.py::SecondReaderGate.open_session::f14f88d7ce2f": {
+      "module": "driftcore/verification/second_reader.py",
+      "function": "SecondReaderGate.open_session",
+      "expr": "self._opened >= self._policy.max_reads_per_window",
+      "values": [
+        "_policy"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/signed_permission.py::PermissionVerifier.verify::2966e2b25cf4": {
+      "module": "driftcore/verification/signed_permission.py",
+      "function": "PermissionVerifier.verify",
+      "expr": "now >= grant.expires_at",
+      "values": [
+        "grant"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/signed_permission.py::PermissionVerifier.verify::c18f1f98ec9f": {
+      "module": "driftcore/verification/signed_permission.py",
+      "function": "PermissionVerifier.verify",
+      "expr": "now < grant.issued_at - 1",
+      "values": [
+        "grant"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/signed_permission.py::PermissionVerifier.verify::112c0429ce91": {
+      "module": "driftcore/verification/signed_permission.py",
+      "function": "PermissionVerifier.verify",
+      "expr": "grant.issued_at > now + 300",
+      "values": [
+        "grant"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/spec_citation.py::SpecCitationVerifier._insufficient::c2c60fd10231": {
+      "module": "driftcore/verification/spec_citation.py",
+      "function": "SpecCitationVerifier._insufficient",
+      "expr": "qw >= self._min_words",
+      "values": [
+        "_min_words"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    },
+    "driftcore/verification/spec_citation.py::SpecCitationVerifier._insufficient::bc7f271581bb": {
+      "module": "driftcore/verification/spec_citation.py",
+      "function": "SpecCitationVerifier._insufficient",
+      "expr": "coverage >= self._min_coverage",
+      "values": [
+        "_min_coverage"
+      ],
+      "status": "UNJUDGED",
+      "reviewer": null
+    }
+  },
+  "resolved": {}
+}

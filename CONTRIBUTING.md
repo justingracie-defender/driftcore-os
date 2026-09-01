@@ -44,8 +44,13 @@ Every safety guarantee must have a test that verifies it works
 AND a test that verifies it catches failure. The success case
 is not enough. The failure case is where safety is proven.
 
-Current: 343 tests across 9 modules. Every contribution should
-maintain or increase this number.
+Current: 4,619 tests across 121 test files.
+
+Do not quote that number from this file — it goes stale, and it has been stale here
+before. Run `bash scripts/count_tests.sh`, which is the single source of truth: it
+executes every `test_*.py`, reads each file's summary line, and treats a crash, a
+hang, or a missing summary as a failure rather than as zero. Every contribution
+should maintain or increase the count it prints.
 
 ## Updating Documents
 

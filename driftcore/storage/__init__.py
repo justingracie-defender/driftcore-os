@@ -5,11 +5,25 @@ Encrypted, tamper-evident SQLite backend for DriftCore OS.
 
 Solves two separate problems:
 
-  CONFIDENTIALITY — nobody can read the content
+  CONFIDENTIALITY — content is not stored in the clear
     Every Tier 1 memory item is encrypted before touching disk.
-    AES-256 via Fernet. Key derived from admin passphrase using
-    PBKDF2. Key lives in memory only — never written to disk.
-    When system shuts down, key is gone. Admin unlocks on restart.
+    Key derived from the admin passphrase with PBKDF2-HMAC-SHA256 at
+    100,000 iterations. Key lives in memory only — never written to
+    disk. When the system shuts down the key is gone; admin unlocks
+    on restart.
+
+    THE CIPHER IS NOT AES. This module said "AES-256 via Fernet" and
+    "AES-256-CTR" for its whole history and neither was ever true —
+    `cryptography` is not even a dependency. What it actually does is
+    XOR the plaintext against a keystream of HMAC-SHA256 blocks in
+    counter mode (see `_keystream_xor`). That construction shape is
+    conventional, but this implementation is hand-rolled and has had
+    no cryptographic review, so treat its strength as UNKNOWN rather
+    than as the strength of the algorithm it used to name. Replacing
+    it with a reviewed AEAD is an open task; the claim was corrected
+    on 2026-09-01 ahead of that work, because a false claim about a
+    security property is a distinct defect from a weak one and it
+    should not wait for the fix.
 
   INTEGRITY — nobody can silently change the content
     Every record carries an HMAC signature (from enforcement layer).
@@ -55,9 +69,11 @@ _KEY_VERIFIED    = False
 
 def derive_key(passphrase: str, salt: Optional[bytes] = None) -> tuple:
     """
-    Derive an AES-256 encryption key from a passphrase.
-    Uses PBKDF2-HMAC-SHA256 with 100,000 iterations.
-    Returns (key, salt).
+    Derive a 256-bit key from a passphrase.
+    PBKDF2-HMAC-SHA256, 100,000 iterations. Returns (key, salt).
+
+    This part of the docstring was always accurate. It is the CIPHER
+    the key feeds, not the derivation, that was misdescribed.
     """
     import hashlib
     if salt is None:
@@ -103,18 +119,25 @@ def is_encryption_ready() -> bool:
 
 def _encrypt(plaintext: str) -> str:
     """
-    Encrypt a string using AES-256-CTR.
+    Encrypt a string with the keystream cipher in `_keystream_xor`.
     Returns base64-encoded: nonce (16 bytes) + ciphertext.
 
-    Pure Python — no external crypto libraries required.
+    NOT AES. Pure Python, no external crypto libraries — which is the
+    reason the construction is hand-rolled, and the reason its strength
+    is unreviewed. The 16-byte nonce is fresh per call: reusing one
+    under the same key would repeat the keystream and is the failure
+    this cipher is least forgiving of.
+
+    No authentication here. Integrity comes from the separate HMAC
+    signature applied AFTER encryption, and verified BEFORE decryption
+    on read — encrypt-then-MAC, which is the correct order. That part
+    of the design is sound; it is the cipher underneath that is
+    unreviewed.
     """
     key   = get_encryption_key()
     nonce = os.urandom(16)
 
-    # AES-CTR using Python's built-in via manual keystream
-    # For portability we use XOR with PBKDF2-derived keystream
-    # Production upgrade: use cryptography.fernet or pycryptodome
-    ciphertext = _aes_ctr(key, nonce, plaintext.encode())
+    ciphertext = _keystream_xor(key, nonce, plaintext.encode())
 
     combined = nonce + ciphertext
     return base64.b64encode(combined).decode()
@@ -127,18 +150,36 @@ def _decrypt(encrypted: str) -> str:
     nonce    = combined[:16]
     ciphertext = combined[16:]
 
-    plaintext = _aes_ctr(key, nonce, ciphertext)
+    plaintext = _keystream_xor(key, nonce, ciphertext)
     return plaintext.decode()
 
 
-def _aes_ctr(key: bytes, nonce: bytes, data: bytes) -> bytes:
-    """
-    AES-CTR mode encryption/decryption using pure Python.
-    Generates a keystream by hashing key+nonce+counter blocks.
+def _keystream_xor(key: bytes, nonce: bytes, data: bytes) -> bytes:
+    """XOR `data` against an HMAC-SHA256 keystream in counter mode.
 
-    Note: This is a portable implementation for universal deployment.
-    For production systems with available dependencies, upgrade to
-    cryptography.fernet or pycryptodome for battle-tested AES.
+    (renamed 2026-09-01 from `_aes_ctr`, which named an algorithm this
+    function has never implemented. A function name is the most durable
+    form of a claim: it survives every docstring rewrite and is what a
+    reader greps for.)
+
+    Each 32-byte block of keystream is
+    `PBKDF2-HMAC-SHA256(key, nonce || counter, iterations=1)`. At one
+    iteration PBKDF2 collapses to a single keyed HMAC, so this is a PRF
+    run in counter mode — a conventional way to build a stream cipher,
+    and NOT a slow key derivation despite reusing the PBKDF2 call. The
+    100,000-iteration stretching happens once, in `derive_key`; that is
+    the right place for it and it is not weakened by this.
+
+    UNREVIEWED. Symmetric by construction (XOR), so the same function
+    encrypts and decrypts. It provides no integrity of its own and no
+    nonce-misuse resistance: encrypting twice under one key and nonce
+    exposes the XOR of both plaintexts. Callers must supply a fresh
+    nonce, and `_encrypt` does.
+
+    Open task: replace with a reviewed AEAD once the required properties
+    are stated — at minimum confidentiality, ciphertext integrity, and
+    a documented position on replay. Do not close that task by having
+    corrected this docstring.
     """
     result    = bytearray()
     block_num = 0

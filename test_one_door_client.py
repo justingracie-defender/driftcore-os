@@ -24,7 +24,7 @@ from driftcore.kernel.request_schema import (
 # return, a swallowed exception, a conditional skip) reports "3/3 passed" and the
 # gate sees nothing wrong. The total just gets quietly smaller, and nobody
 # notices a smaller number. A declared expected count makes a shortfall visible.
-EXPECTED_CHECKS = 68
+EXPECTED_CHECKS = 74
 
 passed = 0
 def ok(c, label):
@@ -526,5 +526,70 @@ for _label, (_p, _body) in _probes.items():
         if _d != "driftcore" and _os.path.isdir(_d) and not _os.listdir(_d):
             _os.rmdir(_d)
 ok(not audit_bypasses("driftcore"), "C2: tree is clean again after the probes")
+
+
+# ── the pinned path must actually WORK end to end (red-team, ChatGPT) ──────────
+# The transport read `pinned.ip` / `pinned.address`, but resolve_and_pin returns a
+# PinnedDestination whose verified addresses live in `.ips` (and __slots__ means the
+# singular names do not exist). So the real GuardedEgress -> PinnedDestination ->
+# PinnedHTTPTransport chain raised TransportContractViolation every time: fail-closed,
+# never a bypass, but the pinned path was UNUSABLE as shipped. The risk was that
+# someone would "fix" it operationally by routing around the transport. These tests
+# exercise the real objects across the whole chain so the integration cannot rot again.
+import socket as _sock
+from driftcore.kernel.egress_guard import PinnedDestination, resolve_and_pin
+from driftcore.kernel.one_door_client import (
+    PinnedHTTPTransport, TransportContractViolation)
+
+_t = PinnedHTTPTransport()
+
+
+def _passes_contract(pinned):
+    """True iff the transport accepted the pinned object and reached the network
+    stage (any non-contract error means the contract check passed)."""
+    try:
+        _t("https://api.example.com/v1", pinned)
+        return True
+    except TransportContractViolation:
+        return False
+    except Exception:
+        return True
+
+
+_pd = PinnedDestination("https", "api.example.com", 443, ["93.184.216.34"])
+ok(_passes_contract(_pd),
+   "PIN1: a real PinnedDestination (.ips) is accepted by the transport")
+
+_fake = lambda h, p: [(_sock.AF_INET, _sock.SOCK_STREAM, 6, "", ("93.184.216.34", p))]
+_e2e = resolve_and_pin(("https", "api.example.com", 443), resolver=_fake)
+ok(_e2e.ips == ("93.184.216.34",),
+   "PIN2: resolve_and_pin extracts addresses from getaddrinfo answers")
+ok(_passes_contract(_e2e),
+   "PIN3: end-to-end resolve_and_pin -> transport passes the contract check")
+
+
+class _NoAddr:
+    pass
+
+
+ok(not _passes_contract(_NoAddr()),
+   "PIN4: an object with no address at all is still REFUSED (fail-closed)")
+
+
+class _EmptyIps:
+    ips = ()
+
+
+ok(not _passes_contract(_EmptyIps()),
+   "PIN5: an empty .ips tuple is still REFUSED (fail-closed)")
+
+
+class _Legacy:
+    ip = "93.184.216.34"
+
+
+ok(_passes_contract(_Legacy()),
+   "PIN6: the singular .ip shape is still accepted (backward compatible)")
+
 
 print(f"\n{passed}/{EXPECTED_CHECKS} checks passed")

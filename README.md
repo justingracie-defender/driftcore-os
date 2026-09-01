@@ -75,7 +75,7 @@ It enforces safety guarantees that cannot be bypassed by instruction.
 | Audit trail altered | Hash-chained log — tamper = full shutdown |
 | External attack on memory | Observation gate screens every input |
 | AI drifts toward sycophancy | Two-lane drift detector, continuous monitoring |
-| Private data exposed | AES-256 encryption, key never written to disk |
+| Private data exposed | Encryption at rest (unreviewed keystream cipher — see `driftcore/storage`), key never written to disk |
 | AI self-modifies behaviour | Human-only mode switching, agents cannot override |
 | Wrong confidence level | H-neuron consistency probing per model |
 | One size fits all | Deployment profiles for each context |
@@ -104,6 +104,17 @@ driftcore/
 **Test count: run `bash scripts/count_tests.sh`. That runner is the only source of
 truth — this file deliberately does not carry a number, because a number printed
 next to the command becomes a second source of truth and the second one goes stale.**
+
+*What the runner verifies, and what it does not.* It captures each file's exit status
+separately from its output, so a file that prints a summary and then crashes is
+reported as CRASHED and counted as failing; a file whose summary it cannot parse is
+counted as failing rather than passing (fail-closed). What it does **not** verify is
+that a file's claimed count corresponds to real assertions — that number is
+self-reported by each test file, which is the same confession-based pattern this
+project treats as an anti-pattern elsewhere. Spot-checks match (claimed counts equal
+actual pass lines), but nothing structurally enforces it. The aggregate is a progress
+metric; the safety claims are the individual assertions, and those do run and do fail
+closed.
 
 ---
 
