@@ -156,23 +156,34 @@ class BreachResponse:
                  near_miss_escalation_threshold: int = 3,
                  severity_escalation_score: int = 6,
                  human_ack_verifier: Optional[Callable[[object], bool]] = None,
-                 alert_hook: Optional[Callable[[BreachRecord], None]] = None):
+                 alert_hook: Optional[Callable[[BreachRecord], None]] = None,
+                 kernel_halt_source: Optional[Callable[[], bool]] = None):
         self._ledger = ledger or _AppendOnlyLedger()
         self._posture = Posture.NORMAL
         self._holding_for_human = False
         self._breaches: List[BreachRecord] = []
         self._near_miss_count = 0
-        # Repeated near-misses ratchet the posture tighter (careful person slows down
-        # after a close call).
         self._near_miss_threshold = near_miss_escalation_threshold
-        # Accumulating severity: many SOFT/near-miss breaches that COMPOSE into harm
-        # should escalate even if no single one is HARD (red-team). Default 6 ≈ three
-        # SOFT breaches (2 each) or six near-misses.
         self._severity_escalation_score = severity_escalation_score
         self._severity_score = 0
-        # A human acknowledgement must be VERIFIED (e.g. a signed grant) — the system
-        # cannot fake its own clearance. If no verifier is supplied, acknowledgement is
-        # refused (fail-closed: better stuck-safe than self-cleared).
+        # (C6 fix, 2026-08-31) Wires is_operational() to the kernel's halt signal.
+        # Without this, emergency_halt() sets kernel.locked but is_operational()
+        # reads only _posture (a breach-layer concept), so any consumer of
+        # is_operational() — monitoring, dashboards, the posture_source slot of an
+        # ungated broker — saw True while Poppy was physically halted.
+        #
+        # A callable returning True while the kernel is halted (e.g.
+        # `lambda: kernel.locked`). When supplied, is_operational() returns False
+        # whenever the kernel is halted, regardless of breach posture. The lifecycle
+        # is correct: the kernel gate must be released independently by an
+        # authenticated human — this source is read-only from this layer.
+        #
+        # DEFAULT None = kernel halt NOT reflected in is_operational(). That is the
+        # pre-fix behaviour and is never a neutral default for a deployment with
+        # physical actuators. It defaults off so existing callers do not silently
+        # change behaviour. Expose via status()["kernel_halt_wired"] so the gap is
+        # visible and assertable in deployment checks.
+        self._kernel_halt_source = kernel_halt_source
         self._human_ack_verifier = human_ack_verifier
         self._alert = alert_hook or (lambda rec: None)
         self._lock = threading.RLock()   # concurrent breaches must not race (Q5)
@@ -274,12 +285,37 @@ class BreachResponse:
         thousand 'non-consequential' actions can compose into harm). Only HEIGHTENED
         stays fully operational (flagged). The `consequential` parameter is retained so
         a caller CAN still ask, but a halted/restricted system is not operational for
-        anything."""
+        anything.
+
+        (C6 fix) Also reflects the kernel halt state when kernel_halt_source is wired.
+        A kernel emergency_halt() sets kernel.locked but does not write to _posture
+        (different layer, different lifecycle). Without this check, is_operational()
+        returned True while Poppy was physically halted — any consumer of this method
+        (monitoring, the posture_source slot of the broker) got the wrong answer.
+
+        Failure mode if kernel_halt_source raises or returns a non-bool: treated as
+        halted (fail-closed). The kernel state is unknown; unknown is not safe.
+        """
+        # Check kernel halt first: a physical stop overrides posture regardless of
+        # whether the breach layer has caught up. Fail-closed on source errors.
+        if self._kernel_halt_source is not None:
+            try:
+                kernel_halted = self._kernel_halt_source()
+                if kernel_halted is True:
+                    return False
+                if kernel_halted is not False:
+                    # Non-bool return: wiring error, same fail-closed treatment as the
+                    # broker's posture gate (Posture.HALT == 3 is truthy; bool() would
+                    # invert the signal on a wiring mistake).
+                    return False
+            except Exception:
+                return False   # source unavailable = treat as halted
+
         if self._posture >= Posture.RESTRICTED:
-            return False            # RESTRICTED and HALT: no actions at all
+            return False
         if self._holding_for_human:
-            return False            # holding for a human: hold means hold
-        return True                 # NORMAL or HEIGHTENED: operational
+            return False
+        return True
 
     # ── clearing requires a HUMAN; the system cannot clear itself ──
     def acknowledge(self, human_credential: object) -> bool:
@@ -312,6 +348,22 @@ class BreachResponse:
     @property
     def posture(self) -> Posture:
         return self._posture
+
+    @property
+    def kernel_halt_wired(self) -> bool:
+        """True when a kernel_halt_source is installed.
+
+        Deployment checks should assert this. An unwired BreachResponse does not
+        reflect kernel emergency halts in is_operational() — any consumer (monitoring,
+        broker posture_source) gets the wrong answer after an e-stop. This property
+        makes the gap assertable rather than silent. Same pattern as
+        ActuationBroker.is_breach_gated().
+
+        assert breach.kernel_halt_wired, (
+            "BreachResponse has no kernel halt source: is_operational() will return "
+            "True even when the kernel is physically halted.")
+        """
+        return self._kernel_halt_source is not None
     @property
     def holding_for_human(self) -> bool:
         return self._holding_for_human

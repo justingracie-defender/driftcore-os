@@ -781,8 +781,8 @@ def setup_review(
 
     Example:
         config = setup_review(
-            admin_email   = "justin@gmail.com",
-            smtp_user     = "driftcore.alerts@gmail.com",
+            admin_email   = "admin@example.invalid",
+            smtp_user     = "alerts@example.invalid",
             smtp_password = "your_app_password",
             phone_number  = "6135551234",
             carrier_gateway = "txt.bell.ca",

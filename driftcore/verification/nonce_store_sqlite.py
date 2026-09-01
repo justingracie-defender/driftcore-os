@@ -116,20 +116,7 @@ class SqliteNonceStore:
             self._db = sqlite3.connect(self.path, timeout=busy_timeout_ms / 1000.0,
                                        isolation_level=None, check_same_thread=False)
             self._db.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)}")
-            # WAL mode changes the database header and therefore briefly needs an
-            # exclusive lock. Multiple processes can legitimately initialize the
-            # same store at once; SQLite may report BUSY here before the connection
-            # timeout is honored for this PRAGMA. Retry only the lock condition, then
-            # retain the fail-closed error path for every other database failure.
-            wal_attempts = 8
-            for wal_attempt in range(wal_attempts):
-                try:
-                    self._db.execute("PRAGMA journal_mode=WAL")
-                    break
-                except sqlite3.OperationalError as wal_error:
-                    if "locked" not in str(wal_error).lower() or wal_attempt == wal_attempts - 1:
-                        raise
-                    time.sleep(0.05 * (wal_attempt + 1))
+            self._db.execute("PRAGMA journal_mode=WAL")     # concurrent readers+writer
             self._db.execute("PRAGMA synchronous=FULL")     # durability over speed
             self._db.execute(
                 "CREATE TABLE IF NOT EXISTS nonces ("

@@ -68,20 +68,75 @@ Production code (replace stubs in hardware_safety.py):
     GPIO.add_event_detect(SMOKE_PIN, GPIO.RISING, callback=lambda ch: hub.receive("gpio:17", 1.0))
     GPIO.add_event_detect(WATER_PIN, GPIO.RISING, callback=lambda ch: hub.receive("gpio:18", 1.0))
 
-    # Wire DriftCore shutdown to real relays
+    # Wire DriftCore shutdown to real relays.
+    #
+    # READ THIS BEFORE COPYING: the controller treats a relay callback that RETURNS
+    # as a CONFIRMED stop, and sets power_cut/isolated on that basis. GPIO.output()
+    # returns successfully even when the relay is welded shut, the coil is open, or
+    # the wire fell off. A callback that only writes the pin therefore reports a stop
+    # that may not have happened — the exact failure the confirmation exists to catch.
+    #
+    # So: drive the pin, then READ BACK a feedback contact and RAISE if it disagrees.
+    # Safety relays (and contactors) provide a mirrored auxiliary contact for exactly
+    # this. A callback that raises is recorded as an UNCONFIRMED STOP and the operator
+    # is told to treat the machine as live.
+    POWER_FB_PIN = 23   # aux contact: reads LOW when the main contact has OPENED
+    HALT_FB_PIN  = 24
+    GPIO.setup(POWER_FB_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(HALT_FB_PIN,  GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+    import time as _time
+
+    def _drive_and_confirm(drive_pin, feedback_pin, what):
+        GPIO.output(drive_pin, GPIO.LOW)        # open the relay
+        _time.sleep(0.05)                       # contact settling time
+        if GPIO.input(feedback_pin) != GPIO.LOW:
+            # The relay did not physically move. Raising is REQUIRED: it is what
+            # turns "we commanded a stop" into "the stop was not confirmed".
+            raise RuntimeError(
+                f"{what}: relay did not open — feedback contact still reads closed. "
+                f"Treat the machine as LIVE.")
+
     def real_power_cut():
-        GPIO.output(POWER_PIN, GPIO.LOW)   # Open relay — cuts main power
+        _drive_and_confirm(POWER_PIN, POWER_FB_PIN, "POWER_CUT")
 
     def real_hard_halt():
-        GPIO.output(HALT_PIN, GPIO.LOW)    # Open relay — disables actuators
+        _drive_and_confirm(HALT_PIN, HALT_FB_PIN, "HARD_HALT")
 
     controller.register_relay(ResponseLevel.POWER_CUT, real_power_cut)
     controller.register_relay(ResponseLevel.HARD_HALT, real_hard_halt)
+
+    # EMERGENCY STOP — wire it NORMALLY CLOSED.
+    #
+    # A normally-closed e-stop holds its line HIGH while everything is healthy, so a
+    # pressed button, a cut wire, a pulled connector or a dead supply all read LOW and
+    # trip. Wired normally-open instead, a severed e-stop line reads exactly like an
+    # unpressed button: NORMAL. The wiring must be declared, because the software
+    # cannot see how the bench is built and refuses to guess for this one sensor.
+    ESTOP_PIN = 19
+    GPIO.setup(ESTOP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    hub.register_sensor("gpio:19", SensorType.EMERGENCY_STOP, InterfaceType.GPIO,
+                        threshold=1.0, location="front_panel",
+                        normally_closed=True)      # REQUIRED for EMERGENCY_STOP
+    GPIO.add_event_detect(ESTOP_PIN, GPIO.BOTH,
+                          callback=lambda ch: hub.receive("gpio:19",
+                                                          float(GPIO.input(ESTOP_PIN))))
+
+    # Lock the configuration once every sensor is registered, so nothing at runtime
+    # can raise a threshold or replace a live sensor.
+    hub.lock_configuration()
 
 Test procedure:
   1. Run: python main.py
   2. Trigger smoke sensor manually (or short GPIO pin 17 to 3.3V)
   3. Verify: relay clicks, power cuts, Fable narrates the event
+  4. Verify the CONFIRMATION path: disconnect the relay's feedback contact and
+     trigger again. The run must report stop_confirmed=False and print
+     "UNCONFIRMED STOP". If it still reports a clean stop, your callback is not
+     reading back and the system will believe a failed stop succeeded.
+  5. Verify the E-STOP FAIL-SAFE: with the machine running, CUT or unplug the
+     e-stop line (do not just press the button). It must trip. A normally-open
+     e-stop will not, which is why this guide wires it normally-closed.
   4. Check audit log shows the event with timestamp
   5. Verify system cannot restart without human release command
 """

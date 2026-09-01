@@ -195,14 +195,36 @@ class HumanIdentityVerifier:
 _lock = threading.RLock()
 _verifier: Optional[HumanIdentityVerifier] = None
 _registered: Set[str] = set()
+# (red-team #3, 2026-09-01) This policy is process-global and PUBLICLY mutable —
+# set_verifier() and register_human_principal() can change what counts as a human
+# while another thread is midway through an authorization that already consulted it.
+# Demonstrated: a SOFT halt release was permitted under LABEL_ONLY, the process moved
+# to REGISTERED before the release committed, and the halt was cleared by a principal
+# that the policy in force at commit time REFUSES — and logged as a verified human
+# release. A caller that must not act on a stale policy snapshots this counter before
+# deciding and compares it before committing. It is a version, not a lock: it does not
+# prevent the change, it makes the change detectable.
+_generation = 0
+
+
+def policy_generation() -> int:
+    """Monotonic version of the process-wide identity policy.
+
+    Advances on EVERY change to what counts as a human. Compare a value taken before
+    an authorization decision against one taken before the resulting mutation: if they
+    differ, the decision was made under rules that no longer hold.
+    """
+    with _lock:
+        return _generation
 
 
 def set_verifier(v: Optional[HumanIdentityVerifier]) -> None:
     """Install an attestation verifier. Once set, `is_human` requires a valid
     attestation and a bare label NEVER suffices."""
-    global _verifier
+    global _verifier, _generation
     with _lock:
         _verifier = v
+        _generation += 1
 
 
 def register_human_principal(principal: str) -> None:
@@ -210,16 +232,19 @@ def register_human_principal(principal: str) -> None:
     out of LABEL_ONLY: from then on, only registered names count as human."""
     if not principal or principal in _NON_HUMAN_LABELS:
         raise ValueError(f"{principal!r} cannot be a human principal")
+    global _generation
     with _lock:
         _registered.add(principal)
+        _generation += 1
 
 
 def reset_policy() -> None:
     """Test hook: clear verifier and registry."""
-    global _verifier
+    global _verifier, _generation
     with _lock:
         _verifier = None
         _registered.clear()
+        _generation += 1
 
 
 def mode() -> str:
@@ -281,18 +306,41 @@ def status() -> dict:
 
 
 def is_human(authorised_by: Optional[object], *, action: Optional[str] = None,
-             now: Optional[float] = None) -> bool:
+             now: Optional[float] = None,
+             attestation_required: bool = False) -> bool:
     """Does `authorised_by` represent a human?
 
     ATTESTED   → must be a valid HumanAttestation for `action` (a bare string is False).
     REGISTERED → must be a registered principal name.
     LABEL_ONLY → legacy denylist (INSECURE — see status()).
 
+    `attestation_required` pins the site to ATTESTED regardless of deployment mode.
+    A call site that clears a SAFETY HOLD must pass it: the deployment mode is set by
+    whoever configured the process, and an unconfigured process is exactly where an
+    e-stop release matters most. Under LABEL_ONLY, `release(authorized_by="poppy")`
+    cleared a halt and logged Poppy as the releasing human (red-team, verified by
+    execution 2026-08-31: the Law Zero item-2 fix removed the default principal but
+    left the type, so every string outside a six-word denylist still passed).
+
+    Takes the literal `True`, not anything truthy — a safety opt-in that accepts `1`
+    or `"yes"` can be switched on by a value that was never meant as consent.
+
     Never raises: callers use this as a boolean gate, and an exception escaping here
     would turn a refusal into a crash at an authorization site.
     """
     with _lock:
         v, reg = _verifier, set(_registered)
+
+    if attestation_required is True:
+        # Fail-closed, mirroring BreachResponse.acknowledge: with no way to verify a
+        # human we do not clear. Better a system stuck safe than one that cleared
+        # itself. Only a verified attestation passes; a label never does.
+        if v is None or not isinstance(authorised_by, HumanAttestation):
+            return False
+    elif attestation_required is not False:
+        # Neither literal True nor literal False: the caller's intent is unknown at a
+        # site that decides authorisation. Refuse rather than guess.
+        return False
 
     if isinstance(authorised_by, HumanAttestation):
         if v is None:

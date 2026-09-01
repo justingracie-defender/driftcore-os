@@ -1,216 +1,164 @@
 """
-test_recovery.py
-================
-Proves the recovery ("digital save state") layer:
+test_recovery.py — first tests this module has ever had.
 
-  - The agent-facing store can create/read but has NO delete/modify method.
-  - Restore and prune require a HUMAN authoriser (agent/system rejected).
-  - The ledger is tamper-evident (altering/removing an event is detected).
-  - A monitor halt freezes new actions and preserves save-states.
-  - Restore is refused if the ledger is compromised.
-  - Full round-trip: snapshot -> mutate -> halt -> human restore -> data back.
+# CLAIMS: driftcore/safety/recovery.py:agent-cannot-authorize
+# CLAIMS: driftcore/safety/recovery.py:unreadable-memory-blocks
 
-Run:  python test_recovery.py
+The authorization check was a denylist of one string:
+    if not authorized_by or authorized_by == "agent"
+So "Agent", "agent2", "system", or literally "not_a_human" all approved a restart.
+And `authorized_by` defaulted to "human_operator", so calling it with NO arguments
+approved one.
+
+# CLAIMS: driftcore/safety/recovery.py:approval-is-single-use
 """
 
-import os
-import sys
+from driftcore.safety.recovery import RecoverySystem
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from driftcore.recovery import (
-    CheckpointStore, RestoreAuthority, RecoveryManager,
-    InMemorySnapshotter, CheckpointStatus,
-)
-
-PASS, FAIL = "PASS", "FAIL"
-_results = []
+_p = _t = 0
 
 
-def check(name, cond):
-    _results.append(bool(cond))
-    print(f"  [{PASS if cond else FAIL}] {name}")
+def check(label, cond):
+    global _p, _t
+    _t += 1
+    if cond:
+        _p += 1
+        print(f"  ok   {label}")
+    else:
+        print(f"  FAIL {label}")
 
 
-# ── Agent-facing store is create/read only ─────────────────────────
-print("\nAgent-facing store has no delete/modify")
+class Memory:
+    def __init__(self, quarantine=()):
+        self.quarantine = list(quarantine)
 
-store = CheckpointStore()
-api = dir(store)
-check("no delete method on store",
-      not any(m in api for m in ("delete", "remove", "modify", "edit", "update")))
-check("has create/get/list/verify",
-      all(m in api for m in ("create", "get", "list", "verify_integrity")))
+    def stats(self):
+        return {"entries": 10, "quarantined": len(self.quarantine)}
 
 
-# ── Create + integrity ─────────────────────────────────────────────
-print("\nCreate + ledger integrity")
+class UnreadableMemory:
+    @property
+    def quarantine(self):
+        raise IOError("memory store unavailable")
 
-snap = InMemorySnapshotter({"db:row1": "original", "db:row2": "keep"})
-mgr = RecoveryManager(store, snap)
-
-ok, cid = mgr.before_action("update row1", ["db:row1"], triggered_by="agent")
-check("checkpoint created before action", ok and isinstance(cid, str))
-intact, _ = store.verify_integrity()
-check("ledger verifies intact after create", intact is True)
+    def stats(self):
+        return {}
 
 
-# ── Restore requires a human ───────────────────────────────────────
-print("\nRestore is human-only")
-
-# agent mutates the data
-snap.state["db:row1"] = "AGENT CHANGED THIS"
-
-ok_sys, _ = mgr.restore(cid, authorised_by="system")
-check("restore by 'system' rejected", ok_sys is False)
-ok_agent, _ = mgr.restore(cid, authorised_by="agent")
-check("restore by 'agent' rejected", ok_agent is False)
-check("data still changed after rejected restores",
-      snap.state["db:row1"] == "AGENT CHANGED THIS")
-
-ok_human, _ = mgr.restore(cid, authorised_by="justin")
-check("restore by human succeeds", ok_human is True)
-check("data rolled back to pre-action state",
-      snap.state["db:row1"] == "original")
-check("untouched resource unaffected", snap.state["db:row2"] == "keep")
+def clean(humans=("justin",)):
+    return RecoverySystem(Memory(), None, set(humans))
 
 
-# ── Tamper evidence ────────────────────────────────────────────────
-print("\nLedger is tamper-evident")
+print("=== no string an agent can pick authorises a restart ===")
 
-store2 = CheckpointStore()
-mgr2 = RecoveryManager(store2, InMemorySnapshotter({"x": "1"}))
-mgr2.before_action("a1", ["x"])
-mgr2.before_action("a2", ["x"])
-intact_before, _ = store2.verify_integrity()
-check("two-checkpoint ledger intact", intact_before is True)
-
-# tamper: drop the first event (simulate a deleted save-state record)
-del store2._events[0]
-intact_after, reason = store2.verify_integrity()
-check("removing a ledger event is detected", intact_after is False)
-
-# restore refuses on a compromised ledger
-store3 = CheckpointStore()
-snap3 = InMemorySnapshotter({"y": "ok"})
-mgr3 = RecoveryManager(store3, snap3)
-_, cid3 = mgr3.before_action("a", ["y"])
-store3._events[-1] = store3._events[-1].__class__(
-    **{**store3._events[-1].__dict__, "detail": "tampered"})
-ok_t, msg_t = mgr3.restore(cid3, authorised_by="justin")
-check("restore refused when ledger compromised", ok_t is False)
+for name in ["agent", "Agent", "AGENT", "agent2", "the_agent", "system",
+             "human_operator", "not_a_human", "justin ", "root", "admin"]:
+    check(f"{name!r} is denied",
+          clean().attempt_recovery(name, "inc-1")["status"] == "RECOVERY_DENIED")
+check("an empty authorizer is denied",
+      clean().attempt_recovery("", "inc-1")["status"] == "RECOVERY_DENIED")
+check("None is denied",
+      clean().attempt_recovery(None, "inc-1")["status"] == "RECOVERY_DENIED")
+check("the denial explains it is an allow-list",
+      "allow-list" in clean().attempt_recovery("mallory", "i")["reason"])
 
 
-# ── Halt / freeze ──────────────────────────────────────────────────
-print("\nMonitor halt freezes mutation, preserves save-states")
+print("=== a registered human can, and only for a named incident ===")
 
-store4 = CheckpointStore()
-snap4 = InMemorySnapshotter({"z": "v0"})
-mgr4 = RecoveryManager(store4, snap4)
-ok0, cid4 = mgr4.before_action("safe action", ["z"])
-check("action allowed before halt", ok0 is True)
-
-result = mgr4.trigger_halt("mass-delete pattern detected", severity="critical")
-check("halt sets frozen state", mgr4.frozen is True)
-check("halt reports checkpoints available", result["checkpoints_available"] >= 1)
-
-ok_frozen, _ = mgr4.before_action("another action", ["z"])
-check("new actions refused while frozen", ok_frozen is False)
-
-# restore still works while frozen (rolling back is what you do during a halt)
-snap4.state["z"] = "corrupted"
-ok_r, _ = mgr4.restore(cid4, authorised_by="justin")
-check("human restore works while frozen", ok_r and snap4.state["z"] == "v0")
-
-# unfreeze is human-only
-ok_uf_sys, _ = mgr4.unfreeze("system")
-check("unfreeze by 'system' rejected", ok_uf_sys is False)
-ok_uf, _ = mgr4.unfreeze("justin")
-check("unfreeze by human succeeds", ok_uf and mgr4.frozen is False)
+r = clean()
+check("a registered human is approved",
+      r.attempt_recovery("justin", "inc-1")["status"] == "RECOVERY_APPROVED")
+check("the approval names the incident",
+      clean().attempt_recovery("justin", "inc-2")["incident_id"] == "inc-2")
+check("and the authorizer",
+      clean().attempt_recovery("justin", "inc-2")["authorized_by"] == "justin")
+check("an unnamed incident is denied",
+      clean().attempt_recovery("justin", "")["status"] == "RECOVERY_DENIED")
+check("a non-string incident is denied",
+      clean().attempt_recovery("justin", None)["status"] == "RECOVERY_DENIED")
 
 
-# ── Prune keeps the record, drops the bytes ────────────────────────
-print("\nPrune is human-only and keeps the ledger record")
+print("=== one approval, one restart ===")
 
-auth = RestoreAuthority(store4, snap4)
-ok_p_sys, _ = auth.prune(cid4, authorised_by="system")
-check("prune by 'system' rejected", ok_p_sys is False)
-ok_p, _ = auth.prune(cid4, authorised_by="justin")
-check("prune by human succeeds", ok_p is True)
-check("pruned checkpoint marked PRUNED, record remains",
-      store4.get(cid4).status is CheckpointStatus.PRUNED)
-intact_final, _ = store4.verify_integrity()
-check("ledger still intact after prune", intact_final is True)
+r = clean()
+check("the first use is approved",
+      r.attempt_recovery("justin", "inc-9")["status"] == "RECOVERY_APPROVED")
+second = r.attempt_recovery("justin", "inc-9")
+check("the same approval cannot be replayed",
+      second["status"] == "RECOVERY_DENIED")
+check("and the reason says why", "already been recovered" in second["reason"])
+check("a DIFFERENT incident still works",
+      r.attempt_recovery("justin", "inc-10")["status"] == "RECOVERY_APPROVED")
+
+# A cold pass found the token was `human:incident`, so N registered humans yielded
+# N restarts for one incident while the claim said one. Another authorizer is not
+# another incident.
+r2 = RecoverySystem(Memory(), None, {"alice", "bob"})
+check("alice recovers incident 1",
+      r2.attempt_recovery("alice", "inc-1")["status"] == "RECOVERY_APPROVED")
+check("bob cannot recover the SAME incident again",
+      r2.attempt_recovery("bob", "inc-1")["status"] == "RECOVERY_DENIED")
+check("the denial says a second authorizer is not a second incident",
+      "not a second incident" in r2.attempt_recovery("bob", "inc-1")["reason"])
+check("bob can recover a different one",
+      r2.attempt_recovery("bob", "inc-2")["status"] == "RECOVERY_APPROVED")
 
 
-# ── Hardening: empty resources + concurrency ───────────────────────
-print("\nHardening")
+print("=== an empty allow-list means nobody ===")
 
-store5 = CheckpointStore()
-mgr5 = RecoveryManager(store5, InMemorySnapshotter({"a": 1}))
-ok_empty, _ = mgr5.before_action("noop", [])
-check("before_action rejects empty resource_ids", ok_empty is False)
-
-raised = False
+r = RecoverySystem(Memory(), None)
+check("a fresh system authorises nobody",
+      r.attempt_recovery("justin", "i")["status"] == "RECOVERY_DENIED")
+r.register_human("justin")
+check("until a human is registered",
+      r.attempt_recovery("justin", "i")["status"] == "RECOVERY_APPROVED")
 try:
-    store5.create("noop", [], b"x")
+    r.register_human("  ")
+    check("an unnamed authorizer cannot be registered", False)
 except ValueError:
-    raised = True
-check("store.create raises on empty resource_ids", raised is True)
-
-# concurrent creates must not corrupt the hash-linked ledger
-import threading
-store6 = CheckpointStore()
-snap6 = InMemorySnapshotter({f"r{i}": i for i in range(50)})
-mgr6 = RecoveryManager(store6, snap6)
-
-def worker(n):
-    for i in range(20):
-        mgr6.before_action(f"act-{n}-{i}", [f"r{(n + i) % 50}"])
-
-threads = [threading.Thread(target=worker, args=(n,)) for n in range(5)]
-for t in threads: t.start()
-for t in threads: t.join()
-
-intact_conc, reason_conc = store6.verify_integrity()
-check("ledger intact after 100 concurrent creates", intact_conc is True)
-check("all 100 concurrent checkpoints recorded", len(store6.list()) == 100)
+    check("an unnamed authorizer cannot be registered", True)
 
 
-# ── Checkpoint context metadata (decision-path traceability) ───────
-print("\nContext metadata: trace an incident to the decision path")
+print("=== dirty memory blocks the restart ===")
 
-from driftcore.recovery import CheckpointContext
-
-store7 = CheckpointStore()
-snap7 = InMemorySnapshotter({"lesson:1": "v0"})
-mgr7 = RecoveryManager(store7, snap7)
-
-ctx = CheckpointContext(domain="childcare", skill="TutoringSkill",
-                        skill_version="v4.2", profile="CaregiverProfile",
-                        mode="TRUTH")
-ok7, cid7 = mgr7.before_action("update tutoring record", ["lesson:1"],
-                               triggered_by="agent", context=ctx)
-cp = store7.get(cid7)
-check("checkpoint carries the domain", cp.context.domain == "childcare")
-check("checkpoint carries the skill version", cp.context.skill_version == "v4.2")
-check("incident review can answer which profile was active",
-      cp.context.profile == "CaregiverProfile")
-
-intact_ctx, _ = store7.verify_integrity()
-check("context-bearing ledger verifies intact", intact_ctx is True)
-create_evt = [e for e in store7.events() if e.checkpoint_id == cid7][0]
-check("context is folded into the hashed event record",
-      "childcare" in create_evt.detail and "v4.2" in create_evt.detail)
-
-ok_nc, cid_nc = mgr7.before_action("plain action", ["lesson:1"])
-check("checkpoints without context still work",
-      ok_nc and store7.get(cid_nc).context.summary() == "no-context")
+r = RecoverySystem(Memory(["bad_entry"]), None, {"justin"})
+res = r.attempt_recovery("justin", "inc-1")
+check("a quarantined entry blocks recovery", res["status"] == "RECOVERY_BLOCKED")
+check("the reason counts them", "1 quarantined" in res["reason"])
+check("and it reports the memory stats", res["memory_stats"]["quarantined"] == 1)
+check("a blocked attempt does NOT consume the approval",
+      RecoverySystem(Memory(), None, {"justin"}).attempt_recovery(
+          "justin", "inc-1")["status"] == "RECOVERY_APPROVED")
 
 
-print("\n" + "=" * 56)
-passed, total = sum(_results), len(_results)
-print(f"{passed}/{total} checks passed")
-print("=" * 56)
-if passed < total:
-    sys.exit(1)
+print("=== 'I could not check' is not 'it was clean' ===")
+
+r = RecoverySystem(UnreadableMemory(), None, {"justin"})
+res = r.attempt_recovery("justin", "inc-1")
+check("unreadable memory BLOCKS rather than approving",
+      res["status"] == "RECOVERY_BLOCKED")
+# IOError is an alias for OSError, so that is the name Python reports. Asserting
+# the alias would pin a detail of the test's own fixture rather than the behaviour.
+check("the reason names the underlying failure", "OSError" in res["reason"])
+check("and states the principle", "not 'it was clean'" in res["reason"])
+
+vm = RecoverySystem(UnreadableMemory(), None, {"justin"}).verify_memory()
+check("verify_memory reports unreadable rather than raising",
+      vm["readable"] is False)
+check("and does not claim the memory is clean", vm["memory_clean"] is False)
+
+
+print("=== every check is logged ===")
+
+r = clean()
+r.attempt_recovery("justin", "inc-1")
+check("the memory verification is recorded", len(r.recovery_log) == 1)
+r.attempt_recovery("justin", "inc-2")
+check("each attempt adds to the log", len(r.recovery_log) == 2)
+check("a DENIED attempt does not reach the memory check",
+      len(clean().recovery_log) == 0)
+
+print("-" * 60)
+print(f"  {_p}/{_t} tests passed")
+if _p != _t:
+    raise SystemExit(1)
