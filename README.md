@@ -184,3 +184,7 @@ Safety Copyleft — see [LICENSE](LICENSE).
 
 If you build on this, keep it open. Keep it safe.
 
+
+## DriftCore LawZero Brief video
+
+[Watch or download DriftCore_LawZero_Brief_v4.mp4](https://github.com/justingracie-defender/driftcore-os/releases/download/v4.1.1/DriftCore_LawZero_Brief_v4.mp4)
