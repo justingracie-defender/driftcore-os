@@ -26,6 +26,15 @@ question becomes choosing the shape of the answer.
 Run: python3 test_clarification_channel.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 import dataclasses
 import threading
 import time
@@ -80,6 +89,7 @@ def _reason(fn):
 
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("justin")
 
 LEADING = "Should I prioritise speed here?"
@@ -252,6 +262,7 @@ check("the log records the mode the attribution was made under",
       any("mode=REGISTERED" in e["detail"] for e in cc.log()))
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 check("with nothing configured the mode is the insecure one",
       hi.mode() == "LABEL_ONLY")
 _weak = ClarificationChannel(max_questions=3)
@@ -278,6 +289,7 @@ check("the check can be turned off deliberately, and status() shows that too",
       _off.status()["require_verified_attribution"] is False)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("justin")
 
 
@@ -683,6 +695,7 @@ check("and why ClarificationError subclasses PermissionError on purpose",
 print("=== a promotion carries the source's security state ===")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _wk = ClarificationChannel(max_questions=2)
 _wke = _wk.ask("Is a child present?", "No.", answered_by="justin")
 _wkp = _wk.promote(_wke, restatement="Move at ordinary pace in an empty room.",
@@ -692,6 +705,7 @@ check("a LABEL_ONLY source is marked unverified on the promotion",
 check("and the identity mode it was made under is carried",
       _wkp.source_identity_mode == "LABEL_ONLY")
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("justin")
 _sk = ClarificationChannel(max_questions=2)
 _ske = _sk.ask("Is a child present?", "No.", answered_by="justin")
@@ -817,6 +831,7 @@ check("and that unpromptedness was never a check",
                  fromlist=["x"]).__doc__)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 print("-" * 60)
 assert isinstance(_p, int) and isinstance(_t, int)

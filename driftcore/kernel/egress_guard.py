@@ -425,11 +425,29 @@ class GuardedEgress:
     """
 
     def __init__(self, guard: EgressGuard, transport, *, max_hops: int = 3,
-                 resolver=None):
+                 resolver=None, shape_guard=None):
         self._guard = guard
         self._transport = transport
         self._max_hops = max(1, int(max_hops))
         self._resolver = resolver
+        # (external red-team, Astra, 2026-09-06) Re-checking a hop meant re-checking
+        # the DESTINATION and nothing else. A permitted read could 302 to an edit
+        # URL on the SAME allowlisted host, and the request SHAPE — path and query
+        # fields — was never revalidated. Reproduced: a PayloadShapeGuard that
+        # refuses `?action=edit` outright let that identical URL reach transport
+        # when it arrived as a Location header.
+        #
+        # The comment two lines below already said the right thing — "a redirect is
+        # a NEW destination, never an inherited trust" — and the code inherited the
+        # shape anyway. Destination was treated as new; shape was treated as
+        # settled at hop 0.
+        #
+        # Optional because GuardedEgress predates PayloadShapeGuard and callers
+        # without one must keep working. A deployment that declares request shapes
+        # and does not pass the guard here gets hop-0 validation only, which is the
+        # arrangement this fixes — so `shape_guard=None` is a real gap, stated,
+        # not a safe default.
+        self._shape_guard = shape_guard
 
     def request(self, url: str, **kw):
         """Perform a request, re-checking every redirect hop. Returns the final
@@ -441,6 +459,11 @@ class GuardedEgress:
             if not decision.permitted:
                 raise EgressRefused(
                     f"hop {hop} refused: {decision.reason}", hops=seen + [current])
+            if self._shape_guard is not None:
+                # Same check hop 0 got. A redirect target is a request this layer
+                # has never seen before, and being reached by Location rather than
+                # by a caller does not make it declared.
+                self._shape_guard.check(current, kw.get("method", "GET"))
             allow_private = bool(self._guard._policy and self._guard._policy.allow_private)
             pinned = resolve_and_pin(normalize_destination(current),
                                      allow_private=allow_private,

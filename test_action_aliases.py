@@ -8,6 +8,15 @@ the guard is intact and the operation is reachable around it.
 Run: python3 test_action_aliases.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 import importlib.util
 import subprocess
 import sys
@@ -47,6 +56,7 @@ def broker(name="B"):
 
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("op")
 
 print("=== one callable behind two names ===")
@@ -293,6 +303,7 @@ check("scripts/action_aliases.py --self-test exits 0", r.returncode == 0)
 check("and states what it cannot see", "dispatcher" in AA.__doc__)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -390,6 +401,7 @@ check("a finding schema violation would be visible: all four keys present",
           for x in _blinded(lambda l, b: b._actuators.__setitem__("arm", None))))
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -462,6 +474,7 @@ check("well-formed findings alongside it still report",
 check("and a genuinely empty list is still a pass", AA.report([], quiet=True) == 0)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 print("-" * 60)
 assert isinstance(_p, int) and isinstance(_t, int)

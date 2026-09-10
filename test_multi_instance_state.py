@@ -33,7 +33,7 @@ path = os.path.join(tmp, "authz.jsonl")
 def agent(store):
     # eight of these would be built from the SAME profile+store in production
     return VerificationCoordinator(
-        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(),
+        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(in_process_only=True),
         objective_baseline=BASE, objective_secret=SECRET, max_cycles=10,
         authorization_state=store, state_owner=OWNER)
 

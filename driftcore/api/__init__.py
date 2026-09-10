@@ -148,6 +148,20 @@ def judge_format(content: Any, context: str = "") -> DataType:
 
 # ── Main API ──────────────────────────────────────────────────────
 
+def _is_human_principal(principal) -> bool:
+    """Identity gate for agent registration. Never raises.
+
+    Same shape and same limits as `safe_halt._is_human`: under LABEL_ONLY this
+    checks a name against a denylist and establishes nothing. A floor, not a
+    proof. A deployment that registers agents should install a verifier.
+    """
+    try:
+        from driftcore.authority.human_identity import is_human
+        return bool(is_human(principal, action="api_register_agent"))
+    except Exception:
+        return False    # no identity module means not verified
+
+
 class DriftCoreAPI:
     """
     Universal memory interface for DriftCore OS.
@@ -179,12 +193,38 @@ class DriftCoreAPI:
     def register_agent(
         self,
         agent: RegisteredAgent,
-        authorised_by: str = "admin",
+        authorised_by: object = None,
     ) -> bool:
+        """CLAIM registration-requires-a-verified-human: `authorised_by` is checked
+        through the identity gate, and a principal that does not pass it registers
+        nothing.
+
+        (external red-team, 2026-09-06) This said "Admin only" and stored the agent
+        immediately, checking nothing. Confirmed: `register_agent(evil,
+        authorised_by="nobody")` returned True. Registration sets `trust_level`,
+        which the observation gate consumed as its `source` — so an unauthenticated
+        call chose its own trust tier.
+
+        Same defect and same fix as `storage.delete_tier1`, which claimed "always
+        requires authorised_by — never silent" while requiring only that a string
+        be supplied. Third module in this repo to confess authorization in a
+        docstring and not perform it.
+
+        `authorised_by` is typed `object`, not `str`: under ATTESTED a bare name is
+        False by design, so a `str` annotation would make this unpassable in the
+        only mode that establishes anything.
         """
-        Register a new agent. Admin only.
-        Returns True if registered successfully.
-        """
+        if not _is_human_principal(authorised_by):
+            self._audit(
+                action="AGENT_REGISTRATION_REFUSED",
+                agent_id=agent.agent_id,
+                detail=f"principal {authorised_by!r} did not pass the identity gate",
+            )
+            raise PermissionError(
+                f"register_agent refused: {authorised_by!r} did not pass the "
+                f"identity gate. Supplying a name is not the same as being one. "
+                f"Registration sets an agent's trust level, so an unauthenticated "
+                f"registration picks its own trust.")
         self._agents[agent.agent_id] = agent
         self._save_agents()
         self._audit(
@@ -325,6 +365,7 @@ class DriftCoreAPI:
                 item = self._memory.observe(
                     text=req.query,
                     source=agent.trust_level,
+                    gate_result=gate_result,   # records that a gate ran
                 )
 
                 self._audit("WRITE", req.agent_id,

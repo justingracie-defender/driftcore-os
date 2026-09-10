@@ -46,9 +46,14 @@ from typing import List, Optional, Tuple
 #
 # The import is LOCAL (deferred) to break the authority <-> skills import cycle —
 # the same idiom coordinator.py uses for interpretation_guard.
-def _is_human(authorised_by) -> bool:
+def _is_human(authorised_by, *, action: str = "authority_resolver") -> bool:
     from driftcore.authority.human_identity import is_human
-    return is_human(authorised_by)
+    # `action` is required. Omitting it let an attestation verify against itself:
+    # the token supplied the action it was checked for, so one issued for any
+    # purpose satisfied a site that did not name its own. All three copies of this
+    # helper changed together — test_human_identity asserts they share one
+    # implementation precisely so a fix cannot land on two of three.
+    return is_human(authorised_by, action=action)
 
 
 
@@ -117,7 +122,7 @@ class AuthorityResolver:
             #    - a non-empty reason is given (audit quality), AND
             #    - every deny is strictly BELOW the human (no HUMAN_ADMIN deny;
             #      CONSTITUTION already handled above and is never reached here).
-            override_ok = bool(human_override and _is_human(human_override[0])
+            override_ok = bool(human_override and _is_human(human_override[0], action="authority_override")
                                and human_override[1] and human_override[1].strip())
             all_below_human = all(d.layer.rank > AuthorityLayer.HUMAN_ADMIN.rank
                                   for d in denies)

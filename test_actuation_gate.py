@@ -4,6 +4,15 @@ THREAT_MODEL_ONE_DOOR.md. The guarantee under test: undeclared consequential
 capability fails closed; declared effects route through the one decider; the
 lexicon escalates a lethal-shaped mismatch to a human hold but never decides.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.kernel.actuation_gate import ActuationGate, Outcome
 from driftcore.kernel.effect_guard import EffectRegistry
 from driftcore.verification.invariant_guard import Effect, ActionContext

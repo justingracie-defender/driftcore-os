@@ -6,6 +6,15 @@ reserved-word blacklist, so `_is_human("mallory")` was True and any caller that 
 own `authorised_by` string self-authorized through skill governance, authority override,
 and recovery/restore.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 import sys
 from driftcore.authority.human_identity import (
     HumanAttestation, HumanIdentityVerifier, is_human, mode, status,
@@ -19,6 +28,7 @@ def ok(cond, label):
     print("  ok:", label)
 
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 # ── the defect, pinned ──
 ok(mode() == "LABEL_ONLY" and status()["secure"] is False,
@@ -42,6 +52,7 @@ ok(is_human("mallory") is False and is_human("planner_agent_7") is False,
 
 # ── ATTESTED: a label alone never suffices ──
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _v = HumanIdentityVerifier()
 _v.register_principal("justin", "operator-key")
 set_verifier(_v)
@@ -106,14 +117,57 @@ ok(True, "is_human() returns False on junk rather than raising at an authorizati
 
 # ── the three former copies now share ONE implementation ──
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 register_human_principal("justin")
 from driftcore.skills.governance import _is_human as g_h
 from driftcore.authority.resolver import _is_human as r_h
 from driftcore.recovery.store import _is_human as s_h
-ok(all(f("mallory") is False for f in (g_h, r_h, s_h))
-   and all(f("justin") is True for f in (g_h, r_h, s_h)),
+ok(all(f("mallory", action="t") is False for f in (g_h, r_h, s_h))
+   and all(f("justin", action="t") is True for f in (g_h, r_h, s_h)),
    "skills.governance, authority.resolver and recovery.store now share ONE implementation "
    "— the fix cannot be applied to two of three again")
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
+
+
+# ── UNCONFIGURED IS NOT PERMISSIVE (2026-09-06) ────────────────────────────
+# `mode()` used to return LABEL_ONLY whenever nothing was configured, and
+# LABEL_ONLY says yes to any name not on a six-word denylist. `agent_7`,
+# `planner` and `mallory` all passed. That default is the floor every other gate
+# in this project stands on — it sat underneath five separate findings — and the
+# sibling module already had it right: EgressGuard with no policy returns
+# BLOCK_UNDECLARED, "unconfigured is not permissive".
+from driftcore.authority.human_identity import (
+    declare_label_only, undeclare_label_only)
+
+reset_policy(); undeclare_label_only()
+ok(mode() == "UNCONFIGURED", "an unconfigured process reports UNCONFIGURED, not LABEL_ONLY")
+for _n in ("agent_7", "planner", "mallory", "operator_jane", "dad"):
+    ok(is_human(_n, action="t") is False,
+       f"UNCONFIGURED refuses {_n!r} — a denylist cannot establish a human")
+
+declare_label_only("test: identity deliberately unverified")
+ok(mode() == "LABEL_ONLY", "declaring it reports LABEL_ONLY")
+ok(is_human("operator_jane", action="t") is True,
+   "CONTROL: declared LABEL_ONLY behaves exactly as before")
+ok(is_human("agent", action="t") is False,
+   "CONTROL: the denylist still applies once declared")
+
+reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
+ok(mode() == "LABEL_ONLY",
+   "reset_policy does NOT silently withdraw the declaration — a reset hook must "
+   "not change policy as a side effect")
+undeclare_label_only()
+ok(mode() == "UNCONFIGURED", "...withdrawing it is an explicit, separate act")
+
+for _bad in ("", None, 5):
+    try:
+        declare_label_only(_bad); _r = False
+    except ValueError:
+        _r = True
+    ok(_r, f"declare_label_only({_bad!r}) is refused — the decision needs an author")
+
+reset_policy(); undeclare_label_only()
 
 print(f"\n{p}/{p} tests passed")

@@ -12,7 +12,12 @@ effects, and refuses anything undeclared.
 The ideas are not new. Reference monitors, complete mediation, fail-closed defaults and
 capability discipline are Saltzer and Schroeder, 1975. What is here is a careful,
 adversarially tested, honestly documented instantiation of them for AI agents, in
-~2,400 lines of enforcement code with 4,619 tests across 121 test files.
+~2,400 lines of enforcement code.
+
+The test count is deliberately not written here. It has been wrong in this
+document four times — 2,228, then 1400+, then 4,619 — each correct when typed.
+Run `bash scripts/count_tests.sh`; that is the only number, and it is the one a
+reviewer can reproduce.
 (Reproduce: `bash scripts/count_tests.sh` — the single source of truth for this
 number. Any count quoted in any document should match what that prints and
 nothing else.)

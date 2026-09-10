@@ -4,6 +4,15 @@ Closes the residual every egress layer left open — a secret in a legitimate
 prompt to a legitimately allowlisted provider passes every destination check.
 Three independent red teams named this as the next real boundary."""
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 from driftcore.governance.information_flow import (
     Level, Label, Labeled, PUBLIC, join_all, Sink, FlowController,
     FlowRefused, LabeledSource, Declassification,
@@ -269,6 +278,7 @@ try:
                  "grant cannot be replayed at the declassify boundary")
 finally:
     _hi.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 ok(_hi.mode() == "LABEL_ONLY",
    "A1: with no verifier the mode is LABEL_ONLY, which status() reports as "
@@ -291,6 +301,7 @@ try:
        "A4: a normal-length reason is unaffected")
 finally:
     _hi.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 print("== RED TEAM 2026-08 (Grok): probes and mutability ==")
 

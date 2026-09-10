@@ -21,6 +21,15 @@ escalate, whatever it says and however many well-behaved agents relayed it.
 Run: python3 test_narrowing_channel.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 from driftcore.authority import human_identity as hi
 from driftcore.verification.narrowing_channel import (
     NarrowingChannel, NarrowingError, Effect, Risk, WIDEN_ACTION, _is_human)
@@ -54,6 +63,7 @@ def raises(label, exc, fn):
 
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("owner")
 
 ACTIONS = ["grasp_gentle", "grasp_firm", "move_slow", "move_fast", "speak"]
@@ -212,6 +222,7 @@ _b[0]["text"] = "REWRITTEN"
 check("beliefs are a copy too", c.beliefs()[0]["text"] == "something")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -329,6 +340,7 @@ check(f"2400 generated transitions hold every invariant (violations: "
       f"{_violations[:2]})", not _violations)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -394,6 +406,7 @@ check("the unused envelope baseline field is gone",
       not hasattr(c, "_envelope_baseline"))
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 print("-" * 60)
 assert isinstance(_p, int) and isinstance(_t, int)

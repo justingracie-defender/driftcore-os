@@ -33,6 +33,7 @@ import hashlib
 import hmac
 import json
 import os
+import threading
 import time
 from typing import Optional
 
@@ -40,6 +41,86 @@ from typing import Optional
 # ── Chain file location ───────────────────────────────────────────
 
 CHAIN_FILE = "logs/audit_chain.jsonl"
+
+# (red-team 2026-09-05) HEAD ANCHOR.
+#
+# The chain's guarantee named three verbs — altered, deleted, inserted — and those
+# are exactly the three a backward hash chain covers. Verified in a FRESH
+# interpreter, the verbs it did not name all passed undetected: truncating the last
+# record, emptying the file, and rebuilding a self-consistent chain from scratch.
+# Removing the newest entry leaves a chain that is still internally consistent, an
+# empty file has no broken link, and every check ran against the same file an
+# attacker was editing.
+#
+# The consequence pointed the wrong way: DELETING the log was quieter than editing
+# it, so an attacker hiding an action would truncate rather than alter.
+#
+# This is the smallest anchor that fixes that: a separate file naming the expected
+# head (sequence + hash), HMAC'd so it cannot be rewritten from the chain alone.
+#
+# WHAT IT DOES NOT DO. An attacker who can write BOTH files and who holds the
+# signing key defeats it — the key is a process session key, so in-process code
+# can forge a head. This raises the cost from "delete one file" to "delete two
+# files and forge a MAC", which is a real improvement and is not tamper-proof.
+# Actual tamper-EVIDENCE needs an anchor outside the box: an append-only sink, a
+# co-signature from another host, or physical media. That is open work and this
+# comment is not a substitute for it.
+HEAD_FILE = "logs/audit_head.json"
+
+
+def _head_mac(sequence: int, entry_hash: str) -> str:
+    """Deliberately NOT a MAC. See below.
+
+    The first version of this anchor signed the head with
+    `enforcement._sign_item`. The clean-chain control failed immediately, which
+    is how the real problem surfaced: `enforcement._SESSION_KEY` is
+    `os.urandom(32)` per PROCESS, with no loader and no derivation. A MAC written
+    by one process cannot be verified by the next — and verifying after a restart
+    is the entire threat model here, since the attacker edits the log while the
+    system is down.
+
+    So the anchor is an unauthenticated head pointer. It raises the cost of
+    hiding an action from "truncate one file" to "truncate one file AND edit
+    another", and it is honestly not more than that. Cryptographic
+    tamper-evidence needs a signing key that survives a restart, which this
+    project does not currently have (see AUDIT: signing-key custody), or an
+    append-only sink outside the box.
+    """
+    return f"{sequence}|{entry_hash}"
+
+
+def _write_head(sequence: int, entry_hash: str) -> None:
+    try:
+        os.makedirs(os.path.dirname(HEAD_FILE) or ".", exist_ok=True)
+        tmp = HEAD_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"sequence": sequence, "entry_hash": entry_hash,
+                       "mac": _head_mac(sequence, entry_hash)}, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, HEAD_FILE)      # atomic: a crash leaves old or new, not half
+    except Exception:
+        # Best-effort, deliberately. A failure to write the anchor must not stop
+        # the record that was already durably appended — losing the event is worse
+        # than losing the anchor, and the next successful record restores it.
+        pass
+
+
+def _read_head():
+    """(sequence, entry_hash) if a head pointer exists and its MAC checks, else None."""
+    try:
+        with open(HEAD_FILE) as f:
+            h = json.load(f)
+        seq, eh, mac = h.get("sequence"), h.get("entry_hash"), h.get("mac")
+        if not isinstance(seq, int) or not isinstance(eh, str):
+            return None
+        if not hmac.compare_digest(str(mac), _head_mac(seq, eh)):
+            return None                 # rewritten inconsistently — not usable
+        return seq, eh
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
 
 # ── Actions ───────────────────────────────────────────────────────
 
@@ -54,6 +135,25 @@ ACTION_STARTUP     = "STARTUP"
 
 
 # ── Chain state ───────────────────────────────────────────────────
+
+# (external red-team, Astra, 2026-09-06 — R4) One writer at a time.
+#
+# `record()` is five steps: allocate a sequence, capture the previous head, append
+# to the file, publish the new head in memory, write the head anchor. None of them
+# were serialised, so two threads could interleave and both return success while
+# the chain they produced fails verification. Reproduced: sequences written [2, 1],
+# both calls non-None, a fresh interpreter reporting compromised=True.
+#
+# This is an RLock rather than a Lock because `_shutdown_on_chain_tamper` can be
+# reached from inside the transaction, and it records. A non-reentrant lock would
+# deadlock the failure path — turning "the chain broke" into "the process hangs",
+# which is the worse of the two.
+#
+# SCOPE, stated because it is easy to over-read: this serialises THREADS in one
+# interpreter. Two PROCESSES appending to the same file still race, and no
+# in-process lock fixes that. The cross-process case needs a single writer service
+# or file locking, and it is open.
+_write_lock = threading.RLock()
 
 _last_hash: Optional[str] = None
 _sequence:  int = 0
@@ -156,6 +256,20 @@ def record(
     if _chain_compromised:
         return None
 
+    # The entire transaction is under one lock. Allocating the sequence outside
+    # it — as this did — is enough on its own to produce out-of-order entries,
+    # because two threads can both increment before either appends.
+    with _write_lock:
+        return _record_locked(action, memory_text, authorised_by, detail)
+
+
+def _record_locked(action, memory_text, authorised_by, detail):
+    """The record transaction. Callers hold `_write_lock`."""
+    global _last_hash, _sequence, _chain_compromised
+
+    if _chain_compromised:
+        return None       # re-checked inside the lock: it may have flipped while waiting
+
     _sequence += 1
 
     # Build the entry without its own hash first
@@ -207,6 +321,22 @@ def record(
         return None
 
     _last_hash = entry_hash
+    # CRASH WINDOW, named rather than hidden. The entry is durable on disk before
+    # the anchor is updated, so a crash here leaves chain=N and anchor=N-1.
+    # `verify_chain` treats a tail AHEAD of the anchor as tamper, which is the
+    # wrong verdict for a crash and the right one for a truncation — the two are
+    # indistinguishable from the files alone.
+    #
+    # The order is deliberate and this is the safe way round: entry-then-anchor
+    # loses an anchor update, anchor-then-entry would claim an entry that does not
+    # exist. Losing the event is worse than losing the pointer to it.
+    #
+    # Documented recovery: an operator confirms chain=anchor+1 and the tail entry
+    # links correctly, then re-publishes the anchor. That procedure does not exist
+    # yet and is open work; until it does, this case requires human review, which
+    # is the honest outcome rather than an automatic repair that would also repair
+    # a truncation.
+    _write_head(_sequence, entry_hash)
     return entry
 
 
@@ -236,7 +366,44 @@ def verify_chain() -> bool:
         return False
 
     if not os.path.exists(CHAIN_FILE):
-        # No chain yet — this is fine on first startup
+        # (external red-team, Astra, 2026-09-06) This returned True before the
+        # anchor was consulted, so DELETING the chain file bypassed the anchor
+        # entirely — while TRUNCATING it to zero bytes was caught. Two
+        # representations of "no entries", and the v113 fix enumerated one of
+        # them. §0f, in the fix for the previous §0f finding, one day later.
+        #
+        # An anchor that survives only the deletion you thought of is not an
+        # anchor. "No chain yet" is only true when there is also no record that
+        # there ever was one.
+        # (external red-team, Astra, 2026-09-06 — second pass) This refused only
+        # when the anchor was READABLE. `_read_head()` returns None for two
+        # different states — the file is absent, and the file exists but its
+        # contents do not check — and collapsing them meant deleting the chain
+        # AND corrupting the head walked straight through.
+        #
+        # A head file that EXISTS is positive evidence that a chain once existed,
+        # whether or not its contents still verify. Corrupting it destroys the
+        # evidence of WHAT was there; it does not destroy the evidence THAT
+        # something was there. Only removing the file does that.
+        #
+        # Fourth time in this repo that a fix landed on part of a set. The set
+        # here was {empty, deleted} x {intact, corrupt, deleted} — six cells, one
+        # missed, found by someone who wrote the grid out.
+        _h = _read_head()
+        if _h is not None:
+            _shutdown_on_chain_tamper(
+                f"Audit chain file is MISSING but the head anchor records "
+                f"{_h[0]} entries. The log was deleted, not never-created."
+            )
+            return False
+        if os.path.exists(HEAD_FILE):
+            _shutdown_on_chain_tamper(
+                f"Audit chain file is MISSING and the head anchor ({HEAD_FILE}) "
+                f"exists but does not verify. A first startup has neither file. "
+                f"The presence of an anchor at all is evidence a chain existed; "
+                f"corrupting it hides WHAT was logged, not THAT something was."
+            )
+            return False
         return True
 
     try:
@@ -248,8 +415,42 @@ def verify_chain() -> bool:
         )
         return False
 
+    head = _read_head()
+
     if not lines:
-        return True
+        # An empty chain has no broken link, which is why emptying the file used to
+        # pass. The anchor is the only thing that can tell "nothing has happened
+        # yet" from "everything was deleted".
+        if head is not None:
+            _shutdown_on_chain_tamper(
+                f"Audit chain is EMPTY but the head anchor records {head[0]} "
+                f"entries. The log was truncated or deleted. Deleting the log is "
+                f"not quieter than editing it."
+            )
+            return False
+        # (external red-team, Astra, 2026-09-06) An attacker who can empty the log
+        # can also reach the anchor. Emptying one and corrupting or deleting the
+        # other silenced the check, because "no valid anchor" was read as "nothing
+        # has happened yet".
+        #
+        # It is not. A fresh install has NO CHAIN FILE — the file is created by the
+        # first record(), which also writes the anchor. A chain file that EXISTS,
+        # is empty, and has no valid anchor is therefore not a fresh install: it is
+        # either both files tampered, or a crash between creating the file and
+        # writing the first entry. Both warrant refusing rather than proceeding.
+        #
+        # What this still does NOT catch: deleting BOTH files. That is
+        # indistinguishable from a fresh install using only what is inside the box,
+        # and no amount of local bookkeeping fixes it. It needs an anchor the
+        # attacker cannot reach — an append-only sink, a co-signature from another
+        # host, or physical media. Stated rather than papered over.
+        _shutdown_on_chain_tamper(
+            f"Audit chain file exists but is EMPTY and there is no valid head "
+            f"anchor ({HEAD_FILE}). A first startup has no chain file at all — "
+            f"this state is either both files tampered, or a crash between "
+            f"creating the log and writing to it. Refusing either way."
+        )
+        return False
 
     prev_hash    = "GENESIS"
     prev_sequence = 0
@@ -297,6 +498,30 @@ def verify_chain() -> bool:
 
         prev_hash     = stored_hash
         prev_sequence = entry.get("sequence")
+
+    # The chain is internally consistent. That is necessary and not sufficient: a
+    # TRUNCATED chain is internally consistent too, and so is one an attacker
+    # rebuilt from scratch. Compare the tail against the anchor.
+    if head is not None:
+        exp_seq, exp_hash = head
+        if prev_sequence != exp_seq or prev_hash != exp_hash:
+            _shutdown_on_chain_tamper(
+                f"Audit chain tail does not match the head anchor. Expected entry "
+                f"#{exp_seq}, found #{prev_sequence}. The chain is internally "
+                f"consistent, which a truncated or rebuilt chain also is — the "
+                f"anchor is what tells them apart."
+            )
+            return False
+    elif lines:
+        # A non-empty chain with no readable anchor. Either the anchor was deleted,
+        # or its MAC no longer checks. Both are refusals: an anchor that can be
+        # removed to silence the check is not an anchor.
+        _shutdown_on_chain_tamper(
+            f"Audit chain has {len(lines)} entries but no valid head anchor "
+            f"({HEAD_FILE}). It was deleted, or its MAC does not verify. A chain "
+            f"that verifies only against itself cannot detect truncation."
+        )
+        return False
 
     return True
 

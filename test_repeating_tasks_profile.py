@@ -13,11 +13,21 @@ always trip a seed invariant (there is no auth-context path on the coordinator's
 guard call), so PHYSICAL_FORCE — the one effect the universal floor does NOT cap
 — is used as the clean 'seed-free' effect to isolate the capability allowlist.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.profiles import ProfileManager, PROFILES
 from driftcore.profiles.coordinator_builder import (
     build_coordinator, build_capability_guard,
 )
 from driftcore.verification.coordinator import Outcome
+from driftcore.verification.governed_actuator import GrantAuthority
 from driftcore.verification.invariant_guard import Effect, SEED_INVARIANTS
 
 p = 0
@@ -51,7 +61,11 @@ ok("repeating_tasks" in pm.available(), "profile is discoverable via ProfileMana
 ok(isinstance(pm.describe("repeating_tasks"), str), "describe() works on the new profile")
 
 # 1. builder turns a profile into a coordinator
-coord = build_coordinator(profile(["PHYSICAL_FORCE"]), objective_secret=SECRET)
+# (2026-09-01) A coordinator with no grant authority no longer mints grants,
+# so a profile intended to actuate must be handed one. In-process is right for
+# a test and wrong for anything that moves.
+coord = build_coordinator(profile(["PHYSICAL_FORCE"]), objective_secret=SECRET,
+                          grant_authority=GrantAuthority(in_process_only=True))
 ok(coord is not None, "builder: profile -> configured coordinator")
 
 # 2. STEADY STATE is silent: effect-free action just proceeds
@@ -68,14 +82,16 @@ ok(d.outcome == Outcome.BLOCKED and d.invariant == "objective_integrity",
    "off-pattern goal: objective drift is BLOCKED")
 
 # 5. OFF-PATTERN EFFECT is flagged by the capability allowlist (seed-free effect)
-coord_empty = build_coordinator(profile([]), objective_secret=SECRET)   # allow nothing
+coord_empty = build_coordinator(profile([]), objective_secret=SECRET,
+                          grant_authority=GrantAuthority(in_process_only=True))   # allow nothing
 d = coord_empty.evaluate({"prompt": "x", "effects": [Effect.PHYSICAL_FORCE]}, context=steady())
 ok(d.outcome == Outcome.BLOCKED and d.invariant == "capability_allowlist",
    "off-pattern effect: blocked by the capability allowlist")
 
 # 6. THE ALLOWLIST CANNOT WIDEN PAST THE FLOOR: allowlist 'permits' lethal, the
 #    seed still fires — and it is the SEED that binds, not the allowlist.
-coord_lethal = build_coordinator(profile(["LETHAL"]), objective_secret=SECRET)
+coord_lethal = build_coordinator(profile(["LETHAL"]), objective_secret=SECRET,
+                          grant_authority=GrantAuthority(in_process_only=True))
 d = coord_lethal.evaluate({"prompt": "x", "effects": [Effect.LETHAL]}, context=steady())
 ok(d.outcome == Outcome.BLOCKED and d.invariant == "no_lethal_action",
    "floor holds: lethal blocked by the SEED even when allowlisted (allowlist only narrows)")
@@ -87,7 +103,8 @@ ok(d.outcome == Outcome.PROCEED, "effect-free action passes under an empty allow
 
 # 8. OVERSIGHT CADENCE: reratify_every bounds accepted cycles; re_ratify resets.
 #    (This is a cadence, NOT a safety dial — the guard fired on every cycle above.)
-coord_cad = build_coordinator(profile(["PHYSICAL_FORCE"], reratify=3), objective_secret=SECRET)
+coord_cad = build_coordinator(profile(["PHYSICAL_FORCE"], reratify=3), objective_secret=SECRET,
+                          grant_authority=GrantAuthority(in_process_only=True))
 outs = [coord_cad.evaluate(MOTOR, context=steady()).outcome for _ in range(3)]
 ok(all(o != Outcome.CYCLE_LIMIT_REACHED for o in outs), "cadence: first N cycles allowed")
 d = coord_cad.evaluate(MOTOR, context=steady())
@@ -98,7 +115,8 @@ ok(d.outcome != Outcome.CYCLE_LIMIT_REACHED, "cadence: re_ratify() resets the ch
 
 # 9. the builder REQUIRES a set-once objective baseline
 try:
-    build_coordinator({"coordinator": {"objectives": []}}, objective_secret=SECRET)
+    build_coordinator({"coordinator": {"objectives": []}}, objective_secret=SECRET,
+                          grant_authority=GrantAuthority(in_process_only=True))
     ok(False, "empty objectives should raise")
 except ValueError:
     ok(True, "builder requires a non-empty objectives baseline (raises ValueError)")
@@ -122,7 +140,8 @@ ok(d.outcome == Outcome.BLOCKED and d.detail.get("retryable") is True,
 prof = profile(["DATA_EGRESS"])
 prof["coordinator"]["authorized_targets"] = ["reports@herco.example"]
 prof["coordinator"]["owner"] = "operator"
-c12 = build_coordinator(prof, objective_secret=SECRET)
+c12 = build_coordinator(prof, objective_secret=SECRET,
+                          grant_authority=GrantAuthority(in_process_only=True))
 SEND = {"prompt": "send nightly summary", "effects": [Effect.DATA_EGRESS],
         "target": "reports@herco.example"}
 
@@ -139,7 +158,8 @@ ok(d.outcome == Outcome.BLOCKED and d.invariant == "no_unauthorized_exfiltration
 prof2 = profile([])
 prof2["coordinator"]["authorized_targets"] = ["reports@herco.example"]
 prof2["coordinator"]["owner"] = "operator"
-c12b = build_coordinator(prof2, objective_secret=SECRET)
+c12b = build_coordinator(prof2, objective_secret=SECRET,
+                          grant_authority=GrantAuthority(in_process_only=True))
 d = c12b.evaluate(SEND, context=steady())
 ok(d.outcome == Outcome.BLOCKED and d.invariant == "capability_allowlist",
    "independence: ratified target cannot bypass the capability allowlist")

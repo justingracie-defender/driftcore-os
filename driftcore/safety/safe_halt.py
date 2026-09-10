@@ -161,8 +161,27 @@ class SafeHalt:
                 f"{sorted(k for k in self._RANK if k)}). Refusing rather than silently "
                 f"either accepting or crashing past the halt.")
         if self._RANK[level] <= self._RANK[self.level] and self.active:
+            # (external red-team, Astra, 2026-09-06) The halt LEVEL is unchanged, so
+            # this branch used to return without touching `_generation` — and an
+            # in-flight release therefore never saw it. Reproduced: HARD halt, begin
+            # a valid release, call hard_halt() again from another thread, and the
+            # release still returns SYSTEM_RESUMED. The counter tracked changes of
+            # LEVEL and not renewed stop requests AT that level.
+            #
+            # The contract question underneath it: is a repeat call an idempotent
+            # no-op, or a newly observed hazard? For a safety layer it has to be the
+            # second. A sensor firing again while a release is being authorised is
+            # new evidence, and swallowing it is the fail-open reading. So the LEVEL
+            # holds — halts still never downgrade — while the REQUEST advances the
+            # counter and invalidates any release decided before it arrived.
+            #
+            # The consequence is deliberate: while something keeps reporting a
+            # hazard, releases keep being refused. That is the intended direction.
+            # If a stuck reporter blocks restart, the answer is to resolve or
+            # silence the hazard explicitly, not to have the halt quietly ignore it.
+            self._generation += 1
             self._log(f"{level}_HALT_REQUESTED_WHILE_IN_{self.level} — held at "
-                      f"{self.level} (halts do not downgrade)")
+                      f"{self.level}; renewed request invalidates any pending release")
             return (f"SYSTEM_REMAINS_IN_{self.level}_HALT — a halt is never weakened "
                     f"by a lesser one; release it deliberately instead")
         self.active = True
@@ -404,8 +423,15 @@ class SafeHalt:
             # revalidate before mutating.
             snap_level = self.level
             snap_generation = self._generation
+            # (external red-team, Grok, 2026-09-01) This path snapshotted LESS than
+            # release(). A6 closed "authority swapped mid-flight" on the weak path
+            # and left it open on the strong one — the path that exists specifically
+            # for HARD halts. Confirmed live: with evaluate() paused, swapping
+            # _restart_authority let the OLD authority's AUTHORIZED verdict clear the
+            # halt while the newly installed, refusing authority was never consulted.
+            snap_authority = self._restart_authority
         try:
-            result = self._restart_authority.evaluate(sev, approvals)
+            result = snap_authority.evaluate(sev, approvals)
         except Exception as e:
             self._log(f"RELEASE_DENIED restart_authority_error={e!r}")
             return ("RELEASE_DENIED — the restart authority could not be evaluated; a "
@@ -428,6 +454,13 @@ class SafeHalt:
             self._log(f"RELEASE_DENIED restart_authority={status} severity={sev.name}")
             return f"RELEASE_DENIED — {status}: {str(result.get('reason',''))[:120]}"
         with self._lock:
+            if self._restart_authority is not snap_authority:
+                self._log("RELEASE_DENIED authorization_wiring_changed "
+                          f"path=release_with_approvals evaluated_at={sev.name}")
+                return ("RELEASE_DENIED — the restart authority was replaced while "
+                        "these approvals were being evaluated. The verdict came from "
+                        "an authority that is no longer installed; re-submit to the "
+                        "current one.")
             if self._generation != snap_generation:
                 self._log(f"RELEASE_DENIED state_changed_during_authorization "
                           f"was={snap_level!r} now={self.level!r} "

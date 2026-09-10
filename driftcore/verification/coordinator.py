@@ -128,6 +128,14 @@ class Decision:
                 "grant": self.grant, "detail": self.detail}
 
 
+class _NoGrantAuthority(Exception):
+    """Internal signal for an actuation request with no authority wired."""
+
+
+class _UndeclaredEffects(Exception):
+    """Internal signal for an actuation request whose actuator declares no effects."""
+
+
 class VerificationCoordinator:
     def __init__(self, guard: InvariantGuard, classifier,
                  detector: Optional[IntentDetector] = None,
@@ -135,6 +143,10 @@ class VerificationCoordinator:
                  grant_authority: Optional[GrantAuthority] = None,
                  uncertainty_engine: Optional[UncertaintyEngine] = None,
                  tool_effects: Optional[dict] = None,
+                 require_declared_effects: bool = False,
+                 required_knowledge=None,
+                 required_facts: Optional[dict] = None,
+                 safety_lookup=None,
                  # ── v4.5.0 objective-integrity preflight (opt-in) ──
                  objective_baseline: Optional[RatifiedBaseline] = None,
                  required_invariants: Optional[FrozenSet[str]] = None,
@@ -157,7 +169,12 @@ class VerificationCoordinator:
         self._audit     = audit_logger or (lambda **kw: None)
         # Mints actuation grants. Give the SAME authority to your actuators
         # so they can verify; the agent never holds it.
-        self.grants     = grant_authority or GrantAuthority()
+        # (2026-09-01) Was `grant_authority or GrantAuthority()`. That one line
+        # handed every deployment that wired nothing the in-process, forgeable
+        # authority — while the socket broker that fixes it sat opt-in beside it.
+        # No authority now means NO GRANTS, which is the same shape as an
+        # undeclared capability: absence of a decision is not permission.
+        self.grants = grant_authority
         # Optional mode-aware uncertainty gate. Only runs when configured AND
         # the caller supplies probe_responses in context — otherwise no-op.
         self.uncertainty = uncertainty_engine
@@ -165,6 +182,24 @@ class VerificationCoordinator:
         # set of Effect values. This is the primary, robust lethal/force defense
         # (see module note). e.g. {"weapon_1": {Effect.LETHAL}}.
         self._tool_effects = tool_effects or {}
+        # (standing rule 5) Truthiness is not consent. `_grant_for` tests the
+        # LITERAL True, which alone would make a non-bool mean OFF silently — the
+        # fail-open direction, and the exact "we could not check reads as we
+        # checked" shape. So a non-bool is refused here rather than guessed at,
+        # matching enforce_effects / require_isolation / attestation_required.
+        if not isinstance(require_declared_effects, bool):
+            raise TypeError(
+                f"require_declared_effects must be a bool, got "
+                f"{type(require_declared_effects).__name__}. This is a safety "
+                f"opt-in: a truthy value is not consent, and silently reading it "
+                f"as off would leave a deployment that asked for the gate without "
+                f"it.")
+        self._require_declared_effects = require_declared_effects
+        # Required-safety-information stage. None = no register, no check — the
+        # same opt-in shape as the other v4.5.0 stages, and the same honest gap.
+        self._required_knowledge = required_knowledge
+        self._required_facts = dict(required_facts or {})
+        self._safety_lookup = safety_lookup
 
         # ── v4.5.0 objective-integrity preflight config (opt-in) ──
         # Runs ONLY when an objective_baseline is supplied. Without it, the
@@ -302,6 +337,12 @@ class VerificationCoordinator:
         return effects
 
     _EGRESS_EFFECTS = frozenset({Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS})
+
+    # A refused grant must not leave a PROCEED standing. Returning None here would
+    # be indistinguishable from "this request needs no grant" — a status saying GO
+    # sitting beside a missing capability token, which is the same defect
+    # `resolved_value` exists to make unrepresentable. Raise, and let evaluate()
+    # convert it to a BLOCKED naming the reason.
 
     def _authorization_for(self, request, effects: set) -> ActionContext:
         """Derive the guard's ActionContext from the RATIFIED egress policy plus
@@ -453,6 +494,107 @@ class VerificationCoordinator:
         return None
 
     # ── v4.5.0: interpretation guard (the fuzzy middle) ───────────
+    def _required_knowledge_check(self, ctx: dict, actuator_id=None) -> Optional["Decision"]:
+        """Opt-in. Refuse an authorised action while the safety facts it depends
+        on are missing or unresolved.
+
+        CLAIM permission-is-not-safety: being allowed to act is a different
+        question from having the information the act requires, and answering the
+        first does not answer the second.
+
+        (2026-09-06) Reproduced end to end before this existed: someone tells the
+        robot about a child's peanut allergy, permanent memory correctly refuses
+        to store an unconfirmed medical fact, the item expires, the process
+        restarts — and "make jonny a peanut butter sandwich" PROCEEDS. Every gate
+        did its job and the system was more dangerous than if nobody had
+        mentioned the allergy at all, because the mention created a belief that
+        the robot had been told.
+
+        Preventing an unapproved fact from being SAVED is not the same as
+        preventing an unsafe ACTION. This stage is the second one.
+
+        Opt-in via ctx['safety_subject'] plus a configured register, matching the
+        v4.5.0 contract: with no new inputs the coordinator behaves as before.
+        That is a real gap and not a safe default — a deployment that never
+        supplies a subject gets no check, exactly like `enforce_effects`.
+        """
+        register = self._required_knowledge
+        subject = ctx.get("safety_subject")
+        if register is None:
+            return None
+
+        # (cold pass, 2026-09-09) This also returned None when the CALLER omitted
+        # `safety_subject` — so the entire safety stage was skipped by not
+        # mentioning who the action was for. Confirmed: an actuator declared
+        # PHYSICAL_FORCE with an unresolved allergy concern PROCEEDED when the
+        # subject was left out.
+        #
+        # That is the identical defect this project identified in
+        # `interpretation_guard` earlier the same day — omission is not binding —
+        # rebuilt from scratch hours later. The lesson did not transfer because it
+        # was written down as a finding about someone else's module.
+        #
+        # The requirement now comes from the EFFECT, not from the caller's
+        # willingness to name a subject: if the declared effects carry
+        # prerequisites, an action with no subject cannot satisfy them and is
+        # refused. An actuator with no prerequisites is unaffected, so this does
+        # not turn every call into a safety question.
+        from driftcore.safety.required_knowledge import prerequisites_for
+        declared_effects = ()
+        if isinstance(getattr(self, "_tool_effects", None), dict):
+            declared_effects = self._tool_effects.get(actuator_id, ())
+        _domain = ctx.get("safety_domain") or "general"
+        _implied = prerequisites_for(
+            declared_effects,
+            domain_facts=self._required_facts.get(_domain, ()),
+            extra=ctx.get("required_facts") or ())
+        if not subject:
+            if _implied:
+                return Decision(
+                    outcome=Outcome.BLOCKED,
+                    reason=(f"actuator {actuator_id!r} has safety prerequisites "
+                            f"({', '.join(_implied)}) and the request names no "
+                            f"subject. Who this action is for is not optional when "
+                            f"the action requires knowing something about them."),
+                    invariant="required_safety_information",
+                    detail={"subject": None, "domain": _domain,
+                            "required_facts": list(_implied)})
+            return None
+        domain = ctx.get("safety_domain") or "general"
+        # (2026-09-06) Prerequisites are DERIVED from the declared effects and
+        # UNIONed with the domain's own, so one declaration drives both. An
+        # integrator who declares the kitchen PHYSICAL_FORCE gets subject_present
+        # and safety_envelope without maintaining a second table that can drift
+        # out of step with the first.
+        #
+        # Union only. `prerequisites_for` has no argument that removes a
+        # requirement, because a removed check and a passing check look identical
+        # from outside — the same reason authority narrows and never widens.
+        from driftcore.safety.required_knowledge import prerequisites_for
+        # actuator_id lives in the REQUEST, not the context. Reading it from ctx
+        # returned nothing, so the stage found no prerequisites and passed — a
+        # check that quietly finds nothing is indistinguishable from one that
+        # passed, which is the failure this whole module exists to refuse. Caught
+        # by its own demonstration, not by reading.
+        declared_effects = ()
+        if isinstance(getattr(self, "_tool_effects", None), dict):
+            declared_effects = self._tool_effects.get(actuator_id, ())
+        facts = prerequisites_for(
+            declared_effects,
+            domain_facts=self._required_facts.get(domain, ()),
+            extra=ctx.get("required_facts") or ())
+        try:
+            register.require_safe(subject, domain, facts=facts,
+                                  lookup=self._safety_lookup)
+            return None
+        except Exception as e:
+            return Decision(
+                outcome=Outcome.BLOCKED,
+                reason=str(e),
+                invariant="required_safety_information",
+                detail={"subject": subject, "domain": domain,
+                        "required_facts": list(facts)})
+
     def _interpretation_check(self, ctx: dict) -> Optional["Decision"]:
         """Opt-in via ctx['interpretations'] = (Interpretation, ...). Reasons
         over the distribution of credible human-authored readings of an
@@ -632,11 +774,50 @@ class VerificationCoordinator:
         return self.uncertainty.assess(prompt, responses, ctx.get("mode", "TRUTH"))
 
     def _grant_for(self, request) -> Optional[dict]:
-        """Mint a single-use actuation grant for an actuation request that
-        passed the guard. Returns None for non-actuation requests."""
+        """CLAIM undeclared-actuator-gets-no-grant: when `require_declared_effects` is
+        the literal True, an actuator_id absent from `tool_effects` is refused a
+        grant, and the refusal surfaces as BLOCKED rather than a PROCEED with the
+        token missing. Absence of a declaration is UNKNOWN effects, never NO
+        effects. Mints a single-use grant for a request that passed the guard;
+        returns None for non-actuation requests.
+
+        (red-team 2026-09-01, verified by execution.) With effects undeclared, this
+        minted a grant for any actuator_id whatever — a never-before-seen id with no
+        prompt at all returned PROCEED plus a usable grant. The keyword backstop was
+        carrying the whole load, and `test_lethal_effect_paths.py` documented in the
+        same breath that a euphemism walks straight past it. So the real hole was
+        never the euphemism: it was that an undeclared capability was treated as a
+        harmless one, which is this repo's recurring shape — "we could not check"
+        reading as "we checked".
+
+        The gate is OFF by default and that is a real, stated limitation rather than
+        a safe default. Turning it on globally breaks 19 constructions across 6 files
+        that pass no `tool_effects`, and a bulk migration of an authorization site is
+        not a change to make at the end of a long session (§0f). A deployment that can
+        actuate anything physical passes `require_declared_effects=True`; the
+        migration that lets it become the default is open work, with that blast
+        radius measured rather than guessed.
+        """
         if isinstance(request, dict):
             aid, cmd = request.get("actuator_id"), request.get("command")
             if aid and cmd:
+                # `tool_effects` maps ACTUATORS to effects. An earlier version of
+                # this gate also accepted a matching COMMAND name, which made it an
+                # OR across two namespaces: a command string colliding with any
+                # declared name laundered an undeclared actuator into a signed
+                # grant. Found by external red-team, confirmed live. Only the
+                # actuator's own declaration counts.
+                if self.grants is None:
+                    self._audit(stage="grant_refused", source="NO_GRANT_AUTHORITY",
+                                would_stop=True,
+                                fact=f"no grant authority is wired for {str(aid)!r}")
+                    raise _NoGrantAuthority(str(aid))
+                if (self._require_declared_effects is True
+                        and aid not in self._tool_effects):
+                    self._audit(stage="grant_refused", source="UNDECLARED_EFFECTS",
+                                would_stop=True,
+                                fact=f"actuator {str(aid)!r} has no declared effects")
+                    raise _UndeclaredEffects(str(aid))
                 return self.grants.mint(str(aid), str(cmd))
         return None
 
@@ -710,6 +891,15 @@ class VerificationCoordinator:
             if dec is not None:
                 return dec
 
+            # 3b. Required safety information (opt-in). Placed before the fuzzy
+            #     stages deliberately: whether a required fact is on file is not a
+            #     judgement call, and an unresolved safety question should not be
+            #     reasoned about by a distribution of readings.
+            dec = self._required_knowledge_check(ctx, request.get('actuator_id')
+                                                 if isinstance(request, dict) else None)
+            if dec is not None:
+                return dec
+
             # 4. Interpretation guard (opt-in) — the fuzzy middle. PROCEED falls
             #    through; only a non-PROCEED verdict short-circuits. Never BLOCKED.
             iv = self._interpretation_check(ctx)
@@ -775,6 +965,26 @@ class VerificationCoordinator:
                             reason="Passed guard; no risk-scorable text.",
                             detail=detail)
 
+        except _NoGrantAuthority as e:
+            return Decision(
+                Outcome.BLOCKED, invariant="no_grant_authority",
+                reason=(f"actuation of {e.args[0]!r} was refused: no grant "
+                        f"authority is wired. This used to default to an "
+                        f"in-process GrantAuthority, which signs and verifies "
+                        f"with one secret the agent can reach — so the default "
+                        f"was a forgeable one. Wire "
+                        f"mediated_actuation's broker, or pass "
+                        f"GrantAuthority(in_process_only=True) to accept an "
+                        f"in-process authority deliberately."),
+                detail={"actuator_id": e.args[0]})
+        except _UndeclaredEffects as e:
+            return Decision(
+                Outcome.BLOCKED, invariant="undeclared_capability",
+                reason=(f"actuator {e.args[0]!r} has no declared effects and "
+                        f"require_declared_effects is on. An undeclared capability "
+                        f"is one whose effects are UNKNOWN, not one with none. "
+                        f"Declare its effects in tool_effects."),
+                detail={"actuator_id": e.args[0]})
         except Exception as e:  # fail closed
             self._audit(stage="error", reason=str(e))
             return Decision(Outcome.BLOCKED, reason="Internal failure — refused (fail-closed).")

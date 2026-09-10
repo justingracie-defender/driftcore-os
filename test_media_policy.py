@@ -15,6 +15,15 @@ Proves the safety properties of driftcore/media:
 Run:  python test_media_policy.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 import os
 import sys
 
@@ -214,6 +223,7 @@ def _ctl():
 
 print("\nF-003: LABEL_ONLY behaviour preserved (upgrade-safe)")
 _hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 check("a non-reserved name can still loosen",
       _ctl().change_policy(_LOOSE, authorised_by="justin")[0])
 for _label in ("", "system", "auto", "auto-sign"):
@@ -224,6 +234,7 @@ check("tightening remains unrestricted",
 
 print("\nF-003: REGISTERED mode makes the check real")
 _hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _hi.register_human_principal("justin")
 check("an UNREGISTERED label can no longer loosen",
       not _ctl().change_policy(_LOOSE, authorised_by="mallory")[0])
@@ -234,6 +245,7 @@ check("tightening is still free for anyone",
 
 print("\nF-003: ATTESTED mode binds the ACTION")
 _hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _v = _HIV()
 _v.register_principal("justin", _KEY)
 _hi.set_verifier(_v)
@@ -253,6 +265,7 @@ _forged = _Att.issue(b"wrong-key", principal="justin", action=_LOOSEN,
 check("a forged attestation does not",
       not _ctl().change_policy(_LOOSE, authorised_by=_forged)[0])
 _hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 print("\nF-003: the gate never turns a refusal into a crash")
 check("None is not human", not _ih(None))

@@ -117,6 +117,18 @@ class MemoryItem:
     tier: int               = 2
     review_stage: int       = 0   # 0=new, 1=passed first review, 2=passed second
     quarantined: bool       = False  # True = sensitive item, extra confirmation always required
+    # (external red-team, 2026-09-06) Did an ObservationGate see this before it
+    # was stored? `observe()` is reachable directly, so the gate is something a
+    # caller REMEMBERS to run — the same second-door shape as the two
+    # `InvariantGuard` classes that ONE_DOOR.md already diagnosed, and the two
+    # classes named `DriftcoreMemory` found in the same review.
+    #
+    # This does not close the door. It records which side an item came through,
+    # so a reader can tell a gated write from an ungated one instead of both
+    # looking identical at rest. Provenance, not prevention — and the repo's own
+    # position is that those are different things and should not be conflated.
+    gated: bool             = False
+    approval: object        = None   # HumanAttestation over tier1_record_id(), or None
 
     def age_seconds(self) -> float:
         return time.time() - self.timestamp
@@ -418,6 +430,73 @@ def _quarantine_delete_prompt(item: MemoryItem) -> str:
 
 # ── Main memory class ────────────────────────────────────────────
 
+def tier1_record_id(text: str, source: str) -> str:
+    """The canonical identity of a permanent-memory record.
+
+    (2026-09-06) Reuses `human_authorization.effect_id` rather than growing a
+    parallel canonicalisation. That module's own docstring warns against exactly
+    this — "a third weaker copy" — after two modules each reinvented `_is_human`
+    as a string comparison. Seven `_canonical*` functions already exist in this
+    repo and `scripts/call_surface.py` flags their divergence.
+
+    The identity covers the text and its source, so an approval for "dad is
+    allergic to peanuts" from `dad` is not an approval for the same words from
+    `external`, and not for different words at all.
+    """
+    from driftcore.verification.human_authorization import effect_id
+    return effect_id("tier1_memory", "store", {"text": text, "source": source})
+
+
+def verify_tier1_record(item, verifier=None) -> bool:
+    """Is this item's presence in permanent memory authorised?
+
+    CLAIM tier1-reads-verify-approval: a Tier 1 item whose approval does not
+    verify is rejected at READ time, so inserting one directly into `_tier1`
+    inserts something unusable rather than something trusted.
+
+    This is the design the write-side confirmation could not reach. A gate on the
+    write path runs in the agent's address space and `_tier1.append()` walks past
+    it — verified. Verifying on READ makes the store untrusted storage: an
+    attacker can still put bytes in it, and the bytes are refused.
+
+    WHAT IT STILL DOES NOT DO, and this is the load-bearing limit: the key must
+    live outside this process. If the approving key is reachable from the agent,
+    the agent signs its own memories and every check passes. That is the same
+    architectural boundary `mediated_actuation` exists to draw for actuation, and
+    it is a deployment property this function cannot create.
+
+    And a signature proves a principal approved this exact record. It does not
+    prove they understood it. Rendering a record faithfully — hidden characters
+    exposed, homoglyphs surfaced — is the approval surface's job and is where a
+    deceptive approval would live.
+    """
+    att = getattr(item, "approval", None)
+    if att is None:
+        return False          # unapproved is not approved
+    if verifier is None:
+        return False          # nobody to check against: refuse, do not assume
+    # (external red-team, Grok, 2026-09-09) `verifier` was only tested for
+    # `is None`. Verification then ran against the PROCESS-GLOBAL identity policy,
+    # so `verify_tier1_record(item, object())` returned True while a real, correct
+    # verifier that simply was not installed globally returned False.
+    #
+    # The argument was scenery. Worse, it made every test that passes `_v` prove
+    # nothing about binding to `_v` — the masking failure the manifest asked
+    # reviewers to hunt for, sitting in the function the manifest said to attack
+    # first.
+    action = tier1_record_id(item.text, item.source)
+    verify = getattr(verifier, "verify", None)
+    if callable(verify):
+        try:
+            verify(att, action=action)
+            return True
+        except Exception:
+            return False
+    # Not a verifier object. Refuse rather than silently falling back to the
+    # global policy — falling back is what made the argument meaningless.
+    return False
+
+
 class DriftcoreMemory:
     """
     Two-tier memory for DriftCore OS.
@@ -438,12 +517,35 @@ class DriftcoreMemory:
         tier1_cap: int = TIER1_CAP,
         interactive: bool = True,
         narrator=None,
+        allow_unattended_promotion: bool = False,
+        confirm_tier1=None,
+        tier1_verifier=None,
     ):
         self._tier1: List[MemoryItem] = []
         self._tier2: List[MemoryItem] = []
         self._tier1_cap   = tier1_cap
         self._interactive = interactive
         self._narrator    = narrator or Narrator(verbosity="standard")
+        # Literal True only. Same rule as enforce_effects / in_process_only /
+        # require_declared_effects / allow_legacy: truthiness is not consent, and
+        # this one decides whether a machine may write the permanent store with no
+        # human present.
+        if not isinstance(allow_unattended_promotion, bool):
+            raise TypeError(
+                f"allow_unattended_promotion must be a bool, got "
+                f"{type(allow_unattended_promotion).__name__}. It permits "
+                f"unattended writes into permanent memory and is not a value to "
+                f"guess at.")
+        self._allow_unattended_promotion = allow_unattended_promotion
+        # Called before a Tier 1 write lands. Returning literal True stores it in
+        # permanent memory; anything else keeps it in working memory, where it
+        # faces review and then expires. None = no confirmation configured, which
+        # preserves existing behaviour rather than silently blocking every
+        # deployment that has not wired one.
+        self._confirm_tier1 = confirm_tier1
+        # When set, Tier 1 reads verify each record's approval. None = no
+        # verification, which is the pre-existing behaviour and a real gap.
+        self._tier1_verifier = tier1_verifier
         self._total_observed = 0
 
     # ── Observe ──────────────────────────────────────────────────
@@ -453,13 +555,57 @@ class DriftcoreMemory:
         text: str,
         source: str = "unknown",
         tags: Optional[List[str]] = None,
+        gate_result=None,
     ) -> MemoryItem:
+        """Store an observation.
+
+        CLAIM ungated-writes-are-marked: an item stored without an
+        ObservationGate result is recorded with `gated=False`, so a gated and an
+        ungated write are distinguishable at rest.
+
+        Bounded finding, stated precisely because the review's phrasing was
+        broader than what executes: this method IS reachable without the gate,
+        and every Tier 1 item it stores is quarantined regardless of the source
+        label — confirmed for external, unknown, kid, operator, justin and dad.
+        So the second door does not grant unquarantined Tier 1. What it does skip
+        is injection and contradiction detection, and a Tier 2 item stored this
+        way is neither quarantined nor marked — until now.
+        """
         if tags is None:
             tags = []
 
         self._total_observed += 1
 
         tier, surprise, quarantined = _judge_importance(text, source, tags)
+
+        # (2026-09-06) A Tier 1 write is a write to the store that is "never
+        # silently deleted". The API previously computed `requires_human_approval`
+        # AFTER `observe()` had already stored the row — a notification about
+        # something that had happened, not a gate on whether it should.
+        #
+        # A confirmation here IS a gate: an unconfirmed Tier 1 write does not land.
+        # `confirm_tier1` is called before the item exists, and refusing keeps the
+        # content in working memory where it expires, rather than in permanent
+        # memory where it does not.
+        #
+        # WHAT THIS DOES NOT DO, and the reason matters more than the fix: this
+        # runs in the agent's own address space. In-process code can append to
+        # `self._tier1` directly and never reach here — verified. Unlike actuation,
+        # which hands the agent an ActuatorProxy whose only power is to send bytes
+        # to a store it cannot touch, memory hands the agent the store. This gate
+        # is worth having for the gated path and buys nothing against the ungated
+        # one. The real fix is the proxy pattern `mediated_actuation` already
+        # proves out, and it is open work.
+        if tier == 1 and self._confirm_tier1 is not None:
+            try:
+                approved = self._confirm_tier1(text, source)
+            except Exception:
+                approved = False       # a confirmer that raises has not approved
+            if approved is not True:   # literal True; truthiness is not consent
+                self._narrator._emit(
+                    f"  🔒 Not stored in permanent memory — no human confirmation: "
+                    f"\"{text[:48]}\"")
+                tier, quarantined = 2, True
 
         item = MemoryItem(
             text=text,
@@ -468,6 +614,7 @@ class DriftcoreMemory:
             tags=tags,
             tier=tier,
             quarantined=quarantined,
+            gated=gate_result is not None,
         )
 
         if tier == 1:
@@ -587,8 +734,34 @@ class DriftcoreMemory:
     # ── Query ────────────────────────────────────────────────────
 
     def query_text(self, query: str, budget: int = 5) -> List[str]:
+        """Read memory. Tier 1 items whose approval does not verify are excluded.
+
+        CLAIM unapproved-tier1-is-not-readable: read-time verification is ON the
+        read path, not merely available to call.
+
+        (cold pass, 2026-09-09) `verify_tier1_record` was written, tested and had
+        ZERO production callers — the exact criticism this project makes of
+        `authority_invariants.py`, rebuilt hours after making it. A verification
+        function nobody calls does not make a store untrusted; it makes a store
+        that looks defended.
+
+        Only active when a verifier is configured (`tier1_verifier`). With none,
+        every Tier 1 item is returned as before — a real gap and not a safe
+        default, stated rather than implied.
+        """
         query_lower = query.lower()
-        all_items   = self._tier1 + self._tier2
+        if self._tier1_verifier is not None:
+            _ok = []
+            for _it in self._tier1:
+                if verify_tier1_record(_it, self._tier1_verifier):
+                    _ok.append(_it)
+                else:
+                    self._narrator._emit(
+                        f"  🔒 Ignoring an unapproved permanent-memory record: "
+                        f"\"{getattr(_it, 'text', '')[:44]}\"")
+            all_items = _ok + self._tier2
+        else:
+            all_items = self._tier1 + self._tier2
 
         scored = [
             (item, _score_relevance(item, query_lower))
@@ -662,13 +835,55 @@ class DriftcoreMemory:
             )
 
         if not self._interactive:
-            # In non-interactive mode, auto-promote if used, else drop
+            # (external red-team follow-through, 2026-09-06) PROMOTION IS A TIER 1
+            # WRITE AND WAS NOT TREATED AS ONE.
+            #
+            # Confirmed by execution: write anything to Tier 2 — the landing zone
+            # for everything — read it ONCE, wait for the Day 14 review, and this
+            # branch moved it into Tier 1 unquarantined, with review_stage=2 so it
+            # skipped the second review too. A control item, identical but never
+            # read, correctly stayed in Tier 2.
+            #
+            # The criterion is `access_count > 0`, and access_count increments on
+            # READ — an operation with no authorization at all. So an attacker
+            # supplies both the content and the signal that says it is worth
+            # keeping permanently.
+            #
+            # Two asymmetries made it invisible:
+            #   * A DIRECT Tier 1 write is quarantined regardless of source. A
+            #     PROMOTED one was not. The stronger protection sat on the path an
+            #     attacker does not have to use.
+            #   * The observation gate runs on the WRITE. Promotion happens later,
+            #     on a timer, from an item already stored — a second, unguarded
+            #     route into the permanent store two weeks after the first.
+            #
+            # Why it was not caught: test_memory_extended.py DOES exercise this.
+            # It sets access_count = 3, backdates the item, and asserts promotion
+            # succeeds — the feature's point of view. Nobody asked who controls
+            # access_count, and nothing asserted the item's quarantine state
+            # afterwards.
             for item in first_review_due + second_review_due:
                 suggestion = _judge_tier2_item(item)
                 if suggestion == "promote":
+                    if not self._allow_unattended_promotion:
+                        # Being read is not a human deciding to keep something
+                        # forever. Leave it in Tier 2, where it faces the second
+                        # review and then expires. Losing a memory is the safe
+                        # direction; gaining a false permanent one is not.
+                        item.review_stage = max(item.review_stage, 1)
+                        self._narrator._emit(
+                            f"  📌 Working memory item looks used and would be "
+                            f"promoted, but unattended promotion into permanent "
+                            f"memory is off. Keeping it in working memory for the "
+                            f"second review: \"{item.text[:48]}\"")
+                        continue
                     self._tier2.remove(item)
                     item.tier = 1
                     item.review_stage = 2
+                    # A promoted item arrives under the SAME terms as a direct
+                    # Tier 1 write. It reached the permanent store without a human
+                    # in the loop, which is precisely when quarantine is for.
+                    item.quarantined = True
                     self._store_tier1(item)
                 elif suggestion == "keep" and item.review_stage == 0:
                     item.review_stage = 1

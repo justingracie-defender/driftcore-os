@@ -42,9 +42,12 @@ from typing import Dict, List, Optional, Tuple, Union
 #
 # The import is LOCAL (deferred) to break the authority <-> skills import cycle —
 # the same idiom coordinator.py uses for interpretation_guard.
-def _is_human(authorised_by) -> bool:
+def _is_human(authorised_by, *, action: str = "skills_governance") -> bool:
     from driftcore.authority.human_identity import is_human
-    return is_human(authorised_by)
+    # `action` is required, not defaulted. Passing no action let an attestation
+    # verify against itself — a token issued for one purpose satisfied any call
+    # site that forgot to name its own. Each site below names what it authorises.
+    return is_human(authorised_by, action=action)
 
 
 
@@ -182,7 +185,7 @@ class MaturityController:
                       authorised_by: str, reason: str = ""
                       ) -> Tuple[bool, SkillMaturity, str]:
         """TRUSTED and CRITICAL_APPROVED require a human authoriser + a reason."""
-        if not _is_human(authorised_by):
+        if not _is_human(authorised_by, action="skill_human_promote"):
             return False, current, "promotion to this tier requires a human authoriser"
         if not reason.strip():
             return False, current, "promotion requires a reason (for the audit trail)"
@@ -306,7 +309,7 @@ class ProposalLedger:
 
     def approve(self, proposal_id: str, authorised_by: str, new_version: str,
                 note: str = "") -> Tuple[bool, str]:
-        if not _is_human(authorised_by):
+        if not _is_human(authorised_by, action="skill_approve"):
             return False, "approving a skill patch requires a human authoriser"
         if not note.strip():
             return False, "approval requires a note (for the audit trail)"
@@ -324,7 +327,7 @@ class ProposalLedger:
 
     def reject(self, proposal_id: str, authorised_by: str, reason: str = ""
                ) -> Tuple[bool, str]:
-        if not _is_human(authorised_by):
+        if not _is_human(authorised_by, action="skill_reject"):
             return False, "rejecting a skill patch requires a human authoriser"
         p = self._proposals.get(proposal_id)
         if not p:

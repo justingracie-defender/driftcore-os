@@ -11,6 +11,15 @@ still caught (the `lambda: True` failure), which require_secure_mode() alone
 would wave through.
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 import contextlib
 import hashlib
 import os
@@ -89,6 +98,7 @@ class _ReturnsGarbage(PreflightCheck):
 def real_verifier():
     """ATTESTED mode with a genuine verifier that knows 'justin'."""
     H.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
     try:
         v = H.HumanIdentityVerifier()
         v.register_principal("justin", b"the-one-true-key")
@@ -96,6 +106,7 @@ def real_verifier():
         yield
     finally:
         H.reset_policy()
+        _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 @contextlib.contextmanager
@@ -103,6 +114,7 @@ def stub_verifier():
     """ATTESTED mode, but the verifier accepts ANYTHING (the lambda:True bug).
     mode() reports ATTESTED — 'secure' — yet forged attestations pass."""
     H.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
     class _AcceptAll(H.HumanIdentityVerifier):
         def verify(self, att, *, action, now=None):
@@ -113,16 +125,19 @@ def stub_verifier():
         yield
     finally:
         H.reset_policy()
+        _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 @contextlib.contextmanager
 def label_only():
     """LABEL_ONLY: any string not on the denylist counts as human."""
     H.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
     try:
         yield
     finally:
         H.reset_policy()
+        _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -465,6 +480,7 @@ class _DeadVerifier(H.HumanIdentityVerifier):
 
 
 H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 try:
     H.set_verifier(_DeadVerifier())
     rep = P.run([P.HumanAuthorizationIsReal()], raise_on_fail=False)
@@ -472,6 +488,7 @@ try:
           rep.results[0].outcome is Outcome.UNVERIFIABLE)
 finally:
     H.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 with real_verifier():
     rep = P.run([P.HumanAuthorizationIsReal()], raise_on_fail=False)
@@ -562,6 +579,7 @@ class _NoRegisterVerifier:
 
 
 H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 try:
     H.set_verifier(_NoRegisterVerifier())
     rep = P.run([P.HumanAuthorizationIsReal()], raise_on_fail=False)
@@ -571,6 +589,7 @@ try:
           "positive" in rep.results[0].detail.lower())
 finally:
     H.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 with real_verifier():
     P.run([P.HumanAuthorizationIsReal()], raise_on_fail=False)
@@ -631,6 +650,7 @@ check("A1-A4 fixes are not a blanket refuse: a properly attested robot boots",
 print("=== self red-team: A5 boot-time PASS can regress (TOCTOU) ===")
 
 H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 try:
     _v = H.HumanIdentityVerifier(); _v.register_principal("justin", b"real-key")
     H.set_verifier(_v)
@@ -649,6 +669,7 @@ try:
           regressed == ["human-authorization-is-real"])
 finally:
     H.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 # reverify is quiet when nothing regressed
 with real_verifier():
@@ -711,12 +732,14 @@ def _outcome(chk):
 print("=== identity-mode-is-secure ===")
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 check("no declared policy -> UNVERIFIABLE, never PASS",
       _outcome(_IMS()) == "UNVERIFIABLE")
 check("policy ATTESTED on a LABEL_ONLY deployment -> FAIL",
       _outcome(_IMS("ATTESTED")) == "FAIL")
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _H.register_human_principal("alice")
 check("policy REGISTERED on a REGISTERED deployment -> PASS",
       _outcome(_IMS("REGISTERED")) == "PASS")
@@ -724,6 +747,7 @@ check("policy ATTESTED on a REGISTERED deployment -> FAIL",
       _outcome(_IMS("ATTESTED")) == "FAIL")
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _v = _V()
 _v.register_principal("alice", b"k")
 _H.set_verifier(_v)
@@ -748,6 +772,7 @@ class _Stub:
 
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _H.set_verifier(_Stub())
 check("a STUBBED verifier passes identity-mode-is-secure (documented limit)",
       _outcome(_IMS("ATTESTED")) == "PASS")
@@ -755,6 +780,7 @@ check("and is caught by human-authorization-is-real",
       _outcome(_HAR()) == "FAIL")
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 check("LABEL_ONLY is caught by identity-mode-is-secure",
       _outcome(_IMS("ATTESTED")) == "FAIL")
 
@@ -766,11 +792,13 @@ print("=== the canary must measure the boundary, not the roster ===")
 # a human called Justin failed its own identity check.
 for _name in ("alice", "justin", "bob"):
     _H.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
     _H.register_human_principal(_name)
     check(f"human-authorization-is-real passes with a principal named {_name!r}",
           _outcome(_HAR()) == "PASS")
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 check("the bare canary is namespaced so no deployment can register it",
       "::" in _HAR.BARE_CANARY)
 
@@ -795,6 +823,7 @@ from driftcore.kernel.preflight import InstrumentedChannelsHaveCeilings as _ICC
 print("=== instrumented-channels-have-ceilings ===")
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _H.register_human_principal("op")
 
 check("no guard_factory -> UNVERIFIABLE, never PASS",
@@ -864,6 +893,7 @@ check("and the SAME observation is refused once a ceiling exists",
       not _g2.observe("out", 10 ** 6).permitted)
 
 _H.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 print(f"  {_passed}/{_total} tests passed")

@@ -24,7 +24,11 @@ from driftcore.kernel.request_schema import (
 # return, a swallowed exception, a conditional skip) reports "3/3 passed" and the
 # gate sees nothing wrong. The total just gets quietly smaller, and nobody
 # notices a smaller number. A declared expected count makes a shortfall visible.
-EXPECTED_CHECKS = 74
+# 74 -> 76: two checks added 2026-09-06 for the redirect shape re-check.
+# This number is the point of the mechanism above — adding checks without
+# updating it prints 76/74, which is exactly the visible shortfall (in the
+# other direction) the design is for.
+EXPECTED_CHECKS = 76
 
 passed = 0
 def ok(c, label):
@@ -591,5 +595,55 @@ class _Legacy:
 ok(_passes_contract(_Legacy()),
    "PIN6: the singular .ip shape is still accepted (backward compatible)")
 
+
+
+# ── redirect re-checks SHAPE, not only destination (Astra, 2026-09-06) ──────
+# A permitted read could 302 to an edit URL on the SAME allowlisted host, and the
+# request shape was never revalidated. The hop loop's own comment said "a redirect
+# is a NEW destination, never an inherited trust" — destination was treated as
+# new, shape was treated as settled at hop 0.
+import socket as _sock
+from driftcore.kernel.payload_shape import (
+    PayloadShapeGuard as _PSG, ShapePolicy as _SP, PathTemplate as _PT,
+    PayloadRefused as _PR)
+
+from driftcore.kernel.egress_guard import (
+    EgressGuard as _EG_cls, EgressPolicy as _EP_cls, GuardedEgress)
+EgressGuard = _EG_cls
+EgressPolicy = _EP_cls
+
+_H = "redirect.test"
+_res = lambda h, p: [(_sock.AF_INET, _sock.SOCK_STREAM, _sock.IPPROTO_TCP, "",
+                      ("93.184.216.34", p))]
+_shape = _PSG([_SP(host=_H, templates=(
+    _PT(method="GET", path="/read", purpose="the declared read"),
+    _PT(method="GET", path="/also", purpose="a second declared read"),
+), declared_by="operator_jane")])
+_eg = EgressGuard(EgressPolicy(destinations=frozenset({("http", _H, 80)}),
+                               declared_by="operator_jane"))
+
+
+def _hop(loc, with_shape):
+    seen = []
+
+    def _t(url, pinned, **kw):
+        seen.append(url)
+        return (302, {"Location": loc}, b"") if url.endswith("/read") else (200, {}, b"ok")
+
+    g = GuardedEgress(_eg, _t, resolver=_res,
+                      shape_guard=_shape if with_shape else None)
+    try:
+        g.request(f"http://{_H}/read")
+        return True, seen
+    except Exception:
+        return False, seen
+
+_EDIT = f"http://{_H}/edit?action=edit&text=X"
+_okd, _seen = _hop(_EDIT, True)
+ok(not _okd and not any("action=edit" in u for u in _seen),
+   "a redirect to an UNDECLARED request shape is refused before transport sees it")
+_okd2, _seen2 = _hop(f"http://{_H}/also", True)
+ok(_okd2 and len(_seen2) == 2,
+   "...while a redirect to a DECLARED shape still completes (control)")
 
 print(f"\n{passed}/{EXPECTED_CHECKS} checks passed")

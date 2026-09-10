@@ -51,9 +51,14 @@ from typing import Dict, List, Optional, Tuple
 #
 # The import is LOCAL (deferred) to break the authority <-> skills import cycle —
 # the same idiom coordinator.py uses for interpretation_guard.
-def _is_human(authorised_by) -> bool:
+def _is_human(authorised_by, *, action: str = "recovery_store") -> bool:
     from driftcore.authority.human_identity import is_human
-    return is_human(authorised_by)
+    # `action` is required. Omitting it let an attestation verify against itself:
+    # the token supplied the action it was checked for, so one issued for any
+    # purpose satisfied a site that did not name its own. All three copies of this
+    # helper changed together — test_human_identity asserts they share one
+    # implementation precisely so a fix cannot land on two of three.
+    return is_human(authorised_by, action=action)
 
 
 
@@ -278,7 +283,7 @@ class RestoreAuthority:
         self._snapshotter = snapshotter
 
     def restore(self, checkpoint_id: str, authorised_by: str) -> Tuple[bool, str]:
-        if not _is_human(authorised_by):
+        if not _is_human(authorised_by, action="recovery_summary"):
             self._store._audit("RESTORE_DENIED", authorised_by or "system",
                                f"id={checkpoint_id} — human authoriser required")
             return False, "restore requires a human authoriser"
@@ -312,7 +317,7 @@ class RestoreAuthority:
         return ok, "restored" if ok else "restore backend failed"
 
     def prune(self, checkpoint_id: str, authorised_by: str) -> Tuple[bool, str]:
-        if not _is_human(authorised_by):
+        if not _is_human(authorised_by, action="recovery_prune"):
             return False, "prune requires a human authoriser"
         if self._store.get(checkpoint_id) is None:
             return False, "no such checkpoint"

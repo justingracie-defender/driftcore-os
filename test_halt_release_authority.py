@@ -27,6 +27,15 @@ only asserted "every string is refused" would pass just as well if release() had
 been broken outright, and an e-stop that can never be cleared is its own outage.
 Both halves must hold.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 import sys
 
 from driftcore.authority.human_identity import (
@@ -61,6 +70,7 @@ def released(k, who):
 
 # ══ 1. LABEL_ONLY — the mode the finding was found in ═══════════════════
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 ok(mode() == "LABEL_ONLY",
    "fixture: nothing configured, so the process is in the insecure default mode "
    "— this is the state an unconfigured deployment actually ships in")
@@ -81,6 +91,7 @@ for bad in (None, 1, True, object(), ["justin"], {"principal": "justin"}):
 
 # ══ 2. REGISTERED — a name is still not a proof ═════════════════════════
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 register_human_principal("justin")
 ok(mode() == "REGISTERED", "fixture: one registration moves the process to REGISTERED")
 ok(is_human("justin") is True,
@@ -94,6 +105,7 @@ ok(released(halted_kernel(), "justin") is False,
 # Without this section the file above would pass against a release() that refuses
 # everything unconditionally, which is a different bug, not a fix.
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 _v = HumanIdentityVerifier()
 _v.register_principal("justin", "operator-key")
 set_verifier(_v)
@@ -133,6 +145,7 @@ ok(released(halted_kernel(), "justin") is False,
 
 # ══ 4. the halt itself stays ungated — stopping is not authorisation ════
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 k = SafetyKernel()
 k.emergency_halt("anyone at all may pull this")
 ok(k.locked is True,
@@ -140,6 +153,7 @@ ok(k.locked is True,
    "authentication ceremony is not an emergency stop. Authority gates the RESTART.")
 
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 # ══ 5. safe_halt: the SOFT ladder is preserved, the gap is made visible ══
@@ -148,7 +162,8 @@ reset_policy()
 # could verify is never recorded as a verified human release.
 from driftcore.safety.safe_halt import SafeHalt
 
-reset_policy()                                   # LABEL_ONLY, nothing configured
+reset_policy()   # -> UNCONFIGURED; the declaration below is what makes it LABEL_ONLY
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 h = SafeHalt(); h.soft_halt()
 ok(h.release("planner_agent_7") == "SYSTEM_RESUMED",
    "SOFT ladder preserved: software-only recovery still releases simply, so an "
@@ -179,4 +194,5 @@ except TypeError:
              "so no caller silently names 'human_operator' as the releasing human")
 
 reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 print(f"\n{p}/{p} checks passed — test_halt_release_authority.py")

@@ -33,6 +33,15 @@ baseline (the deployment's job, per objective_integrity.py). Whether the
 coordinator should auto-ratify on a valid signed change is an open design call —
 left to the operator on purpose, not silently baked in.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.verification.coordinator import VerificationCoordinator, Outcome
 from driftcore.verification.invariant_guard import InvariantGuard, Effect
 from driftcore.verification.risk_classifier import RiskClassifier
@@ -55,7 +64,7 @@ BENIGN = {"actuator_id": "motor_1", "command": "forward"}   # known-PROCEED acti
 
 def plain_coord():
     return VerificationCoordinator(InvariantGuard(), RiskClassifier(),
-                                   grant_authority=GrantAuthority())
+                                   grant_authority=GrantAuthority(in_process_only=True))
 
 # ─────────────────────────────────────────────────────────────────
 # 1. BACKWARD COMPAT — no new inputs => unchanged behaviour
@@ -65,7 +74,7 @@ ok(c.evaluate(BENIGN).outcome == Outcome.PROCEED,
    "no new inputs: benign actuation still PROCEEDs")
 
 clethal = VerificationCoordinator(InvariantGuard(), RiskClassifier(),
-                                  grant_authority=GrantAuthority(),
+                                  grant_authority=GrantAuthority(in_process_only=True),
                                   tool_effects={"turret_1": {Effect.LETHAL}})
 ok(clethal.evaluate({"prompt": "gently engage", "actuator_id": "turret_1",
                      "command": "activate"}).outcome == Outcome.BLOCKED,
@@ -81,7 +90,7 @@ def integ_coord():
     reg = InvariantRegistry()
     reg.mark_checked("no_lethal_action")          # enforcement marks checks that ran
     return VerificationCoordinator(
-        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(),
+        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(in_process_only=True),
         objective_baseline=BASE,
         required_invariants=frozenset({"no_lethal_action"}),
         invariant_registry=reg, objective_secret=SECRET)
@@ -125,7 +134,7 @@ ok(d.outcome == Outcome.BLOCKED and d.invariant == "objective_integrity",
 # 2f. required invariant silently absent this cycle -> BLOCKED (even if no drift)
 reg_empty = InvariantRegistry()    # nothing marked checked
 c_missing = VerificationCoordinator(
-    InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(),
+    InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(in_process_only=True),
     objective_baseline=BASE, required_invariants=frozenset({"no_lethal_action"}),
     invariant_registry=reg_empty, objective_secret=SECRET)
 d = c_missing.evaluate(BENIGN, context={"current_objectives": BASE.objectives})
@@ -270,7 +279,7 @@ ok(rep.invariant and rep.offending_field is None,
 # ─────────────────────────────────────────────────────────────────
 reg = InvariantRegistry(); reg.mark_checked("no_lethal_action")
 c_order = VerificationCoordinator(
-    InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(),
+    InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(in_process_only=True),
     tool_effects={"turret_1": {Effect.LETHAL}},
     objective_baseline=BASE, required_invariants=frozenset({"no_lethal_action"}),
     invariant_registry=reg, objective_secret=SECRET)
@@ -295,7 +304,7 @@ ok(d.outcome == Outcome.BLOCKED and d.invariant == "objective_integrity"
 def bounded_coord(maxc):
     reg = InvariantRegistry(); reg.mark_checked("no_lethal_action")
     return VerificationCoordinator(
-        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(),
+        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(in_process_only=True),
         objective_baseline=BASE, required_invariants=frozenset({"no_lethal_action"}),
         invariant_registry=reg, objective_secret=SECRET, max_cycles=maxc)
 
@@ -350,7 +359,7 @@ from driftcore.verification.invariant_guard import ActionContext
 
 def egress_coord(targets):
     return VerificationCoordinator(InvariantGuard(), RiskClassifier(),
-        grant_authority=GrantAuthority(),
+        grant_authority=GrantAuthority(in_process_only=True),
         authorized_egress_targets=targets, egress_owner="operator")
 
 EMAIL = {"prompt": "send the nightly summary", "effects": [Effect.DATA_EGRESS],
@@ -488,7 +497,7 @@ except ValueError:
 
 def strict_coord():
     return VerificationCoordinator(
-        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(),
+        InvariantGuard(), RiskClassifier(), grant_authority=GrantAuthority(in_process_only=True),
         objective_baseline=BASE, strict_v45=True)
 
 # 12b. strict: a consequential action (carries effects) without verifier harm
@@ -534,13 +543,13 @@ from driftcore.verification.cumulative_ledger import CumulativeLedger, BudgetPol
 _tmp = _tf.mkdtemp()
 def _ledger_coord(ledger):
     return VerificationCoordinator(InvariantGuard(), RiskClassifier(),
-        grant_authority=GrantAuthority(), cumulative_ledger=ledger)
+        grant_authority=GrantAuthority(in_process_only=True), cumulative_ledger=ledger)
 
 # an egress action that clears the per-action guard (authorized target so the
 # exfiltration seed doesn't fire), so we isolate the LEDGER's cross-action gate
 def _egress_coord(ledger, targets):
     return VerificationCoordinator(InvariantGuard(), RiskClassifier(),
-        grant_authority=GrantAuthority(), cumulative_ledger=ledger,
+        grant_authority=GrantAuthority(in_process_only=True), cumulative_ledger=ledger,
         authorized_egress_targets=targets, egress_owner="operator")
 EG = {"prompt": "send summary", "effects": [Effect.DATA_EGRESS], "target": "ok@x.com"}
 
@@ -587,7 +596,7 @@ class _BoomClassifier:
 _lg_leak = CumulativeLedger(_os.path.join(_tmp, "leak.jsonl"),
                             BudgetPolicy(window_seconds=3600, max_egress_actions=1))
 _c_leak = VerificationCoordinator(InvariantGuard(), _BoomClassifier(),
-    grant_authority=GrantAuthority(), cumulative_ledger=_lg_leak,
+    grant_authority=GrantAuthority(in_process_only=True), cumulative_ledger=_lg_leak,
     authorized_egress_targets=["ok@x.com"], egress_owner="operator")
 _d_leak = _c_leak.evaluate(EG)   # reserves, then classifier throws -> BLOCKED (fail-closed)
 ok(_d_leak.outcome == Outcome.BLOCKED, "exception after reserve -> BLOCKED (fail-closed)")

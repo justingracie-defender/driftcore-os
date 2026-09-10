@@ -258,7 +258,20 @@ class AuthorizationLease:
     def expires_mono(self) -> float:
         return self.granted_mono + self.ttl
     def expired(self, now_mono: float) -> bool:
-        return self.ttl <= 0.0 or now_mono >= self.expires_mono()
+        """CLAIM lease-expires-on-non-finite-ttl: a NaN or infinite lease lifetime
+        reads as EXPIRED, never as eternal.
+
+        (2026-09-06) `self.ttl <= 0.0` is False for NaN and
+        `now >= NaN` is False too, so a NaN lease never expired — confirmed a
+        thousand seconds past its grant. +inf did the same wearing an honest face.
+        Found by enumerating every expiry comparison in the repo after the same bug
+        was fixed in `restart_authority.Approval`; this is the third site.
+        """
+        t = self.ttl
+        if not isinstance(t, (int, float)) or isinstance(t, bool) \
+                or t != t or t in (float("inf"), float("-inf")):
+            return True
+        return t <= 0.0 or now_mono >= self.expires_mono()
 
 
 class AuthorizationTTLEngine:

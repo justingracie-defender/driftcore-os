@@ -3,7 +3,8 @@ driftcore/verification/resolved_value.py
 ========================================
 STATUS: PROPOSED (stdlib only; not yet wired into the pipeline).
 
-INTERPRETATION MUST NOT EXCEED EVIDENCE.
+Interpretation must not exceed evidence — see the CLAIM block below for the
+properties that enforce it.
 
 The failure this closes is not hallucination. Every number involved is correct and
 present in the evidence. The failure is that the QUESTION does not uniquely select
@@ -24,13 +25,14 @@ permissions.
 WHY THIS IS A TYPE AND NOT A FLAG
 ---------------------------------
 `clarification_gate` models the ABSENCE of a binding: a required slot is missing,
-so ask. Verified 2026-09-01: it cannot model MULTIPLICITY. With the slot filled by
-any value, `assess()` returns PROCEED on its first branch — "all required slots
-present" — at every impact level including ACT. Several correct candidates look
-exactly like one good answer, because the gate counts slots rather than readings.
+so ask. Multiplicity is a different object, and it was checked on 2026-09-01 by
+running it: with the slot filled by any value, `assess()` returns PROCEED on its
+first branch — "all required slots present" — at every impact level including ACT.
+Several correct candidates look exactly like one good answer, because the gate
+counts slots rather than readings.
 
-So the object below is not a warning attached to an answer. A caller must be unable
-to read a value out of an unresolved interpretation at all:
+So the object below is not a warning attached to an answer; the properties it
+enforces are:
 
   CLAIM ambiguous-carries-no-value: a ResolvedValue whose status is not UNIQUE has
   no value to read. The constructor refuses to build one, so there is no object in
@@ -78,7 +80,7 @@ class Resolution(str, Enum):
 
 @dataclass(frozen=True)
 class Candidate:
-    """One justified reading. `value` is correct; that was never in question."""
+    """One justified reading, whose value was never the thing in doubt."""
     value: Any
     concept: str                 # which taxonomy concept this reading maps to
     evidence_id: str             # where in the evidence it came from
@@ -94,7 +96,7 @@ class Candidate:
 
 
 class Unresolved(Exception):
-    """Raised when a caller reads a value out of a result that has none."""
+    """Signals a read of a value from a result carrying none."""
 
 
 @dataclass(frozen=True)
@@ -133,10 +135,11 @@ class ResolvedValue:
 
     # CLAIM value-access-raises-when-unresolved
     def require(self) -> Any:
-        """The value, or a raise. The only sanctioned way to read one.
+        """CLAIM value-access-raises-when-unresolved: this is the only sanctioned
+        read of a value, and it raises unless the status is UNIQUE.
 
-        Deliberately not a property and deliberately not `.get(default=...)`. A
-        default is how an unresolved reading becomes a stored fact.
+        Deliberately not a property and not `.get(default=...)`, since a default is
+        how an unresolved reading becomes a stored fact.
         """
         if self.status is not Resolution.UNIQUE:
             raise Unresolved(
@@ -149,13 +152,12 @@ class ResolvedValue:
 
 
 def resolve(candidates, *, question: str = "") -> ResolvedValue:
-    """Decide whether the candidates force one reading. Never picks a winner.
+    """CLAIM resolve-never-tie-breaks: there is no scoring, preference order, or
+    tie-break, so this function cannot pick which reading the human meant.
 
-    There is no scoring, no preference order, and no tie-break. A tie-break is a
-    choice about what the human meant, which is the decision this module exists to
-    refuse to make on their behalf. Distinctness is by CONCEPT, not by value: two
-    readings that happen to carry the same number are still two readings, and a
-    later correction to one of them must not silently resolve the question.
+    CLAIM distinctness-is-by-concept: two candidates mapping to different concepts
+    remain two readings even when their values are equal, so a numeric coincidence
+    cannot resolve a question that names distinct concepts.
     """
     cands = tuple(candidates)
     if not cands:

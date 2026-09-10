@@ -12,8 +12,32 @@ safe_halt.release() reads the policy TWICE, at different times:
 
 Nothing ties those two reads to the same policy.
 """
-import sys, threading
-sys.path.insert(0, "/home/claude/work/session/driftcore-os")
+import os, sys, threading
+# (red-team 2026-09-01) This line used to hardcode an absolute path into the author's
+# container, so the probe imported DriftCore from a fixed tree no matter which tree it
+# was run in — §0f's "probe that scanned the wrong repository", committed inside the
+# artifact whose whole job is verification. It failed in the direction that made the
+# fix look good: every tree reported "no race", including the unfixed baseline.
+# Resolve from THIS FILE's location instead, so the probe always tests the tree it
+# ships in.
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if not os.path.isdir(os.path.join(_root, "driftcore")):
+    raise SystemExit(
+        f"REFUSING TO RUN: no driftcore package at {_root!r}.\n"
+        f"This probe resolves the tree from its OWN location, so it must sit in\n"
+        f"<repo>/probes/. Run the copy in the repo's probes/ directory, not a\n"
+        f"flattened copy elsewhere — a probe that imports the wrong tree reports\n"
+        f"'no race' everywhere, which is how this exact bug hid once already.")
+sys.path.insert(0, _root)
+
+# (2026-09-09) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist. A probe is not a deployment and verifies
+# nobody, so it declares that — otherwise its own CONTROLS fail and the failure
+# reads as a finding. Caught exactly that way: this probe reported a "leak" that
+# was its legitimate-release control being denied.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only("probe: single process, no verifier installed")
+
 
 import driftcore.authority.human_identity as hi
 from driftcore.safety.safe_halt import SafeHalt
@@ -22,6 +46,7 @@ PRINCIPAL = "operator_jane"
 
 # ── controls: establish what the policy actually says, before racing anything ──
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 print("CONTROL 1 — LABEL_ONLY")
 print("  mode:", hi.mode(), " secure:", hi.status()["secure"])
 print(f"  is_human({PRINCIPAL!r}):", hi.is_human(PRINCIPAL, action="safe_halt_release"),
@@ -34,6 +59,7 @@ _denied = hi.is_human(PRINCIPAL, action="safe_halt_release")
 print(f"  is_human({PRINCIPAL!r}):", _denied,
       "  <- under this policy the release would be REFUSED.")
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 # ── the race ──
 print("\n" + "=" * 68)
@@ -93,3 +119,4 @@ else:
     print("no finding — the release did not commit under the stale policy")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")

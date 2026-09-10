@@ -115,6 +115,7 @@ def build_coordinator(
         invariant_registry: Optional[InvariantRegistry] = None,
         tool_effects: Optional[dict] = None,
         authorization_state=None,
+        grant_authority=None,
 ) -> VerificationCoordinator:
     """Construct a VerificationCoordinator from a profile's `coordinator` block.
 
@@ -154,7 +155,15 @@ def build_coordinator(
 
     return VerificationCoordinator(
         guard, classifier,
-        grant_authority=None,               # default authority; agent never holds it
+        # (2026-09-01) This said `grant_authority=None,  # default authority;
+        # agent never holds it`. The comment described the intent and the code
+        # produced the opposite: None meant the coordinator minted an in-process
+        # GrantAuthority, which the agent very much holds — same secret, same
+        # interpreter, mintable by anything with a reference. None now means NO
+        # AUTHORITY and therefore no grants, and a caller that wants actuation
+        # passes one in. A builder must not choose a security boundary on the
+        # deployment's behalf by leaving an argument out.
+        grant_authority=grant_authority,
         tool_effects=effects_map,
         objective_baseline=baseline,
         required_invariants=frozenset(cfg.get("required_invariants") or ()),

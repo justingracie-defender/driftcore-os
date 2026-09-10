@@ -8,6 +8,8 @@ present in the evidence; the question simply does not select one of them.
 # CLAIMS: driftcore/verification/resolved_value.py:unique-requires-binding
 # CLAIMS: driftcore/verification/resolved_value.py:ambiguous-requires-candidates
 # CLAIMS: driftcore/verification/resolved_value.py:value-access-raises-when-unresolved
+# CLAIMS: driftcore/verification/resolved_value.py:resolve-never-tie-breaks
+# CLAIMS: driftcore/verification/resolved_value.py:distinctness-is-by-concept
 
 Includes the helpful-completion red-team: four prompts over ONE evidence bundle,
 where only the fourth actually names a concept. The other three are social

@@ -4,6 +4,15 @@ Both exist because of the same red-team observation: a lesson that has to be
 re-remembered at every call site gets forgotten at one of them, and honest
 documentation is not enforcement."""
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 from driftcore.audit.bounded_fields import (
     bounded_reason, AuditFieldRefused, MAX_REASON_CHARS,
 )
@@ -89,6 +98,7 @@ try:
        "the identical unbounded-reason pattern)")
 finally:
     reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 print("== production refuses to start in the insecure mode ==")
 ok(mode() == "LABEL_ONLY", "with nothing configured the mode is LABEL_ONLY")
@@ -106,5 +116,6 @@ try:
        "a configured deployment starts")
 finally:
     reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 print(f"\n{passed}/{EXPECTED_CHECKS} checks passed")

@@ -42,6 +42,15 @@ not pin the field set of status() as a side effect.
 Run: python3 test_halt_release_atomicity.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 # CLAIMS: driftcore/safety/safe_halt.py:policy-unpinned-refuses
 # CLAIMS: driftcore/safety/safe_halt.py:policy-gate-never-raises
 
@@ -195,6 +204,63 @@ check("A3: the SECOND soft halt is not cleared by the first release's decision",
       _h5.status()["active"] is True)
 check("A3: ...refused as a state change, despite (active, level) comparing equal",
       _result3 and _result3[0].startswith("RELEASE_DENIED"))
+# (external red-team, Grok, 2026-09-01) POSITIVE CONTROL. Every check above asserts
+# the SYMPTOM — denied, halt alive — which is also what happens if the identity gate
+# is stuck closed for an unrelated reason. `authority/__init__.py` pulls executor ->
+# skills -> recovery, and `_is_human` is contractually silent on failure, so any
+# break in that chain denies every release and these checks stay green while testing
+# nothing. Confirmed: with `_is_human` forced False, A3's assertions all pass.
+# So prove the same configuration CAN release when uncontended, and that the refusal
+# named the state change rather than identity.
+_h5b = SafeHalt(verifier=lambda p: True)
+_h5b.soft_halt()
+check("A3: (control) the same config releases when uncontended — so 'denied' above "
+      "means the CAS fired, not that identity was broken",
+      _h5b.release("operator_jane") == "SYSTEM_RESUMED" and clear(_h5b))
+check("A3: ...and the refusal named the state change, not the identity gate",
+      _result3 and "changed while this release" in _result3[0])
+
+
+print("=== A3b: two releases racing — only one may commit ===")
+
+# (external red-team, Grok, 2026-09-01) Removing `self._generation += 1` from the
+# release commit path turned ZERO checks red. A1-A3 all move the generation via
+# hard_halt()/soft_halt(), so they never exercised the bump the RELEASE performs.
+# What it guards: two releases in flight over one halt. Without it the second
+# commits against a stale snapshot, clearing a halt that is already clear and
+# writing a second audit record — including a second unverified_releases entry —
+# for a release that never happened. An uncovered branch, not a redundant one.
+# ONE verifier object for both releases: swapping it would trip the WIRING guard
+# instead, and the check could not tell which guard denied. A first draft of this
+# check did exactly that and passed with the generation bump deleted.
+_g8 = _Gate()
+_calls = []
+
+
+def _pause_first_only(principal):
+    _calls.append(principal)
+    if len(_calls) == 1:
+        _g8.pause()
+    return True
+
+
+_h13 = SafeHalt(verifier=_pause_first_only)
+_h13.soft_halt()
+_r13 = []
+_t13 = threading.Thread(target=lambda: _r13.append(_h13.release("operator_jane")))
+_t13.start()
+_g8.entered.wait(5)
+_second = SafeHalt.release(_h13, "operator_bob")   # same verifier, commits first
+check("A3b: the first release to finish commits", _second == "SYSTEM_RESUMED")
+_g8.may_return.set()
+_t13.join(5)
+check("A3b: the second does NOT also commit against its stale snapshot",
+      _r13 and _r13[0].startswith("RELEASE_DENIED"))
+check("A3b: ...refused for the STATE CHANGE, not the wiring — otherwise this check "
+      "cannot tell which guard fired",
+      _r13 and "changed while this release" in _r13[0])
+check("A3b: ...so the halt is released exactly once in the log",
+      sum(1 for e in _h13.log if e["event"].startswith("HALT_RELEASED")) == 1)
 
 
 print("=== A4: a refused release does not pollute the integrity ledger ===")
@@ -250,6 +316,7 @@ import driftcore.authority.human_identity as _hi
 
 _real_is_human = _hi.is_human
 _hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 # Control, both directions: establish what the two policies actually say about this
 # principal, so the race result below means something.
 check("A5: (control) LABEL_ONLY permits an unregistered principal",
@@ -258,6 +325,7 @@ _hi.register_human_principal("someone_else")
 check("A5: (control) REGISTERED refuses that same principal",
       _real_is_human("operator_jane", action="safe_halt_release") is False)
 _hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 _g6 = _Gate()
 
@@ -285,6 +353,7 @@ try:
 finally:
     _hi.is_human = _real_is_human
     _hi.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 check("A5: a release permitted under the old policy does not commit",
       _h10.status()["active"] is True)
@@ -340,8 +409,16 @@ _g1 = _h6._generation
 _h6.hard_halt()
 _g2n = _h6._generation
 check("gen: every state mutation advances the counter", _g0 < _g1 < _g2n)
+# (external red-team, Astra, 2026-09-06) This asserted the OPPOSITE, and the
+# contract changed underneath it deliberately. A repeat halt at the same level
+# was treated as an idempotent no-op, so an in-flight release never saw it and
+# still returned SYSTEM_RESUMED. For a safety layer a repeat call is a newly
+# observed hazard, not a duplicate: the LEVEL still holds (halts never
+# downgrade) and the REQUEST now advances the counter, invalidating any release
+# decided before it arrived.
 _h6.hard_halt()
-check("gen: a no-op halt request does NOT advance it", _h6._generation == _g2n)
+check("gen: a RENEWED halt request advances the counter, so a release decided "
+      "before it cannot commit", _h6._generation > _g2n)
 # Asserts the counter stays internal WITHOUT pinning the field set of status().
 check("gen: the counter is not exposed through status()",
       not any("generation" in k for k in _h6.status()))

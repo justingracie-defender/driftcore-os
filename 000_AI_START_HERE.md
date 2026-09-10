@@ -566,6 +566,76 @@ real figure was 4619. A number written into prose is a claim with a timestamp no
 recorded. Cite the command instead, so the reader can re-derive it — and so a stale
 figure is impossible rather than merely unlikely.
 
+## 0h. A PASSING CHECK IS A CLAIM ABOUT THE CHECK
+
+**Before you trust a green result, break the thing it names and watch it go red.
+If it does not, the check was decorative and the fix is unverified — however the
+diff reads.**
+
+You already believe "verify, don't trust." So did the instance that wrote this,
+which is why the record below is worth your attention: it ran everything, and
+every defect it shipped got past it anyway, because **the checking was what was
+broken.** Seven of them in one session, and not one was found by reading the
+check back.
+
+| What it reported | What was actually happening |
+|---|---|
+| "no race", on every tree | The probe hardcoded an absolute path into `sys.path` and imported a fixed tree regardless of where it ran. §0f's wrong-repository failure, inside the verification artifact itself. |
+| Mutation applied, suite green — "the guard is not load-bearing" | The `str.replace` matched nothing. The mutation never applied. Twice. |
+| A4 green | The check installed a verifier, which made the branch it tested unreachable. It passed while exercising nothing. |
+| A3b red under mutation | Red for the wrong reason: the check swapped `_verifier`, so the *wiring* guard fired and masked the generation guard it claimed to test. |
+| "verify happens before decrypt" | The check compared source offsets. Nesting the decrypt INSIDE the verify call — `_verify_record(_decrypt(row[...]), ...)` — passed it 13/13. |
+| "no forgery accepted" | Three `TypeError`s. The calls crashed on the signature; nothing was verified either way. |
+| "no finding" on the pre-fix tree | The probe referenced attributes the FIX introduced, so it crashed on the tree it existed to indict. |
+
+### The protocol
+
+Reading these back will not find them. Only running them will.
+
+1. **Assert the mutation applied.** `assert mutated != original` before you run
+   anything. A silent no-op replace produces a green run indistinguishable from
+   a correct one.
+2. **Demand red for the NAMED mechanism.** Assert on the refusal reason, not
+   just on refusal. Two overlapping guards mean the second fires when you delete
+   the first, and the check never notices which one saved it.
+3. **Pair every negative control with a positive one.** "It refused" and "it
+   refuses everything" look identical. A verifier that rejects a legitimately
+   signed grant is paralysis, not security, and only the positive control tells
+   them apart.
+4. **A crash is not a result.** Separate "the mechanism refused" from "my call
+   was malformed". If they land in the same `except`, a stack trace reads as a
+   clean finding.
+5. **A probe must RUN on the tree it indicts.** If it touches anything the fix
+   introduced, it cannot execute against the pre-fix tree, and the crash reads
+   as absence of the defect. Read those defensively, and audit for ALL of them
+   at once rather than one crash at a time.
+6. **Source order is not execution order.** Assert on behaviour — instrument the
+   call and count it — not on where text appears in a file.
+
+### Why this class hides
+
+Look at the direction. Every one of those seven resolved in the author's favour:
+no race, all green, forgery refused, guard not needed. **An error that flatters
+you is the one you do not chase.** §0f says the bug that agrees with you is the
+dangerous one; this is that rule applied to the instruments rather than the code.
+
+And note what it is not. These were not sloppiness in place of discipline — the
+discipline was written down and being followed. The gap is that "did I check?"
+and "would I have known if it were broken?" are different questions, and only
+the first one feels answered.
+
+### The honest status of this section
+
+This is prose. Nothing in the repo denies anything because of it, and by this
+project's own founding finding that makes it doctrine rather than enforcement.
+
+The enforced version is a mutation manifest: every `CLAIM` tag carries the edit
+that should turn its paired test red, and a ratchet applies each one and fails if
+any survives. That would have caught A4, A3b, and both dead mutations
+automatically instead of by someone noticing. It does not exist. Building it is
+open work, and until it does, this section is a request rather than a gate —
+which is exactly the distinction §1 is about.
+
 ## 1. THE CORE THESIS (the one thing to understand)
 
 **Architecturally-enforced safety over documented safety.** A guardrail the model can

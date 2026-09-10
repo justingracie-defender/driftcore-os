@@ -20,6 +20,15 @@ decision. What a red-team pass found, all reproduced before being fixed:
 Run: python3 test_halt_and_restart.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 from driftcore.safety.safe_halt import SafeHalt
 from driftcore.governance import restart_authority as RA
 
@@ -316,6 +325,27 @@ check("#3: after a final hard_halt() the system is definitively HARD-halted",
 # claims. This is NOT a field allowlist — no such guard exists for SafeHalt, and if
 # one is wanted it should be its own test that says so, not a by-product of an
 # equality operator in a threading test.
+
+
+# ── non-finite approval lifetimes (external red-team, Astra, 2026-09-06) ──
+# `elapsed > ttl` is False for NaN, because every comparison with NaN is False,
+# so a NaN lifetime read as NOT expired. Infinity did the same wearing an honest
+# face. Standing rule 4 names this set exactly, and `finite_guards` passes
+# without covering this comparison.
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+from driftcore.governance.restart_authority import Approval as _Ap, ApproverRole as _Role
+
+_a = _Ap("jane", _Role.OPERATOR, "s", ttl_seconds=1)
+_past = (_dt.now(_tz.utc) - _td(hours=1)).isoformat()
+for _label, _v in (("NaN", float("nan")), ("+inf", float("inf")),
+                   ("-inf", float("-inf")), ("negative", -5), ("non-numeric", "forever")):
+    _a.timestamp, _a.ttl_seconds = _past, _v
+    check(f"#N: a {_label} approval lifetime is EXPIRED, not eternal", _a.expired is True)
+
+_a.timestamp, _a.ttl_seconds = _dt.now(_tz.utc).isoformat(), 300
+check("#N: (control) a fresh finite approval is NOT expired", _a.expired is False)
+_a.timestamp, _a.ttl_seconds = _past, 300
+check("#N: (control) a genuinely stale finite approval IS expired", _a.expired is True)
 
 
 print("=== the hardened broker profile is safe BY DEFAULT ===")

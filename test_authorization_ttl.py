@@ -9,7 +9,7 @@ unknown goals, and deterministic digest ordering.
 import threading
 from driftcore.verification.authorization_ttl import (
     AuthorizationTTLEngine, CadencePolicy, Stakes, ExpiryResponse, default_stakes,
-    PolicyError, UnknownGoal,
+    PolicyError, UnknownGoal, AuthorizationLease,
 )
 
 p = 0
@@ -269,5 +269,28 @@ for t_ in ts: t_.start()
 for t_ in ts: t_.join()
 ok(not errs and e.morning_digest() == [],
    "thread safety: 20 concurrent check/renew cycles complete with no corruption")
+
+
+# ── non-finite lease lifetimes (2026-09-06) ─────────────────────────────────
+# `self.ttl <= 0.0` is False for NaN and `now >= NaN` is False too, so a NaN lease
+# never expired — confirmed a thousand seconds past its grant. +inf did the same
+# wearing an honest face. Third site of this defect in the repo, found by
+# enumerating every expiry comparison instead of fixing only the reported one.
+import time as _t
+
+_now = _t.monotonic()
+for _lbl, _ttl in (("NaN", float("nan")), ("+inf", float("inf")),
+                   ("-inf", float("-inf"))):
+    _L = AuthorizationLease(goal_id="g", stakes=list(Stakes)[0],
+                            granted_mono=_now, ttl=_ttl)
+    ok(_L.expired(_now + 1000) is True,
+       f"a {_lbl} lease lifetime reads as EXPIRED, not eternal")
+
+_L = AuthorizationLease(goal_id="g", stakes=list(Stakes)[0],
+                        granted_mono=_now, ttl=100.0)
+ok(_L.expired(_now + 1) is False,
+   "a finite lease is still valid inside its window (control)")
+ok(_L.expired(_now + 1000) is True,
+   "...and expired outside it (control)")
 
 print(f"\n{p}/{p} tests passed")

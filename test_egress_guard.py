@@ -6,6 +6,15 @@ Scope note, restated so these tests cannot be over-read: this governs egress tha
 comes THROUGH the wall. A process that already holds a socket never calls any of
 this. See the module docstring.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.kernel.egress_guard import (
     EgressGuard, EgressPolicy, EgressVerdict, MalformedDestination,
     normalize_destination, is_private_destination,

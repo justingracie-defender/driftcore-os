@@ -341,13 +341,25 @@ class ObservationGate:
         """
         trust = TrustLevel.from_source(source)
 
-        # ── Full family trust — always allowed ────────────────────
-        if trust >= TrustLevel.FAMILY_LIMITED:
-            return GateResult(
-                allowed=True,
-                reason=f"Trusted family source ({source}).",
-                trust_level=trust,
-            )
+        # (external red-team, 2026-09-06) This returned allowed=True BEFORE any
+        # detection ran, for any caller whose `source` string mapped to
+        # FAMILY_LIMITED or above. Confirmed by execution: the identical injection
+        # payload was blocked and flagged as `source="external"`, and allowed with
+        # nothing recorded as `source="dad"`, `"justin"`, `"operator"`, `"kid"`.
+        # The only variable was a string the caller chose.
+        #
+        # `TrustLevel.from_source` is a string comparison against a word list. It
+        # cannot establish that a caller is Dad; it establishes that a caller typed
+        # "dad". Skipping detection on the strength of that is trusting the label.
+        #
+        # THE FIX IS NOT to distrust the family. Detection now runs for EVERY
+        # source, and trust decides the RESPONSE — a trusted source that trips a
+        # detector is asked rather than blocked, an untrusted one is blocked. What
+        # trust no longer decides is whether anyone looks.
+        #
+        # Not fixed here, and the reviewer is right about it: trust should come
+        # from a registered principal or a grant, not a label. That is a change to
+        # every caller of this gate and it is recorded as open, not smuggled in.
 
         # ── Get existing Tier 1 items for contradiction check ─────
         existing_tier1 = []

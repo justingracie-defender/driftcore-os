@@ -8,8 +8,30 @@ check is read at the top of release(). The generation counter tracks (active, le
 only. So if the authority is installed while a release is mid-flight, the gate was
 evaluated as absent, the generation never moved, and the CAS passes.
 """
-import sys, threading
-sys.path.insert(0, "/home/claude/work/session/driftcore-os")
+import os, sys, threading
+# (red-team 2026-09-01) This line used to hardcode an absolute path into the author's
+# container, so the probe imported DriftCore from a fixed tree no matter which tree it
+# was run in — §0f's "probe that scanned the wrong repository", committed inside the
+# artifact whose whole job is verification. It failed in the direction that made the
+# fix look good: every tree reported "no race", including the unfixed baseline.
+# Resolve from THIS FILE's location instead, so the probe always tests the tree it
+# ships in.
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if not os.path.isdir(os.path.join(_root, "driftcore")):
+    raise SystemExit(
+        f"REFUSING TO RUN: no driftcore package at {_root!r}.\n"
+        f"This probe resolves the tree from its OWN location, so it must sit in\n"
+        f"<repo>/probes/. Run the copy in the repo's probes/ directory, not a\n"
+        f"flattened copy elsewhere — a probe that imports the wrong tree reports\n"
+        f"'no race' everywhere, which is how this exact bug hid once already.")
+sys.path.insert(0, _root)
+
+# (2026-09-09) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist. A probe verifies nobody, so it declares
+# that — otherwise its own CONTROLS fail and the failure reads as a finding.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only("probe: single process, no verifier installed")
+
 from driftcore.safety.safe_halt import SafeHalt
 
 
@@ -47,8 +69,14 @@ print("\nthread A is mid-release; the HARD/RestartAuthority gate was evaluated a
 
 auth = Authority()
 h._restart_authority = auth                    # deployment wiring completes mid-flight
-gen_before = h._generation
-print("authority installed, generation unchanged:", gen_before)
+# `_generation` is instrumentation added BY the fix, so it does not exist on the
+# unfixed baseline. Read it defensively: a probe whose job is to indict the old tree
+# must be able to RUN on the old tree. (Found by running it there — it crashed
+# before reaching its verdict, which would have read as "no finding".)
+gen_before = getattr(h, "_generation", None)
+print("authority installed, halt-state generation unchanged:",
+      gen_before if gen_before is not None
+      else "(no generation counter on this tree — pre-fix)")
 
 may_return.set()
 t.join(5)

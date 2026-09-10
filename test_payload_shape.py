@@ -39,7 +39,12 @@ guard = PayloadShapeGuard([policy])
 
 print("== the residual: egress guard alone permits the exfil query ==")
 eg = EgressGuard(EgressPolicy.build(["https://api.weather.com"], declared_by="justin"))
-leak = "https://api.weather.com/v1/forecast?q=Kingston&ref=justin-gracie-555-010-0199"
+# (2026-09-09) This fixture carried what looked like a REAL phone number
+# attached to a real name. The test only needs "a secret smuggled in a query
+# string", which a synthetic value represents exactly as well. Caught in a
+# pre-commit sweep; 555 numbers elsewhere in the suite are the reserved
+# fictional prefix and are fine.
+leak = "https://api.weather.com/v1/forecast?q=Springfield&ref=subject-0001-555-0100"
 ok(eg.check(leak).permitted,
    "destination layer ALLOWS the request carrying a secret in the query (the gap)")
 

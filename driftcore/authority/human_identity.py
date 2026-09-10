@@ -141,6 +141,15 @@ class HumanIdentityVerifier:
         k = key.encode("utf-8") if isinstance(key, str) else key
         if not k:
             raise ValueError("key must be non-empty")
+        # (external red-team, Grok, 2026-09-01) Registering a principal HERE changes
+        # what counts as a human without touching the module-level policy, so
+        # policy_generation() versioned the verifier HANDLE and not its CONTENTS.
+        # Confirmed live: adding a principal, and overwriting an existing
+        # principal's key, both left the counter unmoved while safe_halt's
+        # compare-and-swap was trusting it. Bump it from inside the mutation.
+        global _generation
+        with _lock:
+            _generation += 1
         with self._lock:
             self._keys[principal] = k
 
@@ -206,13 +215,92 @@ _registered: Set[str] = set()
 # prevent the change, it makes the change detectable.
 _generation = 0
 
+# (2026-09-06) UNCONFIGURED IS NOT PERMISSIVE.
+#
+# `mode()` returned LABEL_ONLY whenever nothing was configured, and LABEL_ONLY
+# says yes to any name not on a six-word denylist — `agent_7`, `planner` and
+# `mallory` all passed. That default is the floor every other gate in this project
+# stands on, and it sat underneath five separate findings in one review.
+#
+# The sibling module already had this right: `EgressGuard` with no policy returns
+# BLOCK_UNDECLARED and says "unconfigured is not permissive." Identity had the
+# same situation and the opposite default.
+_label_only_declared_by: Optional[str] = None
+
+
+def declare_label_only(declared_by: str) -> None:
+    """Accept that identity will not be verified in this process.
+
+    CLAIM label-only-must-be-declared: LABEL_ONLY is reachable only through this
+    call, so an unconfigured process refuses rather than trusting a name.
+
+    `declared_by` is recorded, not checked — there is nobody to check it against
+    yet, which is exactly the state being declared. Its purpose is that the
+    decision has an author instead of being nobody's.
+    """
+    if not isinstance(declared_by, str) or not declared_by.strip():
+        raise ValueError(
+            "declare_label_only requires a non-empty declared_by. Accepting that "
+            "identity will not be verified is a decision, and a decision with no "
+            "author is how a default becomes a policy nobody chose.")
+    global _label_only_declared_by, _generation
+    with _lock:
+        # (cold pass, 2026-09-09) IDENTITY STRENGTH ONLY INCREASES.
+        #
+        # Confirmed by execution: under ATTESTED a bare name is correctly refused,
+        # and in-process code that called reset_policy() then declare_label_only()
+        # got the same bare name accepted. The agent downgraded its own identity
+        # floor and every gate standing on it.
+        #
+        # `reset_policy` and `set_verifier` were always in-process reachable, so
+        # that half is a pre-existing limitation of running the checks inside the
+        # address space being checked — the same one `mediated_actuation` exists
+        # to escape, and not something a function here can fix.
+        #
+        # What IS fixable is the clean downgrade path this module added. Declaring
+        # label-only over an installed verifier or registry is refused, so the
+        # weakening now requires tearing those down first — a louder act that
+        # leaves `mode()` visibly UNCONFIGURED in between. Same rule as
+        # `narrowing_channel`: it may tighten and never quietly loosen.
+        if _verifier is not None or _registered:
+            raise PermissionError(
+                f"refusing to declare label-only while identity is already "
+                f"{'ATTESTED' if _verifier is not None else 'REGISTERED'}. "
+                f"Declaring that identity goes unverified is a DOWNGRADE, and a "
+                f"downgrade is not something a running process talks itself into.")
+        _label_only_declared_by = declared_by
+        _generation += 1
+
+
+def undeclare_label_only() -> None:
+    """Withdraw the declaration, returning the process to UNCONFIGURED.
+
+    Separate from `reset_policy` deliberately: withdrawing consent to run
+    unverified is a decision and must not be a side effect of clearing a registry.
+    """
+    global _label_only_declared_by, _generation
+    with _lock:
+        _label_only_declared_by = None
+        _generation += 1
+
 
 def policy_generation() -> int:
     """Monotonic version of the process-wide identity policy.
 
-    Advances on EVERY change to what counts as a human. Compare a value taken before
-    an authorization decision against one taken before the resulting mutation: if they
-    differ, the decision was made under rules that no longer hold.
+    Advances when the installed verifier changes, when a principal is registered
+    (module-level or on an installed `HumanIdentityVerifier`), and on reset. Compare a
+    value taken before an authorization decision against one taken before the
+    resulting mutation: if they differ, the decision was made under rules that no
+    longer hold.
+
+    It versions the mutations routed through this module and through
+    `HumanIdentityVerifier.register_principal`. It CANNOT see a change made by any
+    other route — a custom verifier that consults an external store, a key rotated
+    outside this class, a registry mutated directly. The counter is only as complete
+    as the set of mutators that bump it, and a caller trusting it is trusting that
+    set. An earlier version of this line claimed it advanced on EVERY change to what
+    counts as a human; that was false, and it was false in the direction that made a
+    compare-and-swap built on it look sound.
     """
     with _lock:
         return _generation
@@ -239,11 +327,25 @@ def register_human_principal(principal: str) -> None:
 
 
 def reset_policy() -> None:
-    """Test hook: clear verifier and registry."""
-    global _verifier, _generation
+    """Test hook: clear verifier, registry AND any label-only declaration.
+
+    (external red-team, Grok, 2026-09-09) This cleared the verifier and registry
+    and left `_label_only_declared_by` standing. Executed: declare label-only,
+    register a principal (mode REGISTERED), call reset_policy() — and the process
+    lands back in LABEL_ONLY carrying a STALE declaration authored by whoever
+    declared first. `is_human("mallory")` is True again. A test hook plus one
+    leftover declaration restores the exact floor this module was changed to
+    remove.
+
+    Clearing everything lands in UNCONFIGURED, which refuses. A caller that wants
+    label-only declares it again — which is the honest sequence, because after a
+    reset nobody has declared anything.
+    """
+    global _verifier, _generation, _label_only_declared_by
     with _lock:
         _verifier = None
         _registered.clear()
+        _label_only_declared_by = None
         _generation += 1
 
 
@@ -253,6 +355,8 @@ def mode() -> str:
             return "ATTESTED"
         if _registered:
             return "REGISTERED"
+        if _label_only_declared_by is None:
+            return "UNCONFIGURED"
         return "LABEL_ONLY"
 
 
@@ -270,7 +374,14 @@ def require_secure_mode(*, context: str = "production") -> str:
     authorization and finding out later.
     """
     m = mode()
-    if m == "LABEL_ONLY":
+    # (external red-team, Grok, 2026-09-09) This tested only for LABEL_ONLY and
+    # so RETURNED "UNCONFIGURED" — green-lighting the exact state introduced to be
+    # fail-closed. Identity was made to refuse; the function a deployment calls to
+    # refuse a bad boot was not updated to know about the new mode.
+    #
+    # A mode enum that grows and a classifier that does not is how "we could not
+    # check" starts reading as "we checked" again, one layer up.
+    if m in ("LABEL_ONLY", "UNCONFIGURED"):
         raise InsecureAuthorizationMode(
             f"{context} refuses to start in LABEL_ONLY mode: human authorization "
             f"would be a string comparison, on boundaries that include "
@@ -289,14 +400,16 @@ def status() -> dict:
     return {
         "mode": m,
         "registered_principals": sorted(_registered),
-        "secure": m != "LABEL_ONLY",
+        # Secure means identity can actually be established: a registry or a
+        # verifier. UNCONFIGURED has neither and reported secure=True.
+        "secure": m in ("REGISTERED", "ATTESTED"),
         "note": (
             "LABEL_ONLY is INSECURE: any string not on a six-item denylist counts as a "
             "human, so a caller that chooses its own `authorised_by` self-authorizes. It "
             "exists only so existing deployments do not change behaviour silently on "
             "upgrade. Register a principal or install a verifier. Deployment checks "
             "should assert mode() != 'LABEL_ONLY'."
-            if m == "LABEL_ONLY" else
+            if m in ("LABEL_ONLY", "UNCONFIGURED") else
             "REGISTERED rejects labels that were never registered, but does not prove WHO "
             "acted — only ATTESTED does that."
             if m == "REGISTERED" else
@@ -345,8 +458,34 @@ def is_human(authorised_by: Optional[object], *, action: Optional[str] = None,
     if isinstance(authorised_by, HumanAttestation):
         if v is None:
             return False          # attestations are meaningless with no verifier
+        # CLAIM attestation-cannot-self-bind: an attestation is verified against
+        # the action the CALLER names. A caller that names none is refused rather
+        # than having the token supply its own.
+        #
+        # (external red-team, 2026-09-04) This was
+        # `action=action or authorised_by.action`. With `action` omitted, the
+        # attestation verified against ITSELF: whatever it claimed to be for was
+        # what it was checked for, so a token issued for `declassify` satisfied a
+        # call site that forgot to say what it was authorising. Confirmed by
+        # execution — cross-action substitution was refused when `action=` was
+        # passed and accepted when it was not.
+        #
+        # Same class as "truthiness is not consent", one level up: OMISSION IS
+        # NOT BINDING. The earlier sweep that cleared action-binding always
+        # passed `action=`, which proved the binding works and never tested the
+        # case where a caller forgets — the property was checked in the
+        # configuration that could not fail.
+        if action is None:
+            # Not "use the token's own action". A caller that names nothing gets
+            # nothing. The three `_is_human` helpers each supply a module-level
+            # default so no call site silently omits one; that binding is COARSER
+            # than per-operation and is deliberately a first step. Making it
+            # per-operation is a 23-caller migration across 28 files, measured,
+            # and is its own piece of work rather than a change to slip in
+            # alongside this one.
+            return False
         try:
-            v.verify(authorised_by, action=action or authorised_by.action, now=now)
+            v.verify(authorised_by, action=action, now=now)
             return True
         except Exception:
             return False
@@ -356,5 +495,11 @@ def is_human(authorised_by: Optional[object], *, action: Optional[str] = None,
         return False
     if reg:
         return isinstance(authorised_by, str) and authorised_by in reg
+    if _label_only_declared_by is None:
+        # UNCONFIGURED. The denylist below cannot establish that a caller is human,
+        # only that they avoided six words. Returning True from it when nobody
+        # chose that policy is "we could not check" reading as "we checked".
+        return False
+
     return (isinstance(authorised_by, str)
             and authorised_by not in _NON_HUMAN_LABELS)

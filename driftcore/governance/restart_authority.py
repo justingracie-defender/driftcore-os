@@ -113,11 +113,32 @@ class Approval:
 
     @property
     def expired(self) -> bool:
+        """CLAIM expiry-refuses-non-finite: a TTL that is NaN or infinite makes
+        the approval expired, never eternal.
+
+        (external red-team, Astra, 2026-09-06) `elapsed > ttl` is False for NaN,
+        because every comparison with NaN is False — so a NaN TTL read as
+        not-expired. Infinity read as not-expired too, which is the same defect
+        wearing an honest face. Standing rule 4 of this project names exactly
+        this set: non-finite is {NaN, +inf, -inf}. There is a `finite_guards`
+        ratchet, it passes, and it did not cover this comparison.
+
+        Note what this does NOT fix: `_sign` still covers only approver_id and
+        role, so `timestamp` and `ttl_seconds` remain unsigned and a caller can
+        still rewind an expiry. That is a signing-payload change and it is
+        recorded as open, not quietly half-done here.
+        """
         try:
             issued = datetime.fromisoformat(self.timestamp)
-        except ValueError:
+        except (ValueError, TypeError):
             return True     # an unparseable timestamp is not a valid approval
-        return (datetime.now(timezone.utc) - issued).total_seconds() > self.ttl_seconds
+        ttl = self.ttl_seconds
+        if not isinstance(ttl, (int, float)) or isinstance(ttl, bool) \
+                or ttl != ttl or ttl in (float("inf"), float("-inf")):
+            return True     # non-finite or non-numeric: expired, not eternal
+        if ttl < 0:
+            return True
+        return (datetime.now(timezone.utc) - issued).total_seconds() > ttl
 
     @staticmethod
     def _sign(approver_id: str, role: ApproverRole, secret: str) -> str:

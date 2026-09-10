@@ -13,6 +13,7 @@ coordinator can mint:
 Run with:  python test_governed_actuator.py
 """
 
+import time
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,13 +28,23 @@ def check(n, c):
     print(f"  {'✅' if c else '❌'}  {n}")
     results.append((n, bool(c)))
 
+def _raises_value(fn):
+    try:
+        fn()
+    except ValueError:
+        return True
+    except Exception:
+        return False
+    return False
+
+
 def refused(fn):
     try:
         fn(); return False
     except PermissionError:
         return True
 
-grants = GrantAuthority()
+grants = GrantAuthority(in_process_only=True)
 arm    = GovernedActuator("arm_1", grants)
 
 
@@ -60,8 +71,17 @@ print("\nSingle-use + expiry:")
 g_once = grants.mint("arm_1", "open")
 arm.actuate("open", g_once)
 check("grant reuse -> refused", refused(lambda: arm.actuate("open", g_once)))
+# (2026-09-06) This built an expired grant by minting with ttl_seconds=-1. `mint`
+# now refuses non-positive and non-finite lifetimes at ISSUE, because a NaN or
+# infinite TTL produced a grant whose expiry comparison never fired. The test's
+# intent — an expired grant is refused at use — is unchanged; only the way of
+# constructing one is. Mint a real short-lived grant and let it lapse.
+_g_short = grants.mint("arm_1", "open", ttl_seconds=0.01)
+time.sleep(0.05)
 check("expired grant -> refused",
-      refused(lambda: arm.actuate("open", grants.mint("arm_1", "open", ttl_seconds=-1))))
+      refused(lambda: arm.actuate("open", _g_short)))
+check("...and a non-positive lifetime is now refused at ISSUE, not at use",
+      _raises_value(lambda: grants.mint("arm_1", "open", ttl_seconds=-1)))
 
 
 # ── 3. Coordinator issues grants ONLY on PROCEED ───────────────────

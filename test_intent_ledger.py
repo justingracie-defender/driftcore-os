@@ -26,6 +26,15 @@ Run: python3 test_intent_ledger.py
 # CLAIMS: driftcore/verification/intent_ledger.py:agent-cannot-write-constraints
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 import time
 
 from driftcore.authority import human_identity as hi
@@ -93,6 +102,7 @@ def _can(fn):
 
 def fresh():
     hi.reset_policy()
+    _identity_boot.declare_label_only("test suite: single process, no verifier installed")
     hi.register_human_principal("founder")
     led = IntentLedger()
     led.capture("give-back", GIVE_BACK, spoken_by="founder")
@@ -268,6 +278,7 @@ check("with no constraints stated, nothing is unaddressed",
 print("=== ATTESTED mode: a name is no longer enough ===")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 v = HumanIdentityVerifier()
 v.register_principal("founder", b"founder-key")
 hi.set_verifier(v)
@@ -283,6 +294,7 @@ wrong = HumanAttestation.issue(b"founder-key", principal="founder",
 raises("an attestation for another action cannot", IntentError,
        lambda: led.capture("c2", "another purpose", spoken_by=wrong))
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 print("=== the record cannot be edited through its accessor ===")
@@ -369,6 +381,7 @@ check("a grant over a DIFFERENT authority does not transfer",
       d.verdict is Verdict.REFUSED)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("founder")
 hi.register_human_principal("mallory")
 led = IntentLedger()
@@ -391,6 +404,7 @@ d = led.authorise("remove the founder", basis=Basis.CITED,
 check("a DIFFERENT human cannot grant away authority they do not hold",
       d.verdict is Verdict.REFUSED)
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -409,6 +423,7 @@ print("=== L0: no agent input creates or widens an authority grant ===")
 import itertools
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("founder")
 hi.register_human_principal("agent_pretending")
 
@@ -451,6 +466,7 @@ check("the holder's own explicit grant DOES authorise it",
       d.verdict is Verdict.AUTHORISED)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -462,6 +478,7 @@ hi.reset_policy()
 print("=== red-team attacks A-H, all previously AUTHORISED ===")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("founder")
 hi.register_human_principal("mallory")
 
@@ -570,6 +587,7 @@ check("no exit path returns the -1 generation sentinel",
       all(p.generation >= 0 for p in _paths))
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -586,6 +604,7 @@ hi.reset_policy()
 print("=== withdrawn consent stays withdrawn ===")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("founder")
 
 
@@ -732,6 +751,7 @@ check(f"exactly one ledger state authorises the change (got {sorted(_did)})",
       _did == _should)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -749,6 +769,7 @@ hi.reset_policy()
 print("=== the effect registry ratchets ===")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 def cold():
@@ -836,6 +857,7 @@ led2.revoke("shared", revoked_by="cto", utterance="Standing down the Friday rule
 check("a NAMED delegate can revoke", not led2.active_constraints())
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -859,6 +881,7 @@ import uuid as _uuid
 from driftcore.verification.intent_ledger import _decision_digest as _dd
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("founder")
 
 
@@ -983,6 +1006,7 @@ check("expired decisions are sweepable", led._expire_issued() == 20)
 check("and the set empties", led.outstanding_decisions == 0)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -996,6 +1020,7 @@ hi.reset_policy()
 print("=== the effect ratchet covers EVERY security-relevant field ===")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 for _principal in ("founder", "board", "mallory"):
     hi.register_human_principal(_principal)
 
@@ -1085,6 +1110,7 @@ for _label, _mutate in [
           not _can(lambda: L.redeem(dd, action="buy ads")))
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -1106,6 +1132,7 @@ print("=== an alias cannot drop a declaration ===")
 from driftcore.verification.intent_ledger import canonical_action as _canon
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("founder")
 
 led = IntentLedger()
@@ -1142,6 +1169,7 @@ check("a non-string action name is refused",
       not _can(lambda: _canon(42)))
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 
 
@@ -1161,6 +1189,7 @@ hi.reset_policy()
 print("=== conversation cannot elevate authority ===")
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 hi.register_human_principal("operator")          # the deployer, and nobody else
 
 kb = IntentLedger()
@@ -1215,6 +1244,7 @@ print("=== ...but ONLY when identity is configured ===")
 # deployment invariant `preflight.IdentityModeIsSecure` exists to assert, and the
 # reason that check refuses to let an unconfigured deployment call itself safe.
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 lo = IntentLedger()
 lo.capture("purpose", "Only process genuine prize claims for real winners here.",
            spoken_by="operator")
@@ -1229,6 +1259,7 @@ check("which is exactly what the identity-mode preflight check is for",
       _got_through > 0)
 
 hi.reset_policy()
+_identity_boot.declare_label_only("test suite: single process, no verifier installed")
 
 # A loop variable named _p or _t silently shadows the counters and turns every
 # subsequent check() into a TypeError — which happened once while writing this file.

@@ -1,4 +1,13 @@
 """Guarantee tests for the constitutional invariant guard, vs the real repo."""
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.verification.invariant_guard import (
     InvariantGuard, Effect, GuardStatus, ActionContext, load_guard,
 )

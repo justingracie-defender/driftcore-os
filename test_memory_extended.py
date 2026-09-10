@@ -211,8 +211,31 @@ item_unused.timestamp = time.time() - (60 * 60 * 24 * 15)
 
 mem8.run_reviews()
 
-check("used Tier 2 item promoted to Tier 1",
-      item_used in mem8._tier1)
+# (2026-09-06) This asserted that a read item gets promoted, and that is still
+# the intended feature — but the criterion is `access_count > 0`, and reading is
+# unauthenticated, so an attacker supplies both the content and the signal that
+# says keep it forever. Unattended promotion into permanent memory is now an
+# explicit opt-in, and a promoted item arrives quarantined like any other Tier 1
+# write that no human approved.
+#
+# The original check never looked at `quarantined` afterwards, which is why the
+# asymmetry — direct Tier 1 writes quarantined, promoted ones not — was invisible
+# for as long as it was.
+check("used Tier 2 item is NOT auto-promoted without the opt-in",
+      item_used not in mem8._tier1 and item_used.tier == 2)
+check("...and stays for the second review rather than being dropped",
+      item_used.review_stage >= 1)
+
+_m8b = DriftcoreMemory(interactive=False, allow_unattended_promotion=True)
+_used_b = _m8b.observe("emma's swimming lesson moved to thursdays")
+_used_b.access_count = 3
+_used_b.timestamp = time.time() - (60 * 60 * 24 * 15)
+_m8b.run_reviews()
+check("with the opt-in, a used item IS promoted (feature intact)",
+      _used_b in _m8b._tier1)
+check("...and arrives QUARANTINED, on the same terms as any unapproved "
+      "Tier 1 write",
+      _used_b.quarantined is True)
 check("unused noise item removed from Tier 2",
       item_unused not in mem8._tier2)
 
@@ -247,6 +270,101 @@ check("important unused item review_stage advanced",
 print("\n" + "=" * 60)
 passed = sum(1 for _, ok in results if ok)
 total  = len(results)
+
+# ── Tier 1 confirmation is a GATE, not a notification (2026-09-06) ─────────
+# The API computed `requires_human_approval` AFTER observe() had stored the row —
+# a notification about something that had already happened. A confirmer now runs
+# BEFORE the item lands, and declining keeps it in working memory, where it
+# expires, rather than in permanent memory, where it does not.
+_T1 = "dad is allergic to peanuts"
+
+_m_no = DriftcoreMemory(interactive=False)
+_i = _m_no.observe(text=_T1, source="dad")
+check("no confirmer configured leaves existing behaviour unchanged",
+      _i.tier == 1 and len(_m_no._tier1) == 1)
+
+_m_yes = DriftcoreMemory(interactive=False, confirm_tier1=lambda t, s: True)
+check("an approved Tier 1 write lands in permanent memory",
+      _m_yes.observe(text=_T1, source="dad").tier == 1)
+
+_m_no2 = DriftcoreMemory(interactive=False, confirm_tier1=lambda t, s: False)
+_d = _m_no2.observe(text=_T1, source="dad")
+check("a DECLINED Tier 1 write does not land in permanent memory",
+      _d.tier == 2 and len(_m_no2._tier1) == 0)
+check("...and is kept quarantined in working memory, where it expires",
+      _d.quarantined is True)
+
+
+def _raiser(t, s):
+    raise RuntimeError("confirmer unavailable")
+
+
+_m_err = DriftcoreMemory(interactive=False, confirm_tier1=_raiser)
+check("a confirmer that RAISES has not approved — fail closed",
+      _m_err.observe(text=_T1, source="dad").tier == 2)
+
+_m_truthy = DriftcoreMemory(interactive=False, confirm_tier1=lambda t, s: "yes")
+check("a truthy non-True is not consent",
+      _m_truthy.observe(text=_T1, source="dad").tier == 2)
+
+# The bound, asserted so it stays visible rather than being implied away: this
+# gate runs in the agent's own address space and an in-process append walks past
+# it. Unlike actuation, which hands the agent an ActuatorProxy whose only power
+# is to send bytes to a store it cannot touch, memory hands the agent the store.
+_m_bypass = DriftcoreMemory(interactive=False, confirm_tier1=lambda t, s: False)
+_m_bypass._tier1.append(MemoryItem(text="unconfirmed", tier=1, source="dad"))
+check("STILL OPEN, on purpose: a direct in-process append bypasses the gate — "
+      "the fix is the proxy pattern, not another in-process check",
+      len(_m_bypass._tier1) == 1)
+
+
+# ── tier1-reads-verify-approval (2026-09-06) ───────────────────────────────
+# A write-side gate runs in the agent's address space and `_tier1.append()` walks
+# past it — verified. Verifying on READ makes the store untrusted storage: an
+# attacker can still put bytes in it, and the bytes are refused. The approving
+# key must live outside this process; if the agent can reach it, it signs its own
+# memories and every check below passes.
+import driftcore.authority.human_identity as _hi
+from driftcore.memory import tier1_record_id, verify_tier1_record
+
+_KEY, _TXT, _SRC = b"approval-service-key", "dad is allergic to peanuts", "dad"
+_v = _hi.HumanIdentityVerifier(); _v.register_principal("jane", _KEY)
+_hi.set_verifier(_v)
+try:
+    # A FRESH attestation per case. An earlier version reused one, and
+    # HumanAttestation is single-use — so every case after the control failed on
+    # a burned nonce rather than on record binding. Dropping the binding
+    # entirely left the suite green: the checks passed for the wrong reason,
+    # which is the masking-guard pattern this repo has now hit four times.
+    def _fresh(text=None, source=None):
+        return _hi.HumanAttestation.issue(
+            _KEY, principal="jane",
+            action=tier1_record_id(text or _TXT, source or _SRC),
+            ttl_seconds=600, nonce=os.urandom(8).hex())
+
+    check("CONTROL: an approved Tier 1 record verifies",
+          verify_tier1_record(MemoryItem(text=_TXT, source=_SRC, tier=1,
+                                         approval=_fresh()), _v) is True)
+    check("a directly appended record with NO approval is rejected at read",
+          verify_tier1_record(MemoryItem(text="dad has no allergies",
+                                         source=_SRC, tier=1), _v) is False)
+    check("an approval STOLEN from another record does not transfer — a FRESH "
+          "attestation, so single-use cannot be what refuses it",
+          verify_tier1_record(MemoryItem(text="dad has no allergies", source=_SRC,
+                                         tier=1, approval=_fresh()), _v) is False)
+    check("the same text from a different SOURCE is a different approval",
+          verify_tier1_record(MemoryItem(text=_TXT, source="external", tier=1,
+                                         approval=_fresh()), _v) is False)
+    check("text altered after approval no longer verifies",
+          verify_tier1_record(MemoryItem(text=_TXT + " (mostly)", source=_SRC,
+                                         tier=1, approval=_fresh()), _v) is False)
+    check("no verifier available means REFUSE, not assume",
+          verify_tier1_record(MemoryItem(text=_TXT, source=_SRC, tier=1,
+                                         approval=_fresh()), None) is False)
+finally:
+    _hi.reset_policy()
+    _hi.declare_label_only("test suite: single process, no verifier installed")
+
 print(f"  {passed}/{total} tests passed")
 
 if passed == total:

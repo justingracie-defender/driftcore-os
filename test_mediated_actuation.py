@@ -805,7 +805,7 @@ def _mkg(n):
     return {"actuator_id": "arm", "command": "move", "nonce": n,
             "expires": _exp, "sig": _sig}
 
-_ga = _GA(b"secret"); _gg = _mkg("ga-race")
+_ga = _GA(b"secret", in_process_only=True); _gg = _mkg("ga-race")
 _gw = []; _gb = _th3.Barrier(8)
 def _grace():
     _gb.wait()
@@ -819,7 +819,7 @@ ok(len(_gw) == 1,
    "reserve/commit/release under a lock — 8 threads racing one grant yield ONE success "
    "(verify(consume=False) gave 8/8 before)")
 
-_ga2 = _GA(b"secret"); _gg2 = _mkg("ga-rel")
+_ga2 = _GA(b"secret", in_process_only=True); _gg2 = _mkg("ga-rel")
 _ga2.reserve(_gg2, "arm", "move"); _ga2.release(_gg2)
 ok(_ga2.reserve(_gg2, "arm", "move") is True,
    "RED-TEAM G-C1: release returns the grant to the pool in GrantAuthority too — both "
