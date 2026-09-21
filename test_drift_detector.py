@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_drift_detector.py — DRIFT DETECTOR VERIFICATION
 ======================================================

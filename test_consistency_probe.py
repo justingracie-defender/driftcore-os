@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_consistency_probe.py — CONSISTENCY PROBE VERIFICATION
 ===========================================================

@@ -19,7 +19,7 @@ git commit -m "DriftCore OS v3.1 — initial public release
 - Sycophancy detection + Bayesian uncertainty
 - Hardware safety interlocks (GPIO/MQTT/Modbus/CAN/ROS2)
 - Fable transparency layer with loud warnings
-- Safety Copyleft License (draft — pending legal review)"
+- Apache License 2.0"
 
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/driftcore-os.git
@@ -41,14 +41,13 @@ git push -u origin main
 
 1. "LLM adapter for abduction engine (v3.2)" — good first issue
 2. "Test GPIO integration on real Raspberry Pi hardware"
-3. "Legal review of Safety Copyleft License — seeking OSS/AI attorneys"
+3. "Review Apache-2.0 adoption and safety-intent wording"
 4. "Translate CONSTITUTION.md" — one issue per language
 5. "New red team scenarios wanted"
 
 ## A note on the license
 
-LICENSE is a DRAFT. Before promoting the project widely, get it
-reviewed — Software Freedom Conservancy (sfconservancy.org) and the
-RAIL initiative (licenses.ai) are good starting points. The key legal
-question to ask: *"Can invariant preservation survive as a license
-condition rather than a contract term?"*
+The repository is licensed under the Apache License 2.0. The complete
+canonical text is in `LICENSE`, attribution is in `NOTICE`, and the project's
+non-binding safety and naming policy is in `SAFETY_INTENT.md`. The latter does
+not add conditions to the Apache license grant.

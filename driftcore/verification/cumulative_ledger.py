@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 driftcore/verification/cumulative_ledger.py  (v2)
 =================================================

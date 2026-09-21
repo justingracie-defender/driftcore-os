@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Isolation manifest — the bouncer bench.
 

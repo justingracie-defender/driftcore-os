@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_deception_measurement.py — the measurement phase that gates G9.
 Includes regressions for the three measurement-INTEGRITY defects found in the cold

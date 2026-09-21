@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Final scoped+on-demand tests, incl. the three closed holes. Real repo."""
 import os, threading
 for f in ["driftcore_daily_budget.json","driftcore_spent_tokens.json"]:

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 state_machine.py — Graded Autonomy State Machine
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_integrity_invariance.py — CONSEQUENCE INVARIANCE + OBJECTIVE INTEGRITY (HARDENED)
 ====================================================================================

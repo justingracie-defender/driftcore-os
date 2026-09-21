@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 payload_shape.py — A THIRD_PARTY DESTINATION GETS DECLARED FIELDS, NOT FREE TEXT.
 

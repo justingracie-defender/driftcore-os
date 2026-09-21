@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 ai_bus.py — AI-to-AI Message Bus
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_cognitive_mode.py — COGNITIVE MODE CONTROLLER VERIFICATION
 ===============================================================

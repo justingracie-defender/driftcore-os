@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """One-door guarantee tests: single decider, sensor that cannot decide,
 strict superset of the old kernel guard — proven, not assumed."""
 from driftcore.kernel.one_door import (

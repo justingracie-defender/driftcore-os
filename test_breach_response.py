@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_breach_response.py — THE ALARM ON THE WALL.
 Proves: a breach is recorded truthfully FIRST, the system enters a safe state and

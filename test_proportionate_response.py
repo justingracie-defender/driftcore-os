@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_proportionate_response.py — THE LEAST-HARM LADDER, MADE CONCRETE
 ====================================================================

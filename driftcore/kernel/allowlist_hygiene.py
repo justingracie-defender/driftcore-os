@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 allowlist_hygiene.py — AN ALLOWLIST ENTRY IS A TRUST-TO-RECEIVE DECLARATION.
 

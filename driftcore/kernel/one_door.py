@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 one_door.py — ONE DOOR: a single constitutional decider for the kernel stack.
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Payload shape: a THIRD_PARTY destination receives DECLARED FIELDS, not free
 text. Closes the last channel in THREAT_MODEL_exfiltration.md — exfiltration via
 path/query to a host the human legitimately allowlisted."""

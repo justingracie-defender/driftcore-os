@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 netns_attestation.py — ATTESTATION, NOT SELF-REPORT.
 

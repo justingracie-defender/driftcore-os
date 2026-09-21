@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Blast-radius governor + posture events — the incident-derived controls.
 

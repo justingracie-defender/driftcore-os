@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 stages/03_safety_review/startup_auth.py
 ========================================

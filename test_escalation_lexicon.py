@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Exhaustive tests for the escalation lexicon: every evasion family must collapse
 onto its base term, benign homographs must NOT trip, and new slang/languages must

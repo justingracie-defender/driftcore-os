@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Request schemas: a declared body and declared headers, or none at all.
 Closes the "constrained URL, unconstrained body" gap that payload_shape named as
 required companion work."""

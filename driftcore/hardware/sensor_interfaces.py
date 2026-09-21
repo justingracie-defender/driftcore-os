@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 sensor_interfaces.py — Physical Sensor Port Definitions
 DriftCore OS v3.1

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 safe_halt.py — Graduated Halt System
 

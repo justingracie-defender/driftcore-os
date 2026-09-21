@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 memory_fs.py — Three-Layer Memory System
 

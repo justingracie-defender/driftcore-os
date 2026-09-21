@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_domain_controller.py — DOMAIN CONTROLLER VERIFICATION
 ===========================================================

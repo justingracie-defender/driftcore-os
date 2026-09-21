@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 import sys; sys.path.insert(0, ".")
 from driftcore.kernel.egress_guard import (
     EgressPolicy, EgressGuard, GuardedEgress, resolve_and_pin,

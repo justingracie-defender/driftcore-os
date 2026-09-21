@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_authorization_ttl.py  (v2 — hardened)
 ==========================================

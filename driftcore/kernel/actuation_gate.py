@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 actuation_gate.py — the ONE DOOR, applied at the actuation choke point.
 

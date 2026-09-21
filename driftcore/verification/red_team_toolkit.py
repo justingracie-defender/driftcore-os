@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 red_team_toolkit.py — Safety Verification & Red-Team Toolkit (v3.3)
 

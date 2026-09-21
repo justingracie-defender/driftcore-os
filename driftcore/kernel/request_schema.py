@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 request_schema.py — DECLARED BODIES AND HEADERS, OR NONE AT ALL.
 

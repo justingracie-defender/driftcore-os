@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Allowlist hygiene: an entry is a TRUST-TO-RECEIVE declaration, linted before
 it can ever be enforced against. Closes the path/query residual that the egress
 guard, by design, does not see."""

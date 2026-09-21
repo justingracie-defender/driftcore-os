@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_keepers.py — THE THREE KEEPERS FROM THE SECOND RED-TEAM PASS
 ================================================================

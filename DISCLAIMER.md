@@ -25,13 +25,13 @@
    sensor. Watch every relay open. If the emergency stop doesn't
    work in testing, it won't work in an emergency.
 
-5. **The license is a draft.** The LICENSE file has not been
-   reviewed by an attorney. Have it professionally reviewed
-   before relying on its protections.
+5. **The license is Apache-2.0.** The license is provided as-is and
+   is not legal advice. Obtain professional legal advice about your
+   specific use and distribution obligations.
 
 6. **No warranty.** The software is provided as-is. The authors
    and contributors accept no liability for any damages arising
-   from its use. See LICENSE Sections 6 and 7.
+   from its use. See LICENSE Sections 7 and 8.
 
 ### The honest framing:
 

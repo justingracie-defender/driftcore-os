@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_challenger.py — the bounded adversarial generator.
 Proves: it finds resistance/spoofing, records truthfully, stays bounded, and — the

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_second_reader.py — THE ANTI-REVERSE-CENTAUR GATE
 =====================================================

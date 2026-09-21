@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 audit_story.py — Immutable Audit Narratives
 

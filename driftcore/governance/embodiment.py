@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 embodiment.py — Embodiment Classification (v3.5)
 

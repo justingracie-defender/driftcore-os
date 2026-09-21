@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_lethal_effect_paths.py
 Proves lethal blocks for the RIGHT reason via BOTH paths:

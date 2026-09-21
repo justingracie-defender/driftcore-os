@@ -229,7 +229,7 @@ Notes
 ## v4.1.1 — Licensing + consistency
 
 - Added `CONSTITUTION.md`, `DRIFTCORE.md`, `SAFETY_CONTRACT.md`, `LICENSE`
-  (AGPL-3.0) and the full `COPYING` text.
+  (historically AGPL-3.0; the current release uses Apache-2.0).
 - Added `scripts/count_tests.sh` as the single source of truth for the
   test count.
 - Reconciled all version/test/module figures across the repo and docs.

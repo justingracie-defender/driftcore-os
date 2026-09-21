@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 cognitive_mode.py — Three-Mode Cognition System
 ================================================

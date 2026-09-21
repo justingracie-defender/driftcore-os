@@ -180,7 +180,8 @@ https://github.com/justingracie-defender/driftcore-os
 
 ## License
 
-Safety Copyleft — see [LICENSE](LICENSE).
-
-If you build on this, keep it open. Keep it safe.
-
+DriftCore OS is licensed under the [Apache License 2.0](LICENSE). See
+[SAFETY_INTENT.md](SAFETY_INTENT.md) for the project's non-binding safety and
+naming policy. Apache License 2.0 Section 6 does not grant trademark rights
+in the name “DriftCore”; modified distributions should use a distinct name
+and must not imply DriftCore endorsement or certification.

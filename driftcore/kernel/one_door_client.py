@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 one_door_client.py — THE SAFE PATH, MADE THE ONLY PATH.
 

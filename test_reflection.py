@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_reflection.py — GOOD JOB vs POOR PERFORMANCE, WITHOUT SELF-GRADING
 =======================================================================

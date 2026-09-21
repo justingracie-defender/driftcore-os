@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 driftcore/cognition/mode_controller.py — ATTEMPT FULLY, THEN REPORT
 ====================================================================

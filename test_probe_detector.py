@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Probe detector — a refusal is an event; a streak of them is a search.
 

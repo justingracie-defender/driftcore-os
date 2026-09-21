@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 hardware_safety.py — Physical Safety Interlock System
 DriftCore OS v3.1

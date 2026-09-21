@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 probe_detector.py — a refusal is a local event; a STREAK of them is a search.
 

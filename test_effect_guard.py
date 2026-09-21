@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_effect_guard.py — constitutional enforcement over EFFECTS, not strings.
 

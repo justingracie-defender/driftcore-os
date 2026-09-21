@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 End-to-end: the constitutional effect gate WIRED INTO the actuation wall.
 

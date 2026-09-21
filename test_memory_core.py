@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_memory_core.py — VERIFY THE MEMORY MODULE WORKS
 =====================================================

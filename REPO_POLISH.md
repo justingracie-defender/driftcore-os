@@ -74,9 +74,12 @@ DISCLAIMER.md before any physical deployment.
 Every safety event narrated in plain language. Warnings are LOUD.
 Immutable hash-chained audit log.
 
-### ⚖️ Safety Copyleft License (DRAFT)
-Derivatives may ADD invariants — never remove them. Pending legal
-review (see issue #1).
+### Apache License 2.0
+
+The repository now uses the Apache License 2.0. The complete license text is
+in `LICENSE`; attribution is in `NOTICE`; and `SAFETY_INTENT.md` records the
+project's non-binding safety and naming requests. Those requests do not add
+conditions to the Apache license grant.
 
 ## Run it
 ```
@@ -94,24 +97,12 @@ enforcement tests, audit chain verification.
 ## 3. Issues to Open (in this order)
 
 ### Issue #1 — pin this one
-**Title:** `Legal review of Safety Copyleft License — seeking OSS/AI attorneys`
+**Title:** `Review Apache-2.0 adoption and safety-intent wording`
 **Labels:** `help wanted`, `legal`, `pinned`
 ```markdown
-The LICENSE file is a DRAFT combining GPL v3 copyleft + Apache 2.0
-patent grant + Hippocratic/RAIL-style prohibited uses, plus one novel
-clause: **invariant preservation** (§3.2) — derivatives may add safety
-invariants but never remove them.
-
-The load-bearing legal question:
-**Can invariant preservation survive as a license condition rather
-than a contract term?**
-
-If you are an attorney with open-source or AI ethics experience — or
-can connect us with Software Freedom Conservancy / RAIL initiative
-folks — your input here shapes whether "safety copyleft" becomes a
-real, reusable legal instrument.
-
-Until resolved, treat LICENSE as a statement of intent.
+DriftCore OS is licensed under the Apache License 2.0. Please review the
+license choice, NOTICE, and the non-binding safety and naming policy in
+SAFETY_INTENT.md for clarity and adoption readiness.
 ```
 
 ### Issue #2

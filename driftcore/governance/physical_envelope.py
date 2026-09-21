@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 physical_envelope.py — DRIFTCORE VERIFIES AN ENVELOPE. IT DOES NOT CONTAIN ONE.
 

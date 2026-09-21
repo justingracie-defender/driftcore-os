@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Broker-mediated LLM path: the agent holds a description, the broker holds the
 socket. Closes the composition gap where sealing the agent broke LLM calls and
 not sealing it left no tripwire."""

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 egress_guard.py — NETWORK EGRESS IS ACTUATION.
 

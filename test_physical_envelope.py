@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Physical envelope: DriftCore verifies that an envelope EXISTS, is ENFORCED
 BELOW THE AI, and is NOT SELF-WIDENABLE — and holds no newtons of its own.
 

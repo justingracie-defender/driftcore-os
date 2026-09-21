@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 restart_authority.py — Tiered Restart Authority (v3.5)
 

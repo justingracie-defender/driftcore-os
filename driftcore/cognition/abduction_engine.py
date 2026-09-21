@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 abduction_engine.py — Structured Creative Leap Module
 

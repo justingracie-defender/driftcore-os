@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 mediated_llm.py — THE AGENT DOES NOT HOLD A SOCKET. IT HOLDS A DESCRIPTION.
 

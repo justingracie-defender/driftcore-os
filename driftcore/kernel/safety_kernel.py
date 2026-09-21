@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 safety_kernel.py — Absolute Override Layer (one-door)
 

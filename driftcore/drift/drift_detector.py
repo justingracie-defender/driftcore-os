@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 drift_detector.py — Continuous Drift Monitoring
 

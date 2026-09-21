@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 multi_model_sim.py — Multi-Model Disagreement Simulation
 

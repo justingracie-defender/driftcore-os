@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 escalation_lexicon.py — the extensible, evasion-resistant CONCERN vocabulary.
 

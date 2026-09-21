@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """External netns attestation: verifies isolation from OUTSIDE the process being
 checked, because verify_self() in the agent's own address space is a self-report
 a compromised agent can forge.

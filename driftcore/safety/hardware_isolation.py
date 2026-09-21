@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 hardware_isolation.py — Physical System Cutoff
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_clarification_gate.py — ASK ONE QUESTION INSTEAD OF GUESSING
 ================================================================

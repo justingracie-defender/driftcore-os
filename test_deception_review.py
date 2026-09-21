@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_deception_review.py — the deception detector, operational-first.
 Proves: it detects the four structural concealment shapes, emits findings WITH EVIDENCE

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Smoke + guarantee tests for driftcore.objectives, run against the real repo."""
 from driftcore.objectives import (
     ObjectiveLedger, ObjectiveSignal, SignalRole, GoodnessAsTargetError,

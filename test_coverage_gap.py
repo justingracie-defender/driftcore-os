@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_coverage_gap.py — the SLOW detector: concealment by omission.
 Includes regressions for all code-fixable findings from FOUR independent reviews

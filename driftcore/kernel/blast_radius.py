@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 blast_radius.py — BREADTH governance at the actuation wall.
 

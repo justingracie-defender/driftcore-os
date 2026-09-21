@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 #
 # count_tests.sh — single source of truth for the DriftCore test count.
 #

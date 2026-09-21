@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Continuous isolation monitor — the thing that keeps looking.
 

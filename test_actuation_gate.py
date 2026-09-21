@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Actuation gate — edge-case bench. Each check maps to a row in
 THREAT_MODEL_ONE_DOOR.md. The guarantee under test: undeclared consequential

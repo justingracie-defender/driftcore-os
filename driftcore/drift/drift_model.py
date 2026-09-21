@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 drift_model.py — Weighted Drift Scoring v3.0
 

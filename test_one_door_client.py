@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """OneDoorClient: the three controls composed into a single path, plus a seal
 that makes the alternate paths fail loudly. Closes the composition gap the red
 team found — the layers were sound but depended on programmer discipline."""

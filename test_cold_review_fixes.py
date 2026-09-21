@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Cold external red-team fixes — each check pins ONE finding from the Grok/ChatGPT
 review pass and proves the specific property that reviewer said a test must prove.

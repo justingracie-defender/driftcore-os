@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """
 robot_surface.py — measure the DECISION SURFACE of the enforcement code.
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Authorization gate + GatedExecutor tests, against the real repo."""
 import time
 from driftcore.authority.authorization_gate import (

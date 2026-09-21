@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Egress guard — adversarial bench. Every bypass class that makes a naive
 `if host in allowlist` check worthless, plus the honest-boundary assertions.

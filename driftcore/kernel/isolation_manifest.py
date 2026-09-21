@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 isolation_manifest.py — the bouncer, and an honest account of what a bouncer can do.
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 production_wiring.py — Real Hardware Connection Guide
 DriftCore OS v3.1

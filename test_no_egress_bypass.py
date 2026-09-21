@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """CI gate: no code may reach the network outside OneDoorClient.
 
 `audit_bypasses()` found four `urlopen` calls in llm_adapter.py that sent a full

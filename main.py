@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 main.py — DriftCore OS v3.0
 Warnings are loud. Always.

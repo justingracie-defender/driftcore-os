@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Guarantee tests for the constitutional invariant guard, vs the real repo."""
 from driftcore.verification.invariant_guard import (
     InvariantGuard, Effect, GuardStatus, ActionContext, load_guard,

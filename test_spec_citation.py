@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 test_spec_citation.py — verifying that constitutional text a system QUOTES actually
 matches the record. Threat from Schoen et al. arXiv:2509.15541: models fabricate or

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 invariants.py — Immutable System Invariants
 DriftCore OS v3.1

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 llm_adapter.py — Safe LLM Integration Layer (v3.2)
 
