@@ -1,0 +1,30 @@
+[
+  {
+    "control": "policy_equality_removed",
+    "regression": "test_validly_signed_wrong_policy_rejected",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "hash_not_signed",
+    "regression": "test_signature_binds_policy_independently_of_matching_check",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "request_selects_policy",
+    "regression": "test_new_policy_blocks_old_grant_before_effect_and_allows_new",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "production_policy_optional",
+    "regression": "test_production_requires_snapshot_and_rejects_duck_types",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  }
+]

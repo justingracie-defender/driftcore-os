@@ -21,6 +21,15 @@ Run with:
     python test_api.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 import sys
 import os
 import time
@@ -45,10 +54,10 @@ def reset_all():
     a._sequence = 0
     a._chain_compromised = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/SHUTDOWN_REASON.json",
-        "logs/CHAIN_SHUTDOWN_REASON.json",
-        "logs/flagged_attempts.jsonl",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"CHAIN_SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"flagged_attempts.jsonl"),
         "data/registered_agents.json",
     ]:
         try: os.remove(f)
@@ -69,6 +78,11 @@ from driftcore.api import (
     AccessLevel, DataType, judge_format
 )
 
+# (2026-09-06) register_agent now requires a principal that passes the
+# identity gate. It previously accepted any string, defaulting to "admin",
+# while its docstring said "Admin only" — so these calls were exercising
+# the unauthenticated path. The tests' intent is unchanged; they now name
+# who is registering.
 api = DriftCoreAPI(interactive=False)
 
 agent = RegisteredAgent(
@@ -125,7 +139,7 @@ write_only_agent = RegisteredAgent(
 )
 
 with redirect_stdout(io.StringIO()):
-    api3.register_agent(write_only_agent)
+    api3.register_agent(write_only_agent, authorised_by="operator_jane")
 
 read_req = MemoryRequest(
     agent_id = "write_only",
@@ -153,7 +167,7 @@ read_only_agent = RegisteredAgent(
 )
 
 with redirect_stdout(io.StringIO()):
-    api4.register_agent(read_only_agent)
+    api4.register_agent(read_only_agent, authorised_by="operator_jane")
 
 write_req = MemoryRequest(
     agent_id = "read_only",
@@ -209,7 +223,7 @@ reader = RegisteredAgent(
 )
 
 with redirect_stdout(io.StringIO()):
-    api6.register_agent(reader)
+    api6.register_agent(reader, authorised_by="operator_jane")
 
 read_req6 = MemoryRequest(
     agent_id = "reader_01",
@@ -238,7 +252,7 @@ writer = RegisteredAgent(
 )
 
 with redirect_stdout(io.StringIO()):
-    api7.register_agent(writer)
+    api7.register_agent(writer, authorised_by="operator_jane")
 
 write_req7 = MemoryRequest(
     agent_id = "writer_01",
@@ -267,7 +281,7 @@ with redirect_stdout(io.StringIO()):
         trust_level = "medical",
         access      = [AccessLevel.READ, AccessLevel.WRITE],
         data_types  = [DataType.TEXT],
-    ))
+    ), authorised_by="operator_jane")
 
 medical_req = MemoryRequest(
     agent_id = "medical_agent",
@@ -297,7 +311,7 @@ agent9 = RegisteredAgent(
 )
 
 with redirect_stdout(io.StringIO()):
-    api9.register_agent(agent9)
+    api9.register_agent(agent9, authorised_by="operator_jane")
     api9.deactivate_agent("temp_agent", authorised_by="justin")
 
 req9 = MemoryRequest(
@@ -324,7 +338,7 @@ with redirect_stdout(io.StringIO()):
         trust_level = "family",
         access      = [AccessLevel.READ],
         data_types  = [DataType.TEXT],
-    ))
+    ), authorised_by="operator_jane")
 
 check("registry file written",           os.path.exists("data/registered_agents.json"))
 
@@ -348,7 +362,7 @@ with redirect_stdout(io.StringIO()):
         trust_level = "family",
         access      = [AccessLevel.READ, AccessLevel.WRITE],
         data_types  = [DataType.TEXT],
-    ))
+    ), authorised_by="operator_jane")
 
 api11.request(MemoryRequest(
     agent_id = "audit_test_agent",
@@ -381,14 +395,14 @@ with redirect_stdout(io.StringIO()):
         trust_level = "family",
         access      = [AccessLevel.READ],
         data_types  = [DataType.TEXT],
-    ))
+    ), authorised_by="operator_jane")
     api12.register_agent(RegisteredAgent(
         agent_id    = "agent_b",
         name        = "Agent B",
         trust_level = "system",
         access      = [AccessLevel.READ, AccessLevel.WRITE],
         data_types  = [DataType.TEXT],
-    ))
+    ), authorised_by="operator_jane")
     api12.deactivate_agent("agent_b")
 
 stats = api12.stats()

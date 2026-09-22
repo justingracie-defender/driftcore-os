@@ -1,0 +1,13 @@
+{
+  "new_base_sha256": "328a7ffd64035f27779a84362c68ab5e68f36c2a4ed6ebb6420324dea2f045b6",
+  "prior_repair_sha256": "4d1b2c3772434db3f54d02cb8c5fd1535b61f81c84fb76c2d6b0b522514c17fe",
+  "all_driftcore_package_files_unchanged_between_upstream_archives": true,
+  "package_files": 152,
+  "repair_files_applied_without_source_conflict": 19,
+  "marshmallow_changed_python_files_preserved": [
+    "marshmallow/analyze.py",
+    "marshmallow/marshmallow.py",
+    "marshmallow/runner.py",
+    "marshmallow/selftest.py"
+  ]
+}

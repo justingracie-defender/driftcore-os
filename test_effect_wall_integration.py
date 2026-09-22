@@ -25,7 +25,7 @@ SOCK = "/tmp/dc_effect_wall.sock"
 
 def broker(enforce):
     v = PermissionVerifier()
-    v.register_key("operator", KEY)
+    v.register_key("operator", KEY, unrestricted=True)
     b = ActuationBroker(SOCK, v, enforce_effects=enforce)
     return b, v
 
@@ -159,7 +159,7 @@ r = b._handle(req("vx", "clean", {}, grant(v, "vx", "clean", {}, nonce="bx", sco
 ok(r.get("ok") is False and r.get("error") == "effect_block_error",
    "a crashing gate fails closed and returns, never escaping to a generic broker_error (A6)")
 
-# A7: the authorizer label names the mechanism, not the machine
+# A7: the early floor makes no claim of human authorization
 seen = {}
 b, v = broker(True)
 b.register_actuator("u", lambda **k: "sent", required_scope=("n:o",),
@@ -168,11 +168,12 @@ real = b._effect_gate
 class _Spy:
     def authorize(self, cap, cmd, ctx):
         seen["by"] = ctx.authorised_by
+        seen["claims"] = (ctx.owner_authorized, ctx.target_authorized)
         return real.authorize(cap, cmd, ctx)
 b._effect_gate = _Spy()
 b._handle(req("u", "sync", {}, grant(v, "u", "sync", {}, nonce="sy", scope=("n:o",))))
-ok(seen.get("by") == "broker:scope-mediated",
-   "the effect decision is attributed to the MECHANISM, never to the robot itself (A7)")
+ok(seen.get("by") == "" and seen.get("claims") == (False, False),
+   "the early floor does not invent human or destination authorization (A7)")
 
 # A8: a malformed declaration is loud even when unenforced
 b, v = broker(False)
@@ -267,7 +268,7 @@ import time as _t
 # Reproduced before the fix: the broker reports ACTUATOR_TIMEOUT and burns the nonce,
 # but Python cannot kill the daemon thread running the actuator. The orphan completed
 # the move, the agent retried with a fresh grant, and the arm moved TWICE.
-_v = PermissionVerifier(); _v.register_key("operator", KEY)
+_v = PermissionVerifier(); _v.register_key("operator", KEY, unrestricted=True)
 _b = ActuationBroker(SOCK, _v, enforce_effects=True, actuator_timeout=0.3)
 _moves = []
 def _slow(**k):
@@ -311,7 +312,7 @@ if _os.path.exists(_QP):
     _os.remove(_QP)
 
 def _mkq():
-    _vq = PermissionVerifier(); _vq.register_key("operator", KEY)
+    _vq = PermissionVerifier(); _vq.register_key("operator", KEY, unrestricted=True)
     _bq = ActuationBroker(SOCK, _vq, enforce_effects=True, actuator_timeout=0.3,
                           quarantine_path=_QP)
     _bq.register_actuator("qarm", lambda **k: _t.sleep(0.9), required_scope=("a:m",),
@@ -452,7 +453,7 @@ print("== EFFECT-DECLARATION BINDING: the downgrade gap, closed ==")
 # issue a grant against LETHAL, downgrade the registry to NONE with replace=True, and
 # the outstanding grant then executed under the weaker floor. Reproduced below.
 def _dbuild(bind):
-    _dv = PermissionVerifier(); _dv.register_key("operator", KEY)
+    _dv = PermissionVerifier(); _dv.register_key("operator", KEY, unrestricted=True)
     _db = ActuationBroker(SOCK, _dv, enforce_effects=True, require_effect_binding=bind)
     _hit = []
     _db.register_actuator("darm", lambda **k: _hit.append(1) or "MOVED",
@@ -582,7 +583,7 @@ import os as _oe, json as _je, tempfile as _te
 _EV = _oe.path.join(_te.mkdtemp(), "evidence.jsonl")
 
 def _evbroker(path, require=True):
-    _ev = PermissionVerifier(); _ev.register_key("operator", KEY)
+    _ev = PermissionVerifier(); _ev.register_key("operator", KEY, unrestricted=True)
     _eb = ActuationBroker(SOCK, _ev, enforce_effects=True,
                           evidence_path=path, require_durable_evidence=require)
     _hits = []

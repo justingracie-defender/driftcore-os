@@ -1,0 +1,133 @@
+[
+  {
+    "check": "final-response-probe",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/response_probe.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/validation/final-checks/driftcore-os"
+    ],
+    "exit": 0,
+    "tail": [
+      "    \"effect_status\": \"NOT_STARTED\",",
+      "    \"retry_safe\": false",
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "check": "final-new-tests",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "test_agent_boundary.py"
+    ],
+    "exit": 0,
+    "tail": [
+      "----------------------------------------------------------------------",
+      "Ran 18 tests in 0.035s",
+      "",
+      "OK"
+    ]
+  },
+  {
+    "check": "final-boundary-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_agent_boundary_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/evidence/final-boundary-controls"
+    ],
+    "exit": 0,
+    "tail": [
+      "private_detail_echoed: detected; restored test passed",
+      "uncertain_effect_reported_clean: detected; restored test passed",
+      "untrusted_success_truthiness: detected; restored test passed",
+      "4/4 mutation controls detected"
+    ]
+  },
+  {
+    "check": "final-policy-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_policy_binding_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/evidence/final-policy-controls"
+    ],
+    "exit": 0,
+    "tail": [
+      "hash_not_signed: detected; restored test passed",
+      "request_selects_policy: detected; restored test passed",
+      "production_policy_optional: detected; restored test passed",
+      "4/4 mutation controls detected"
+    ]
+  },
+  {
+    "check": "final-authority-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_authority_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/evidence/final-authority-controls"
+    ],
+    "exit": 0,
+    "tail": [
+      "principal_seal_removed: detected; restored control passed",
+      "broker_global_trust_root: detected; restored control passed",
+      "destination_check_removed: detected; restored control passed",
+      "5/5 mutation controls detected"
+    ]
+  },
+  {
+    "check": "final-finite_guards",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit": 0,
+    "tail": [
+      "  known: 185   current: 182   new: 0   removed: 3   resolved: 0",
+      "",
+      "  RESULT: PASS",
+      "  (means: the scan was complete, the baseline was valid, and no newly detected violation occurred within this scanner's bounded coverage model. NOT: the repository has no non-finite bugs.)"
+    ]
+  },
+  {
+    "check": "final-robot_surface",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit": 1,
+    "tail": [
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot decision LEAVES grew 49 -> 62 (merging branches cannot hide this)",
+      "REGRESSION driftcore/verification/mediated_actuation.py: leaky failure paths grew 14 -> 15",
+      "",
+      "FAIL: the decision surface grew. Every bug found in this repo's enforcement code lived in a robot branch. If the growth is genuinely necessary, move the baseline deliberately and say why in the commit."
+    ]
+  },
+  {
+    "check": "final-untested_modules",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit": 1,
+    "tail": [
+      "",
+      "  NOTE: 25 waiver(s) carry no `reason`. A waiver without a stated",
+      "  reason is indistinguishable from an oversight; add \"reason\"/\"reviewer\"/\"date\"",
+      "  to the baseline entry so the next person knows it was a decision."
+    ]
+  },
+  {
+    "check": "final-claims_ledger",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit": 1,
+    "tail": [
+      "",
+      "  reviewer of record: 2 human, 0 self-reviewed by the model",
+      "",
+      "  RESULT: FAIL"
+    ]
+  }
+]

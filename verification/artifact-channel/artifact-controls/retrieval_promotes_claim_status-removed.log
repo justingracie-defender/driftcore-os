@@ -1,0 +1,17 @@
+F
+======================================================================
+FAIL: test_body_claiming_approval_never_becomes_authority (test_artifact_channel.ArtifactChannelTests.test_body_claiming_approval_never_becomes_authority)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/artifact-control-nhd4jc9b/source/test_artifact_channel.py", line 245, in test_body_claiming_approval_never_becomes_authority
+    self.assertEqual(view["claim_status"],"UNVERIFIED")
+AssertionError: 'VERIFIED' != 'UNVERIFIED'
+- VERIFIED
++ UNVERIFIED
+? ++
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.011s
+
+FAILED (failures=1)

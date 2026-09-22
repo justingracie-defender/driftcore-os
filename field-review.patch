@@ -1,0 +1,889 @@
+--- a/AUTHORITY_REPAIR.md
++++ b/AUTHORITY_REPAIR.md
+@@ -1,3 +1,14 @@
++# Current policy review — 21 September 2026
++
++Read **FIELD_REVIEW.md** and **POLICY_BINDING.md** for the new signed policy
++artifact binding, migration instructions, external-source comparison and limits.
++The current source run reports **4,885 passing checks / 135 files, seven
++restricted-socket failures, exit 1**. New policy tests: 22/22; removal
++controls: 4/4. The report below records an earlier review and its historical
++measurements. `authority-repair.patch` now includes this review as well.
++
++---
++
+ # Subsequent review update
+ 
+ Read **DREAM_REVIEW.md** for the latest nonce-clock repairs, test isolation,
+--- a/DREAM_REVIEW.md
++++ b/DREAM_REVIEW.md
+@@ -1,3 +1,14 @@
++# Current policy review — 21 September 2026
++
++Read **FIELD_REVIEW.md** and **POLICY_BINDING.md** for the new signed policy
++artifact binding, migration instructions, external-source comparison and limits.
++The current source run reports **4,885 passing checks / 135 files, seven
++restricted-socket failures, exit 1**. New policy tests: 22/22; removal
++controls: 4/4. The report below records an earlier review and its historical
++measurements. `authority-repair.patch` now includes this review as well.
++
++---
++
+ # DriftCore: bounded replay review — 20 September 2026
+ 
+ I used earlier failures to look for related defects, compared two repairs in
+--- /dev/null
++++ b/FIELD_REVIEW.md
+@@ -0,0 +1,100 @@
++# Learning from external enforcement systems
++
++21 September 2026. This review adds policy artifact binding to the latest locally available repaired DriftCore tree, without changing model weights or importing third-party implementation code.
++
++The useful lesson is to adopt a precise security property, connect it to the actual execution path, and test both refusal and legitimate work. Architectural resemblance is a reason to investigate, not evidence that either implementation is secure.
++
++## Changes in this release
++
++The operator creates an immutable policy snapshot. Its content hash is included in the signed execution grant. The broker checks the grant against its own pinned snapshot before reserving a nonce. Production broker construction requires the snapshot; legacy unbound grants are refused there. Execution evidence records the expected policy hash. Existing action, human approval, destination and replay checks remain active.
++
++The new contract has **22 passing tests and four passing removal controls**. The five earlier authority removal controls also pass. A policy-rotation probe records one effect on the previous API, which lacks this binding, and zero on the repaired path. The permitted current-policy control executes once.
++
++Detailed API, migration instructions, canonicalization, scope and rollout limits are in `POLICY_BINDING.md`. No package dependencies or model calls were added. Marshmallow files are unchanged and its 43 local checks pass. No new live-model marshmallow result is claimed.
++
++## What the primary sources establish
++
++These are source checks, not independent security audits of the external systems. Living documentation was checked on this review date; no historical commit was recovered for the earlier conversation.
++
++| Project | Verified evidence | What DriftCore should learn |
++|---|---|---|
++| ROE Gate | Its current README describes HMAC-SHA256, 30-second tokens and policy-hash checks, but also lists an Ed25519 public-key endpoint and both signing implementations. | Bind the policy artifact into the signed grant and compare it at execution. Describe actual signing configuration and key custody explicitly. |
++| CPEX | Its own documentation describes an external policy pipeline for identity, authorization, delegation, information flow and audit. Its threat model distinguishes gateway, sidecar and in-process placements. | Separate subject from acting agent; state which paths and adversaries a deployment actually mediates. |
++| AWS AgentCore Policy | Official docs describe Cedar policy evaluation at Gateway, default-deny and forbid-wins semantics, schema validation and policy analysis. Current docs also describe session-aware Dogwood temporal policies. | Start with typed, analyzable deployment authorization; retain unconditional invariants and test cumulative behavior. Do not characterize AWS as exclusively stateless. |
++| CaMeL | The paper separates trusted control flow from untrusted data and enforces capabilities on data flows. Its revised abstract reports 77% task completion versus 84% undefended in AgentDojo. | Track provenance through the operations that transform data; measure useful work as well as attack prevention. |
++| AgentSpec | The paper defines runtime trigger/check/enforcement rules. Its embodied safe-task row is 58.62% without enforcement and 54.26% with it; its stated limitation includes future trajectory reasoning. | Report safe-task completion alongside hazardous-action prevention, and include multi-action scenarios. These benchmark results do not establish universal safety. |
++
++Sources: [ROE Gate repository README](https://github.com/Grey-Line-Interactive/ROEGATE); [CPEX overview](https://contextforge-org.github.io/cpex/) and [threat model](https://contextforge-org.github.io/cpex/docs/threat-model/); [AWS policy documentation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy.html) and [core concepts](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-core-concepts.html); [CaMeL paper, version 2](https://arxiv.org/abs/2503.18813v2); [AgentSpec paper, version 3, Table 4 and section 6.3](https://arxiv.org/html/2503.18666v3).
++
++The ROE Gate correction needs qualification: neither “Ed25519 is its only mechanism” nor “it has no Ed25519 support” follows from the current README. It documents both. Attempts to fetch the crypto source through the available web interface failed, so this review does not certify implementation correctness, the default algorithm or which features existed when the previous answer was written.
++
++CPEX's repository, website and package documentation are separate publications of one project's description, not independent experimental confirmations. Also, the inspected CPEX taint mechanism attaches labels to sessions/messages; it should not be casually equated with CaMeL's value-flow machinery. Its default store is in-process memory, with a Valkey option for persistence. [CPEX session taint documentation](https://contextforge-org.github.io/cpex/docs/apl/tainting/).
++
++The broader claims about Caracal, AGF, Invariant, mcp-gate, Strathon and the OpenAI SDK were not independently re-audited in this focused pass. They remain comparison leads, not dependencies or evidence for this patch. No uniqueness claim is made for DriftCore.
++
++## Comparison with the actual repository
++
++| Mechanism | Existing DriftCore code | Assessment after this pass |
++|---|---|---|
++| Signed action grants | `verification/signed_permission.py` and `verification/mediated_actuation.py` | Action, subject, scope and nonces already existed. Policy artifact binding is now added to this path. |
++| Human authority | `authority/egress_authorization.py`, `verification/human_authorization.py` | The prior repair already pins verifiers and binds approvals to actions. This release preserves those checks. |
++| Information flow | `governance/information_flow.py`, `governance/audience_release.py` | Labelled values, label joins and broker-owned session history already exist. Automatic tracking of arbitrary Python transformations is not established. |
++| Scope limitation | Signer envelopes in `signed_permission.py`; `authority/scoped_authorization.py` | Useful pieces exist. They are not evidence of a complete transitive delegation and revocation protocol. |
++| Consequence evidence | `test_execution_receipts.py`, broker INTENT/COMPLETION evidence | Recorded authorization and actuator-reported arguments are distinct from independently measured physical effect. Adding a policy hash does not erase that distinction. |
++| Containment | `kernel/isolation_manifest.py`, preflight and mediated broker | There are inspection and gate mechanisms, but OS isolation remains unverified in this environment. |
++
++## Recommendations, in priority order
++
++1. **Prove complete mediation on a capable host.** Inventory every outbound socket, subprocess, inherited descriptor, file write, cloud credential and physical actuator. Test a low-privilege attacker process attempting each direct path while a broker-mediated positive control still works. Block promotion when isolation is unavailable; do not count an environment skip as a pass. This is more urgent than adding another rule language.
++
++2. **Finish the policy lifecycle around this patch.** Generate deployment rules and snapshots from the same verified source. Archive the full artifact and implementation digests. Test rollout across two brokers, draining the old version, rollback, restart and in-flight work. Define how urgent revocation reaches every broker. A policy hash alone neither distributes revocation nor measures live configuration.
++
++3. **Audit credential custody at each adapter.** Keep usable upstream credentials in the broker or a dedicated credential service. Let the agent carry an opaque, audience- and action-scoped reference. Test context/log/result leakage, endpoint changes, redirects and whether a capability for service A can be redeemed at B. CPEX's scoped credential exchange is one documented comparison point; the deployment must still keep those credentials outside the agent. [CPEX delegation tutorial](https://contextforge-org.github.io/cpex/docs/tutorial/06-delegation/).
++
++4. **Make delegation narrow in every relevant dimension.** A child grant should inherit/intersect capabilities, resource restrictions, audience, expiry and budget, rather than only its scope string. Require actor/subject separation, parent lineage, cycle/depth limits and descendant invalidation when a parent is revoked. Test a child with narrower scopes but a longer lifetime or different destination; that is still an expansion. Do not bolt a second grant system onto the repository without consolidating the existing primitives.
++
++5. **Use an analyzable policy model where it helps.** Evaluate Cedar integration or a small typed policy subset against the same request schema. Define default deny, explicit deny precedence, missing attributes, evaluator errors and conflicting evidence. Compare decisions on recorded cases before changing enforcement. Keep the constitutional floor independent; an LLM may propose rules or explanations, but those outputs do not relax a hard prohibition. Formal analysis proves properties of the modeled policy and assumptions, not the entire deployment.
++
++6. **Extend the existing provenance path.** Test join, slicing, JSON conversion, templates, summaries, caches, embeddings, retrieval and generated artifacts. The trusted layer should propagate dependencies and refuse unlabeled values at governed sinks. Include implicit/control-flow dependencies and model-session carryover. Scope any claimed guarantee to instrumented operations and actual sink coverage; unrestricted Python string operations are outside that guarantee. Use CaMeL as a design comparison, not a drop-in proof for DriftCore.
++
++7. **Benchmark safety and usefulness together.** Keep paired safe/unsafe tasks, actual effect counters and refusal reasons. Record false refusals, unsafe effects, completion and latency separately. Add crash/restart, stale-policy and multi-action tests, and require removal controls to fail by the intended assertion. Do not interpret 22 unit tests as a benchmark against another system.
++
++8. **Use replay as a bounded engineering aid.** Record test outcomes, code/config hashes, execution costs and failure families. Use history to prioritize hypotheses; confirm improvements on fresh held-out cases with an equal compute budget. Keep rejected candidates and null results. A replay cannot invent unobserved outcomes or establish safety under a new policy. Do not let a self-improvement loop edit its acceptance criteria, trust roots or production deployment automatically.
++
++9. **Publish enforcement coverage, not a single strength score.** Use the deployment matrix below. Firmware and mechanical controls can constrain physical behavior while leaving data disclosure untouched; they are not universally stronger on every dimension. Gate placement, key custody, rule correctness, completeness and effect observation all matter.
++
++## Enforcement coverage matrix
++
++| Placement | Can protect against | Required assumptions and exclusions |
++|---|---|---|
++| Prompt instruction | Some model mistakes in ordinary use | No independent authority boundary. |
++| In-process hook | Calls that pass through cooperating application code | Hostile code in the same process can alter or bypass it. |
++| Separate process, same privilege | Some accidental corruption and API misuse | Same-user process/memory/filesystem access may defeat separation. |
++| Privilege-separated broker | Untrusted callers lacking direct capabilities | OS isolation, credential custody, exhaustive routing and trustworthy broker/adapter code. |
++| Firmware interlock | Particular device commands or operating limits | Protected update path, trustworthy measurements and complete device coverage. |
++| Mechanical limit | A specified physical motion, force or geometry | Correct physical design and installation; no general control over information or remote APIs. |
++
++## Verification and remaining failures
++
++The baseline is the previously delivered repaired archive, SHA-256 `6b93e77ba5a0fe68fe467675ad9e23d8f50bf1a86bdb48bb85e88f1329cba2dc`. It contains the September 13 input and the prior authority and nonce-clock repairs. The public GitHub tree and original September 12 upload were not substituted for it. Claude's unfinished `TargetGrant` code was not present and is not claimed as merged.
++
++The final tested source archive SHA-256 is `e0641716bfe089b84f52a3a0f9cebfbcc105d7d47cd455b6d5b8ad16fc036fbf`. The official suite ran from a fresh extraction. The final deliverable preserves those tested source bytes and adds documentation, evidence, patches and a checksum manifest. Runtime-mutated validation files are not copied back.
++
++| Check | Result |
++|---|---|
++| Official `bash scripts/count_tests.sh` | **4,885 passing checks / 135 files; seven failed files; exit 1** |
++| New policy tests | **22/22**, included in the official count |
++| New protection-removal controls | **4/4**, each healthy/removed/restored |
++| Prior authority-removal controls | **5/5** |
++| Marshmallow local self-test | **43/43**, exit 0 |
++| Finite-comparison ratchet | Exit 0; 182 current sites, zero new; baseline unchanged |
++| Robot-surface ratchet | Exit 1 on baseline and candidate; same existing 42→52 branch, 49→62 leaf and 14→15 leak deltas |
++| Untested-module ratchet | Exit 1 on both; existing `audit_story.py` waiver drift and 25 reasonless waivers |
++| Claims ledger | Exit 1 on both; 12 unpaired claims remain. Tagged/paired counts go 128/116→129/117. New documentation raises scanner-counted untagged claims 1,549→1,558 against ceiling 1,407. This debt is disclosed, not waived or hidden. |
++| OS isolation exercise | Exit 77, environment unavailable; UID/GID separation could not be established here |
++
++The seven failures are `test_aisi_incident_harness.py`, `test_broker_process.py`, `test_bypass_resistance.py`, `test_effect_wall_integration.py`, `test_halt_interlock_integration.py`, `test_implementation_binding.py` and `test_mediated_actuation.py`. Each reports an operation denied by this environment. This release is **not an all-green suite or a deployment safety certification**.
++
++An initial full run reported 4,884/135 with the same seven failures before the final signature-specific test was added. One initial removal control was invalid: removing the hash from the shared serializer also caused its wire-format test to error. That error was rejected as evidence. The replacement control changes the hash on a grant object directly and presents it to the matching policy, isolating signature protection; it now fails by assertion when signing coverage is removed. Both attempts are retained.
++
++Evidence is under `verification/field-review/`. `field-review.patch` is incremental from the baseline above; `authority-repair.patch` remains cumulative from the September 13 input. Earlier review reports and incremental patches are retained as history. No test-count banner, safety baseline or waiver ceiling was changed to make these results look green.
+--- a/FINDINGS.md
++++ b/FINDINGS.md
+@@ -1,3 +1,14 @@
++# Current policy review — 21 September 2026
++
++Read **FIELD_REVIEW.md** and **POLICY_BINDING.md** for the new signed policy
++artifact binding, migration instructions, external-source comparison and limits.
++The current source run reports **4,885 passing checks / 135 files, seven
++restricted-socket failures, exit 1**. New policy tests: 22/22; removal
++controls: 4/4. The report below records an earlier review and its historical
++measurements. `authority-repair.patch` now includes this review as well.
++
++---
++
+ # Current bounded replay review — 20 September 2026
+ 
+ **DREAM_REVIEW.md** contains the latest changes, source hashes and results.
+--- /dev/null
++++ b/POLICY_BINDING.md
+@@ -0,0 +1,64 @@
++# Policy artifact binding — 21 September 2026
++
++An execution grant now identifies the operator policy artifact under which it was issued. The privileged broker checks that identity against its own construction-time snapshot before reserving the grant's nonce. An old grant cannot be used on a broker configured for a different snapshot, even if the action, subject, signing key and capability scope still match.
++
++This is a provenance and stale-authorization check. Existing effect, destination, scope, human approval, halt, envelope and replay checks still determine whether an action may execute.
++
++## Configuration and issuance
++
++1. Authenticate the deployment configuration outside the agent process. For signed JSON, use the existing `signed_config.load_verified` with a broker-controlled key. A `PolicySnapshot` alone does not authenticate its source.
++2. Construct a snapshot from that verified document. Configure policy consumers from this same detached document. Include the actual policy data and explicit versions/content digests of external rule implementations. Include no keys, access tokens or other secrets.
++3. Supply the snapshot to `ProductionActuationBroker(..., policy_snapshot=snapshot, ...)` along with its existing required human approval, halt, evidence and isolation configuration.
++4. The trusted grant issuer uses `Grant.issue(..., policy_hash=snapshot.policy_hash, ...)`. Obtain this expectation from deployment state, not from an agent's proposed grant or request.
++5. Archive `snapshot.to_dict()` with the deployment. The digest is public metadata, not a credential.
++
++```python
++from driftcore.verification.policy_snapshot import PolicySnapshot
++from driftcore.verification.signed_config import load_verified
++
++# Run in trusted deployment bootstrap. These variables are operator inputs.
++snapshot = PolicySnapshot(load_verified(policy_path, config_verification_key))
++policy_document = snapshot.to_dict()
++
++# Construct the broker's rules from policy_document; pass snapshot to the broker.
++# The trusted issuer includes snapshot.policy_hash in each Grant.issue call.
++```
++
++The example deliberately omits a universal deployment factory: DriftCore has separate policy consumers, rather than a single JSON policy language. `test_policy_binding.py` contains a runnable example in which the same snapshot supplies the egress allowlist and actuator capability requirements. Its test keys are public fixtures.
++
++## Wire and compatibility contract
++
++- `Grant.policy_hash` is optional for legacy development users. When present it is a lowercase 64-character SHA-256 digest included in the HMAC payload and preserved by `to_dict`/`from_dict`.
++- A verifier presented with a bound grant requires `expected_policy_hash`. A verifier with an expectation refuses unbound grants. Missing, malformed and mismatched bindings fail closed.
++- The broker supplies the expectation from its own pinned snapshot. `policy_hash`, `expected_policy_hash`, `policy_snapshot` and equivalent context fields supplied in an execute request cannot replace it.
++- `ProductionActuationBroker` now requires a `PolicySnapshot`. Existing production bootstraps and grant issuers need updating. There is no production compatibility switch accepting old unbound grants.
++- Development `ActuationBroker` still permits legacy unbound grants when configured without a snapshot. Its disabled-layer report identifies the missing binding. It rejects bound grants when no policy expectation is installed, rather than ignoring their meaning.
++- Legacy grants retain their previous serialized payload and signature when `policy_hash` is absent. A bound grant fails signature verification if its hash is altered, removed or replaced with null.
++- A policy refusal precedes nonce reservation and spending. A matching grant still goes through all the existing gates and single-use handling.
++- Broker records and durable INTENT/COMPLETION entries identify the broker's expected `policy_hash`. These remain the existing hash-chained evidence records; this change does not introduce independently signed execution receipts or prove a physical effect occurred.
++
++## Snapshot identity
++
++`PolicySnapshot` stores canonical UTF-8 JSON bytes, detached from its input. Editing a nested input or a returned `to_dict()` value does not alter it. Inputs must be nonempty dictionaries composed of built-in JSON types with string object keys and finite numbers. Cycles and unsupported values are rejected.
++
++The digest is SHA-256 over `b"driftcore-policy-snapshot-v1\x00" + canonical_bytes`. Encoding uses Python `json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)`. Object key order is ignored; list order and numeric representation are significant. This is a versioned Python encoding, **not RFC 8785** or a cross-language canonicalization standard. A non-Python issuer must reproduce these exact bytes or use an archived digest from trusted deployment metadata.
++
++## Rotation and limits
++
++There is no mutable global policy expectation and no RPC for changing it. To change policy, stop/drain the old broker, deploy the new snapshot and rules, then issue fresh grants. An old broker still accepts its own policy version until stopped or otherwise revoked. Policy binding alone is not immediate fleet-wide revocation. Use a fresh revision field when returning to previously used rule content if previously issued, unspent grants must remain invalid.
++
++The hash covers the supplied JSON artifact. It does **not** automatically discover every callback, live registry, dependency, credential, binary, physical setting or external service state. An operator who changes those while reusing an inaccurate manifest defeats that provenance claim. Such changes require disciplined rollout, versioned artifacts and deployment checks. Existing dynamic safety checks remain necessary. Automatic attestation that every live rule matches the manifest is future work.
++
++An adversary with arbitrary execution in the privileged broker can patch Python objects or read symmetric keys. Frozen objects, private attributes and read-only properties do not create OS isolation. Separate identities, credential custody and complete mediation remain deployment requirements.
++
++Claude's unfinished `TargetGrant` implementation was not available in this input. This patch extends the actual `signed_permission.Grant` and `mediated_actuation` path present in the supplied repaired repository. It does not claim to merge unseen code or cover every other authorization primitive in DriftCore.
++
++## Tests and evidence
++
++`python3 test_policy_binding.py` runs 22 tests, including real `_handle` execution with a recording actuator. It covers canonicalization, mutation isolation, wire round trips, valid-signature stale policies, signature tampering, downgrade/missing-policy cases, ignored request overrides, nonce preservation, action/destination checks, replay, evidence and production configuration.
++
++`python3 scripts/check_policy_binding_controls.py NEW_OUTPUT_DIRECTORY` removes four protections independently in temporary source copies. Each selected test must pass before removal, fail by assertion after removal and pass after restoration. Import failures and crashes do not count as detections.
++
++The rotation probe under `verification/field-review/` applies policy B to the broker and presents authorization issued under A. The old API has no policy binding and records one effect; the new API rejects the stale policy and records zero. The action itself is allowed by both policies. This demonstrates missing policy provenance in the old API, not that its original destination check permitted a forbidden destination.
++
++The final source suite reports 4,885 passing checks across 135 files, seven restricted-socket failures and exit 1. See `FIELD_REVIEW.md` for all results and the remaining gates. These local tests do not establish isolation against a hostile operating-system process.
+--- a/driftcore/verification/mediated_actuation.py
++++ b/driftcore/verification/mediated_actuation.py
+@@ -185,6 +185,7 @@
+ from driftcore.verification.signed_permission import (
+     Grant, PermissionVerifier, PermissionError_,
+ )
++from driftcore.verification.policy_snapshot import PolicySnapshot
+ from driftcore.kernel.actuation_gate import ActuationGate, Outcome
+ from driftcore.kernel.blast_radius import BlastRadiusGovernor, BreadthVerdict
+ from driftcore.kernel.egress_guard import EgressGuard
+@@ -267,9 +268,11 @@
+     allowed: bool
+     reason: str
+     nonce: str = ""
++    policy_hash: Optional[str] = None
+     def to_dict(self) -> dict:
+         return {"ts": self.ts, "actuator_id": self.actuator_id, "command": self.command,
+-                "allowed": self.allowed, "reason": self.reason, "nonce": self.nonce}
++                "allowed": self.allowed, "reason": self.reason, "nonce": self.nonce,
++                "policy_hash": self.policy_hash}
+ 
+ 
+ class ActuationBroker:
+@@ -316,9 +319,15 @@
+                  # false. Five minutes is long enough for the recon phase of a real
+                  # campaign. Short enough to hurt is the point.
+                  attestation_max_age_seconds: float = 30.0,
+-                 audit_logger=None):
++                 audit_logger=None,
++                 policy_snapshot: Optional[PolicySnapshot] = None):
+         self._socket_path = socket_path
+         self._verifier = verifier
++        if policy_snapshot is not None and type(policy_snapshot) is not PolicySnapshot:
++            raise TypeError("policy_snapshot must be an operator-created PolicySnapshot")
++        # Pinned at trusted bootstrap, never selected by an execute request or a
++        # process-global registry. No reload API: deploy a new broker to rotate it.
++        self._policy_snapshot = policy_snapshot
+         # BREACH COUPLING. A zero-argument callable returning True while the system is
+         # OPERATIONAL and False once it is holding in RESTRICTED/HALT — in practice
+         # `breach_response.is_operational`. When wired, the wall refuses ALL actuation in
+@@ -653,6 +662,8 @@
+              "a grant is not bound to the effect declaration, so downgrading an "
+              "actuator from LETHAL to NONE with replace=True lets outstanding grants "
+              "execute under the weaker floor"),
++            ("policy_binding", self._policy_snapshot is not None,
++             "grants do not identify the operator policy artifact that approved them"),
+             ("isolation_attested", self.is_isolation_attested(),
+              "no external supervisor has verified this process's capability surface, "
+              "so the wall property is a claim rather than a measurement — the process "
+@@ -688,6 +699,12 @@
+         off. A deployment check should read this and refuse to proceed on anything it
+         has not explicitly accepted. Disabling a layer is an event, not a default."""
+         return list(self._posture_events)
++
++    @property
++    def policy_hash(self) -> Optional[str]:
++        """Public artifact digest for the issuer; never a credential or an approval."""
++        return (self._policy_snapshot.policy_hash
++                if self._policy_snapshot is not None else None)
+ 
+     def is_blast_radius_gated(self) -> bool:
+         """Whether a breadth ceiling is actually enforced. An unarmed governor refuses
+@@ -1366,6 +1383,7 @@
+                 entry = {"ts": time.time(), "phase": phase,
+                          "actuator_id": actuator_id, "command": command,
+                          "detail": detail, "nonce": nonce,
++                         "policy_hash": self.policy_hash,
+                          "previous_hash": self._evidence_prev}
+                 entry["entry_hash"] = hashlib.sha256(
+                     json.dumps(entry, sort_keys=True).encode("utf-8")).hexdigest()
+@@ -1417,7 +1435,8 @@
+ 
+     def _record(self, actuator_id: str, command: str, allowed: bool, reason: str,
+                 nonce: str = "") -> None:
+-        rec = ActuationRecord(time.time(), actuator_id, command, allowed, reason, nonce)
++        rec = ActuationRecord(time.time(), actuator_id, command, allowed, reason, nonce,
++                              self.policy_hash)
+         self.records.append(rec)          # in-broker evidence: always kept first
+         if not allowed and self._probe_detector is not None:
+             try:
+@@ -1884,6 +1903,7 @@
+             self._verifier.reserve(grant, required_scope=required_scope,
+                                    expected_subject=self._expected_subject,
+                                    action_binding=binding_now,
++                                   expected_policy_hash=self.policy_hash,
+                                    allow_any_scope=allow_any_scope)
+         except PermissionError_ as e:
+             self._record(actuator_id, command, False, f"grant rejected: {e}", grant.nonce)
+@@ -2217,6 +2237,10 @@
+                 "ProductionActuationBroker requires human_approval: install a "
+                 "HumanApprovalGate with operator-controlled principal keys. "
+                 "A caller's identity label is not an approval.")
++        if kwargs.get("policy_snapshot") is None:
++            raise ValueError(
++                "ProductionActuationBroker requires policy_snapshot: supply the "
++                "immutable operator policy artifact and bind its hash into grants.")
+         super().__init__(*args, **kwargs)
+ 
+ 
+--- /dev/null
++++ b/driftcore/verification/policy_snapshot.py
+@@ -0,0 +1,57 @@
++"""Immutable, content-addressed operator policy artifacts.
++
++This identifies the JSON artifact supplied by trusted deployment bootstrap. It
++does not infer policy from Python callbacks, load untrusted files, or authenticate
++the operator. Verify signed configuration before constructing a snapshot; archive
++the artifact with the deployment. Restart the broker with a new snapshot when
++policy changes. Keys and credentials must never be included in this public data.
++"""
++from dataclasses import dataclass
++import hashlib
++import json
++import re
++
++
++def validate_policy_hash(value):
++    """Accept only the lowercase SHA-256 format emitted by PolicySnapshot."""
++    if type(value) is not str or re.fullmatch(r"[0-9a-f]{64}", value) is None:
++        raise ValueError("policy_hash must be a lowercase SHA-256 hex digest")
++    return value
++
++
++@dataclass(frozen=True, init=False)
++class PolicySnapshot:
++    """A detached copy of a nonempty, strictly JSON policy document.
++
++    Canonicalization is versioned and Python-specific, not RFC 8785. Object key
++    order is irrelevant; list order and numeric representation are significant.
++    The digest identifies a declared policy artifact, not all live broker state.
++    """
++    _encoded: bytes
++
++    def __init__(self, document):
++        if type(document) is not dict or not document:
++            raise ValueError("policy snapshot requires a nonempty JSON object")
++        # Serialize first so cycles and non-finite numbers fail before traversal.
++        encoded = json.dumps(document, sort_keys=True, separators=(",", ":"),
++                             ensure_ascii=False, allow_nan=False).encode("utf-8")
++        pending = [document]
++        while pending:
++            value = pending.pop()
++            if type(value) is dict:
++                if any(type(key) is not str for key in value):
++                    raise ValueError("policy object keys must be strings")
++                pending.extend(value.values())
++            elif type(value) is list:
++                pending.extend(value)
++            elif type(value) not in (str, int, float, bool, type(None)):
++                raise ValueError("policy values must be built-in JSON types")
++        object.__setattr__(self, "_encoded", encoded)
++
++    @property
++    def policy_hash(self):
++        return hashlib.sha256(b"driftcore-policy-snapshot-v1\x00" + self._encoded).hexdigest()
++
++    def to_dict(self):
++        """Return a fresh copy; editing it cannot alter this snapshot."""
++        return json.loads(self._encoded)
+--- a/driftcore/verification/signed_permission.py
++++ b/driftcore/verification/signed_permission.py
+@@ -61,6 +61,8 @@
+ from dataclasses import dataclass, field
+ from typing import Dict, Iterable, Optional, Tuple, Union
+ 
++from driftcore.verification.policy_snapshot import validate_policy_hash
++
+ KeyLike = Union[str, bytes]
+ _ALG = "HMAC-SHA256"
+ 
+@@ -88,6 +90,10 @@
+ 
+ class UnknownSigner(PermissionError_):
+     pass
++
++
++class PolicyMismatch(PermissionError_):
++    """The grant does not identify the policy expected by trusted execution code."""
+ 
+ 
+ def _canonical(obj) -> bytes:
+@@ -135,23 +141,32 @@
+     nonce: str
+     action_binding: Optional[str] = None   # optional hash pinning a specific action
+     sig: str = ""
++    policy_hash: Optional[str] = None     # operator policy artifact, covered by signature
+ 
+     def _payload(self) -> dict:
+-        return {"alg": _ALG, "key_id": self.key_id, "role": self.role,
++        payload = {"alg": _ALG, "key_id": self.key_id, "role": self.role,
+                 "scope": list(self.scope), "subject": self.subject,
+                 "issued_at": self.issued_at, "expires_at": self.expires_at,
+                 "nonce": self.nonce, "action_binding": self.action_binding}
++        # Preserve legacy signatures only when no policy was bound. A bound grant
++        # cannot be stripped or relabelled without invalidating its signature.
++        if self.policy_hash is not None:
++            payload["policy_hash"] = self.policy_hash
++        return payload
+ 
+     @staticmethod
+     def issue(key: KeyLike, *, key_id: str, role: str, scope: Iterable[str],
+               subject: str, ttl_seconds: float, nonce: str,
+-              action_binding: Optional[str] = None, now: Optional[float] = None) -> "Grant":
++              action_binding: Optional[str] = None, now: Optional[float] = None,
++              policy_hash: Optional[str] = None) -> "Grant":
++        if policy_hash is not None:
++            validate_policy_hash(policy_hash)
+         t = time.time() if now is None else now
+         t = _finite(t, "issued_at")
+         ttl = _finite(ttl_seconds, "ttl_seconds")
+         g = Grant(key_id=key_id, role=role, scope=tuple(scope), subject=subject,
+                   issued_at=t, expires_at=t + ttl, nonce=nonce,
+-                  action_binding=action_binding)
++                  action_binding=action_binding, policy_hash=policy_hash)
+         sig = hmac.new(_resolve(key), _canonical(g._payload()), hashlib.sha256).hexdigest()
+         return Grant(**{**g.__dict__, "sig": sig})
+ 
+@@ -163,7 +178,8 @@
+         return Grant(key_id=d["key_id"], role=d["role"], scope=tuple(d.get("scope", ())),
+                      subject=d["subject"], issued_at=d["issued_at"],
+                      expires_at=d["expires_at"], nonce=d["nonce"],
+-                     action_binding=d.get("action_binding"), sig=d.get("sig", ""))
++                     action_binding=d.get("action_binding"), sig=d.get("sig", ""),
++                     policy_hash=d.get("policy_hash"))
+ 
+ 
+ def _scope_covers(scope: Tuple[str, ...], required: str) -> bool:
+@@ -269,13 +285,21 @@
+                expected_subject: Optional[str] = None,
+                action_binding: Optional[str] = None,
+                allowed_signers: Optional[Iterable[str]] = None,
++               expected_policy_hash: Optional[str] = None,
+                allow_any_scope: bool = False) -> Grant:
+         """Return the grant iff it is authentic, unexpired, unreplayed, and covers
+         every capability in `required_scope`. Raises a specific PermissionError_
+         subclass otherwise. `allowed_signers` optionally restricts WHICH key_ids are
+         acceptable for THIS action (e.g. 'only a parent-tier key may authorize
+         this') — that restriction is the deployment expressing its hierarchy.
+-        `action_binding`, if given, must match the grant's pinned action."""
++        `action_binding`, if given, must match the grant's pinned action.
++        `expected_policy_hash` comes from trusted deployment state, NEVER from the
++        request. A bound grant requires an expected policy; an expected policy
++        requires a bound grant. Both absent preserves the development legacy API.
++
++        CLAIM policy-binding-matches: A validly signed grant identifying a different
++        policy is refused before its nonce can be reserved or consumed.
++        """
+         # EMPTY REQUIRED SCOPE IS A CALLER SAYING "TRUST ME" (red-team, 2026-08-29).
+         # `required_scope` is what the ACTION needs, and this verifier cannot see the
+         # action — so an empty tuple means every scope check below is vacuous and any
+@@ -311,6 +335,15 @@
+         if not hmac.compare_digest(str(grant.sig), expected_sig):   # constant-time
+             raise InvalidSignature("grant signature does not verify (altered or wrong key)")
+ 
++        if grant.policy_hash is not None or expected_policy_hash is not None:
++            try:
++                validate_policy_hash(grant.policy_hash)
++                validate_policy_hash(expected_policy_hash)
++            except ValueError as exc:
++                raise PolicyMismatch("missing or malformed policy binding") from exc
++            if not hmac.compare_digest(grant.policy_hash, expected_policy_hash):
++                raise PolicyMismatch("grant policy_hash does not match the broker policy")
++
+         # Reject non-finite timestamps BEFORE the expiry comparison. A NaN expiry
+         # would make `now >= expires_at` always False -> a grant that never expires
+         # (fail-open). Found in red-team.
+@@ -377,6 +410,7 @@
+     def reserve(self, grant: Grant, *, required_scope: Iterable[str] = (),
+                 expected_subject: Optional[str] = None,
+                 action_binding: Optional[str] = None,
++                expected_policy_hash: Optional[str] = None,
+                 allow_any_scope: bool = False) -> Grant:
+         """ATOMIC check-and-hold. Verifies the grant and marks its nonce IN-FLIGHT under
+         one lock, so a concurrent caller cannot verify the same single-use grant.
+@@ -398,6 +432,7 @@
+             g = self.verify(grant, required_scope=required_scope,
+                             expected_subject=expected_subject,
+                             action_binding=action_binding,
++                            expected_policy_hash=expected_policy_hash,
+                             allow_any_scope=allow_any_scope)
+             self._reserved.add(grant.nonce)
+             return g
+--- /dev/null
++++ b/scripts/check_policy_binding_controls.py
+@@ -0,0 +1,79 @@
++"""Remove each policy protection in a disposable copy; require assertion failures.
++
++Usage: python3 scripts/check_policy_binding_controls.py NEW_OUTPUT_DIRECTORY
++Crashes, import errors, or a broken positive control do not establish detection.
++"""
++from pathlib import Path
++import json
++import os
++import shutil
++import subprocess
++import sys
++import tempfile
++
++ROOT = Path(__file__).resolve().parents[1]
++CASES = [
++    ("policy_equality_removed", "driftcore/verification/signed_permission.py",
++     "            if not hmac.compare_digest(grant.policy_hash, expected_policy_hash):",
++     "            if False:", "test_validly_signed_wrong_policy_rejected"),
++    ("hash_not_signed", "driftcore/verification/signed_permission.py",
++     '            payload["policy_hash"] = self.policy_hash',
++     '            pass', "test_signature_binds_policy_independently_of_matching_check"),
++    ("request_selects_policy", "driftcore/verification/mediated_actuation.py",
++     "                                   expected_policy_hash=self.policy_hash,",
++     "                                   expected_policy_hash=grant.policy_hash,",
++     "test_new_policy_blocks_old_grant_before_effect_and_allows_new"),
++    ("production_policy_optional", "driftcore/verification/mediated_actuation.py",
++     '        if kwargs.get("policy_snapshot") is None:',
++     '        if False:', "test_production_requires_snapshot_and_rejects_duck_types"),
++]
++
++
++def run(root, test, log):
++    with tempfile.TemporaryDirectory() as logs:
++        result = subprocess.run([sys.executable, "-m", "unittest",
++            "test_policy_binding.PolicyBindingTests." + test], cwd=root,
++            env={**os.environ, "DRIFTCORE_LOG_DIR": logs, "PYTHONDONTWRITEBYTECODE": "1"},
++            capture_output=True, text=True, timeout=30)
++    output = result.stdout + result.stderr
++    log.write_text(output)
++    return result.returncode, output
++
++
++def main():
++    out = Path(sys.argv[1]).resolve()
++    out.mkdir(parents=True, exist_ok=False)
++    rows = []
++    for name, path, before, after, test in CASES:
++        with tempfile.TemporaryDirectory(prefix="policy-control-") as temporary:
++            tree = Path(temporary)/"source"
++            def ignored(directory, names):
++                excluded = set(shutil.ignore_patterns("__pycache__", "logs", ".git", "*.zip")(directory, names))
++                if Path(directory) == ROOT:
++                    excluded.add("verification")
++                return excluded
++            shutil.copytree(ROOT, tree, ignore=ignored)
++            target = tree/path
++            original = target.read_text()
++            if original.count(before) != 1:
++                raise RuntimeError(f"{name}: mutation anchor is not unique")
++            healthy, _ = run(tree, test, out/(name + "-healthy.log"))
++            if healthy:
++                raise RuntimeError(f"{name}: healthy test failed")
++            target.write_text(original.replace(before, after, 1))
++            broken, output = run(tree, test, out/(name + "-broken.log"))
++            if not broken or "AssertionError" not in output or "ERROR:" in output:
++                raise RuntimeError(f"{name}: expected assertion failure was absent")
++            target.write_text(original)
++            restored, _ = run(tree, test, out/(name + "-restored.log"))
++            if restored:
++                raise RuntimeError(f"{name}: restored test failed")
++            rows.append(dict(control=name, regression=test, healthy_exit=healthy,
++                             removed_exit=broken, restored_exit=restored))
++            print(f"{name}: detected; restored test passed", flush=True)
++    (out/"summary.json").write_text(json.dumps(rows, indent=2) + "\n")
++    print(f"{len(rows)}/{len(CASES)} mutation controls detected")
++
++
++if __name__ == "__main__":
++    main()
+--- a/test_halt_and_restart.py
++++ b/test_halt_and_restart.py
+@@ -368,6 +368,8 @@
+ 
+ 
+ def _prod(**kw):
++    from driftcore.verification.policy_snapshot import PolicySnapshot
++    kw.setdefault("policy_snapshot", PolicySnapshot({"deployment": "halt-test", "revision": 1}))
+     kw.setdefault("evidence_path", os.path.join(_d, "ev"))
+     # A production broker now also requires a halt interlock: a halt that no
+     # execution path consults is a variable, not a stop.
+--- a/test_halt_interlock_integration.py
++++ b/test_halt_interlock_integration.py
+@@ -126,6 +126,7 @@
+ 
+ from driftcore.authority.human_identity import HumanIdentityVerifier
+ from driftcore.verification.human_authorization import HumanApprovalGate
++from driftcore.verification.policy_snapshot import PolicySnapshot
+ _prod_hv = HumanIdentityVerifier()
+ _prod_hv.register_principal("justin", "production-fixture-TEST-key")
+ _prod_approval = HumanApprovalGate(_prod_hv)
+@@ -144,7 +145,9 @@
+ try:
+     pb = ProductionActuationBroker(os.path.join(D, "p2.sock"), v,
+                                    evidence_path=os.path.join(D, "ev2"),
+-                                   halt_state=lambda: False, human_approval=_prod_approval)
++                                   halt_state=lambda: False, human_approval=_prod_approval,
++                                   policy_snapshot=PolicySnapshot(
++                                       {"deployment": "halt-test", "revision": 1}))
+ except ValueError:
+     ok = False
+ check("...and is constructible once the interlock is supplied", ok)
+--- /dev/null
++++ b/test_policy_binding.py
+@@ -0,0 +1,269 @@
++"""Policy provenance at the actual broker entry point, without socket privileges."""
++import dataclasses
++import hashlib
++import hmac
++import json
++from pathlib import Path
++import tempfile
++import unittest
++import uuid
++
++from driftcore.authority.human_identity import HumanIdentityVerifier
++from driftcore.kernel.egress_guard import EgressGuard, EgressPolicy
++from driftcore.verification.human_authorization import HumanApprovalGate
++from driftcore.verification.invariant_guard import Effect
++from driftcore.verification.mediated_actuation import ActuationBroker, ProductionActuationBroker
++from driftcore.verification.policy_snapshot import PolicySnapshot
++from driftcore.verification.signed_permission import (
++    Grant, PermissionVerifier, InvalidSignature, PolicyMismatch, PermissionReplay,
++)
++
++KEY = b"policy-binding-public-TEST-key"
++TARGET = "https://backup.example/"
++A = PolicySnapshot({"revision": "A", "egress": [TARGET], "scope": ["backup:send"]})
++B = PolicySnapshot({"revision": "B", "egress": [TARGET, "https://second.example/"],
++                    "scope": ["backup:send"]})
++
++
++def verifier():
++    v = PermissionVerifier()
++    v.register_key("operator", KEY, may_sign=("backup:send",))
++    return v
++
++
++def issue(snapshot=A, **overrides):
++    args = dict(key_id="operator", role="operator", scope=("backup:send",),
++                subject="agent", ttl_seconds=60, nonce=uuid.uuid4().hex,
++                policy_hash=snapshot.policy_hash if snapshot is not None else None)
++    args.update(overrides)
++    return Grant.issue(KEY, **args)
++
++
++class PolicyBindingTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.tmp.cleanup)
++
++    def broker(self, snapshot=A, **overrides):
++        seen = []
++        config = snapshot.to_dict() if snapshot is not None else A.to_dict()
++        args = dict(policy_snapshot=snapshot, broker_id="policy-test", expected_subject="agent",
++                    enforce_effects=True, egress_guard=EgressGuard(EgressPolicy.build(
++                        config["egress"], declared_by="operator test bootstrap")))
++        args.update(overrides)
++        b = ActuationBroker(str(Path(self.tmp.name)/"unused.sock"), verifier(), **args)
++        def send(**params):
++            seen.append(params)
++            return {"executed_args": params}
++        b.register_actuator("backup", send, required_scope=tuple(config["scope"]),
++                            effects=[Effect.DATA_EGRESS], effect_declared_by="test bootstrap",
++                            destination_param="url")
++        return b, seen
++
++    def request(self, snapshot=A, **overrides):
++        params = {"url": TARGET, "text": "approved"}
++        binding = PermissionVerifier.bind_action("backup", "send", params, broker_id="policy-test")
++        req = dict(op="execute", actuator_id="backup", command="send", params=params,
++                   grant=issue(snapshot, action_binding=binding).to_dict())
++        req.update(overrides)
++        return req
++
++    def test_canonical_order_and_content(self):
++        self.assertEqual(PolicySnapshot({"a": 1, "b": [2]}).policy_hash,
++                         PolicySnapshot({"b": [2], "a": 1}).policy_hash)
++        self.assertNotEqual(A.policy_hash, B.policy_hash)
++        self.assertNotEqual(PolicySnapshot({"x": [1, 2]}).policy_hash,
++                            PolicySnapshot({"x": [2, 1]}).policy_hash)
++
++    def test_snapshot_detaches_nested_inputs_and_exports(self):
++        data = {"rules": [{"allow": ["backup:send"]}]}
++        snapshot = PolicySnapshot(data)
++        digest = snapshot.policy_hash
++        data["rules"][0]["allow"].append("*")
++        snapshot.to_dict()["rules"][0]["allow"].append("*")
++        self.assertEqual(snapshot.to_dict(), {"rules": [{"allow": ["backup:send"]}]})
++        self.assertEqual(snapshot.policy_hash, digest)
++        with self.assertRaises(dataclasses.FrozenInstanceError):
++            snapshot._encoded = b"{}"
++
++    def test_snapshot_rejects_ambiguous_or_non_json_data(self):
++        for data in ({}, [], None, {1: "x"}, {"x": {1: "nested"}},
++                     {"x": (1, 2)}, {"x": float("nan")}, {"x": float("inf")},
++                     {"x": {1, 2}}):
++            with self.subTest(data=data), self.assertRaises((ValueError, TypeError)):
++                PolicySnapshot(data)
++        cyclic = {"self": None}
++        cyclic["self"] = cyclic
++        with self.assertRaises(ValueError):
++            PolicySnapshot(cyclic)
++
++    def test_hash_survives_wire_roundtrip(self):
++        grant = issue()
++        decoded = Grant.from_dict(json.loads(json.dumps(grant.to_dict())))
++        self.assertEqual(decoded, grant)
++        self.assertIs(verifier().verify(decoded, required_scope=("backup:send",),
++                      expected_policy_hash=A.policy_hash), decoded)
++
++    def test_signed_hash_cannot_be_changed_removed_or_null(self):
++        grant = issue()
++        for operation in ("change", "remove", "null"):
++            wire = grant.to_dict()
++            if operation == "change":
++                wire["policy_hash"] = B.policy_hash
++            elif operation == "remove":
++                del wire["policy_hash"]
++            else:
++                wire["policy_hash"] = None
++            with self.subTest(operation=operation), self.assertRaises(InvalidSignature):
++                verifier().verify(Grant.from_dict(wire), required_scope=("backup:send",),
++                                  expected_policy_hash=A.policy_hash)
++
++    def test_unsigned_hash_cannot_be_appended_to_legacy_grant(self):
++        wire = issue(None).to_dict()
++        wire["policy_hash"] = A.policy_hash
++        with self.assertRaises(InvalidSignature):
++            verifier().verify(Grant.from_dict(wire), required_scope=("backup:send",),
++                              expected_policy_hash=A.policy_hash)
++
++    def test_signature_binds_policy_independently_of_matching_check(self):
++        # Present the altered grant to the policy it now names. Only its signature
++        # distinguishes this forgery from a legitimate grant for B.
++        altered = dataclasses.replace(issue(A), policy_hash=B.policy_hash)
++        with self.assertRaises(InvalidSignature):
++            verifier().verify(altered, required_scope=("backup:send",),
++                              expected_policy_hash=B.policy_hash)
++
++    def test_issue_rejects_malformed_digest(self):
++        for value in ("", "x" * 64, "A" * 64, "0" * 63, "0" * 65, True, 1, [], {}):
++            with self.subTest(value=value), self.assertRaises(ValueError):
++                issue(policy_hash=value)
++
++    def test_valid_signature_does_not_excuse_malformed_digest(self):
++        # Sign directly: a key holder can bypass issuance validation.
++        grant = dataclasses.replace(issue(), policy_hash="not-a-digest")
++        payload = json.dumps(grant._payload(), sort_keys=True, separators=(",", ":"),
++                             ensure_ascii=False, allow_nan=False).encode()
++        grant = dataclasses.replace(grant, sig=hmac.new(KEY, payload, hashlib.sha256).hexdigest())
++        with self.assertRaises(PolicyMismatch):
++            verifier().verify(grant, required_scope=("backup:send",),
++                              expected_policy_hash=A.policy_hash)
++
++    def test_missing_expected_policy_rejects_bound_grant(self):
++        with self.assertRaises(PolicyMismatch):
++            verifier().verify(issue(), required_scope=("backup:send",))
++
++    def test_expected_policy_rejects_legacy_grant(self):
++        with self.assertRaises(PolicyMismatch):
++            verifier().verify(issue(None), required_scope=("backup:send",),
++                              expected_policy_hash=A.policy_hash)
++
++    def test_validly_signed_wrong_policy_rejected(self):
++        # CLAIMS: driftcore/verification/signed_permission.py:policy-binding-matches
++        with self.assertRaises(PolicyMismatch):
++            verifier().verify(issue(A), required_scope=("backup:send",),
++                              expected_policy_hash=B.policy_hash)
++
++    def test_policy_refusal_does_not_reserve_or_burn_nonce(self):
++        v, grant = verifier(), issue(A)
++        with self.assertRaises(PolicyMismatch):
++            v.reserve(grant, required_scope=("backup:send",), expected_policy_hash=B.policy_hash)
++        self.assertIs(v.reserve(grant, required_scope=("backup:send",),
++                               expected_policy_hash=A.policy_hash), grant)
++        v.commit(grant)
++        with self.assertRaises(PermissionReplay):
++            v.reserve(grant, required_scope=("backup:send",), expected_policy_hash=A.policy_hash)
++
++    def test_legacy_wire_signature_unchanged_in_development(self):
++        grant = issue(None)
++        self.assertNotIn("policy_hash", grant.to_dict())
++        payload = {k: v for k, v in grant.to_dict().items() if k != "sig"}
++        expected = hmac.new(KEY, json.dumps(payload, sort_keys=True, separators=(",", ":"),
++                           ensure_ascii=False, allow_nan=False).encode(), hashlib.sha256).hexdigest()
++        self.assertEqual(grant.sig, expected)
++        verifier().verify(grant, required_scope=("backup:send",))
++
++    def test_new_policy_blocks_old_grant_before_effect_and_allows_new(self):
++        broker, seen = self.broker(B)
++        refused = broker._handle(self.request(A))
++        self.assertEqual(refused.get("error"), "grant_rejected", refused)
++        self.assertEqual(seen, [])
++        accepted = broker._handle(self.request(B))
++        self.assertTrue(accepted["ok"], accepted)
++        self.assertTrue(accepted["execution_confirmed"])
++        self.assertEqual(len(seen), 1)
++
++    def test_wire_policy_cannot_select_broker_rules(self):
++        broker, seen = self.broker(B)
++        req = self.request(A, policy_hash=A.policy_hash, expected_policy_hash=A.policy_hash,
++                           policy_snapshot=A.to_dict(), context={"policy_hash": A.policy_hash})
++        self.assertEqual(broker._handle(req).get("error"), "grant_rejected")
++        self.assertEqual(seen, [])
++        self.assertEqual(broker.policy_hash, B.policy_hash)
++        with self.assertRaises(AttributeError):
++            broker.policy_hash = A.policy_hash
++
++    def test_broker_rejects_legacy_grant_under_bound_policy(self):
++        broker, seen = self.broker(A)
++        self.assertEqual(broker._handle(self.request(None)).get("error"), "grant_rejected")
++        self.assertEqual(seen, [])
++        self.assertTrue(broker._handle(self.request(A))["ok"])
++
++    def test_unconfigured_broker_does_not_silently_ignore_policy(self):
++        broker, seen = self.broker(None)
++        self.assertEqual(broker._handle(self.request(A)).get("error"), "grant_rejected")
++        self.assertEqual(seen, [])
++        self.assertTrue(broker._handle(self.request(None))["ok"])
++        self.assertIn("policy_binding", {event["layer"] for event in broker.posture_events()})
++
++    def test_bound_policy_does_not_replace_action_or_destination_checks(self):
++        broker, seen = self.broker(A)
++        req = self.request(A)
++        req["params"]["text"] = "altered"
++        self.assertEqual(broker._handle(req).get("error"), "grant_rejected")
++        req = self.request(A)
++        req["params"]["url"] = "https://evil.example/"
++        self.assertFalse(broker._handle(req)["ok"])
++        self.assertEqual(seen, [])
++        self.assertTrue(broker._handle(self.request(A))["ok"])
++
++    def test_bound_grant_replay_has_exactly_one_effect(self):
++        broker, seen = self.broker(A)
++        req = self.request(A)
++        self.assertTrue(broker._handle(req)["ok"])
++        self.assertEqual(broker._handle(req).get("error"), "grant_rejected")
++        self.assertEqual(len(seen), 1)
++
++    def test_evidence_identifies_current_policy_and_detects_tamper(self):
++        path = Path(self.tmp.name)/"evidence.jsonl"
++        broker, seen = self.broker(A, evidence_path=str(path), require_durable_evidence=True)
++        self.assertTrue(broker._handle(self.request(A))["ok"])
++        rows = [json.loads(line) for line in path.read_text().splitlines()]
++        self.assertEqual([row["phase"] for row in rows], ["INTENT", "COMPLETION"])
++        self.assertTrue(all(row["policy_hash"] == A.policy_hash for row in rows))
++        self.assertEqual(broker.records[-1].to_dict()["policy_hash"], A.policy_hash)
++        self.assertTrue(broker.verify_evidence())
++        rows[0]["policy_hash"] = B.policy_hash
++        path.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
++        self.assertFalse(broker.verify_evidence())
++        self.assertEqual(len(seen), 1)
++
++    def test_production_requires_snapshot_and_rejects_duck_types(self):
++        hv = HumanIdentityVerifier()
++        hv.register_principal("human", KEY)
++        kwargs = dict(human_approval=HumanApprovalGate(hv), halt_state=lambda: False,
++                      evidence_path=str(Path(self.tmp.name)/"production.jsonl"))
++        with self.assertRaisesRegex(ValueError, "requires policy_snapshot"):
++            ProductionActuationBroker("unused.sock", verifier(), **kwargs)
++        for snapshot in ({}, A.to_dict(), A.policy_hash, True):
++            with self.subTest(snapshot=snapshot), self.assertRaises(TypeError):
++                ProductionActuationBroker("unused.sock", verifier(), policy_snapshot=snapshot, **kwargs)
++        broker = ProductionActuationBroker("unused.sock", verifier(), policy_snapshot=A, **kwargs)
++        self.assertEqual(broker.policy_hash, A.policy_hash)
++
++
++if __name__ == "__main__":
++    result = unittest.TextTestRunner(verbosity=2).run(
++        unittest.defaultTestLoader.loadTestsFromTestCase(PolicyBindingTests))
++    passed = result.testsRun - len(result.failures) - len(result.errors)
++    print(f"{passed}/{result.testsRun} tests passed")
++    raise SystemExit(0 if result.wasSuccessful() else 1)

@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_uncertain_send_remains_blocked_after_restart (test_artifact_channel.ArtifactChannelTests.test_uncertain_send_remains_blocked_after_restart)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/artifact-control-7s3rk12f/source/test_artifact_channel.py", line 364, in test_uncertain_send_remains_blocked_after_restart
+    self.assertFalse(serve_one(self.brokers["A"],self.request("A","publish",params))["ok"])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 1 test in 0.014s
+
+FAILED (failures=1)

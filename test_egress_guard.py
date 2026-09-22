@@ -7,6 +7,15 @@ Scope note, restated so these tests cannot be over-read: this governs egress tha
 comes THROUGH the wall. A process that already holds a socket never calls any of
 this. See the module docstring.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.kernel.egress_guard import (
     EgressGuard, EgressPolicy, EgressVerdict, MalformedDestination,
     normalize_destination, is_private_destination,
@@ -144,7 +153,7 @@ def _rq(aid, cmd, p, g):
 
 print()
 print("== WIRED: egress destination is interlocked at the actuation wall ==")
-v_ = PermissionVerifier(); v_.register_key("operator", KEY)
+v_ = PermissionVerifier(); v_.register_key("operator", KEY, unrestricted=True)
 sent = []
 b = ActuationBroker(SOCK, v_, enforce_effects=True, egress_guard=EgressGuard(POLICY))
 b.register_actuator("http", lambda **k: sent.append(k) or "sent",
@@ -202,7 +211,7 @@ print(f"\nALL {passed} CHECKS PASSED")
 
 print()
 print("== SELF-RED-TEAM PINS (E1-E5): all were live bypasses ==")
-v2 = PermissionVerifier(); v2.register_key("operator", KEY)
+v2 = PermissionVerifier(); v2.register_key("operator", KEY, unrestricted=True)
 def _mk(enf=True, gd=True):
     return ActuationBroker(SOCK, v2, enforce_effects=enf,
                            egress_guard=EgressGuard(POLICY) if gd else None)
@@ -349,7 +358,7 @@ except EgressRefused:
     ok(True, "the redirect budget is finite — a loop cannot spin the wall")
 
 # Grok G3/P1-1 (verified live): scheme-less destinations were invisible to sniffing
-v3 = PermissionVerifier(); v3.register_key("operator", KEY)
+v3 = PermissionVerifier(); v3.register_key("operator", KEY, unrestricted=True)
 try:
     ActuationBroker(SOCK, v3, enforce_effects=True).register_actuator(
         "h9", lambda **k: None, required_scope=("n:o",),

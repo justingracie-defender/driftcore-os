@@ -1,0 +1,35 @@
+{
+  "base_archive": "driftcore_full_2026-09-13.zip",
+  "base_sha256": "328a7ffd64035f27779a84362c68ab5e68f36c2a4ed6ebb6420324dea2f045b6",
+  "tested_source_archive_sha256": "7d9f3d955da45487c93fe20e860cef6c9401934465759409ebfa065e4a3199d3",
+  "source_snapshot_method": "Fresh extraction of release-source.zip; later changes are documentation and evidence only.",
+  "tested_source_files_identical": 419,
+  "patch_command": [
+    "patch",
+    "-p1",
+    "--batch",
+    "-i",
+    "/workspace/scratch/68864b741aa4/driftcore-sep13-review/merged/driftcore-os/authority-repair.patch"
+  ],
+  "patch_exit_code": 0,
+  "patch_matches_delivered_files": 25,
+  "newer_marshmallow_python_files_preserved": [
+    "marshmallow/analyze.py",
+    "marshmallow/marshmallow.py",
+    "marshmallow/runner.py",
+    "marshmallow/selftest.py"
+  ],
+  "official_suite": {
+    "passing_checks": 4827,
+    "test_files": 132,
+    "failed_files": 7,
+    "exit_code": 1,
+    "log": "release-full-suite.log",
+    "status": "not_all_green"
+  },
+  "os_isolation": {
+    "exit_code": 77,
+    "status": "ENVIRONMENT_UNAVAILABLE"
+  },
+  "notes": "Archive CRCs and all per-file hashes are checked by the packaging script after writing. No model calls or weight changes."
+}

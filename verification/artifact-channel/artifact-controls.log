@@ -1,0 +1,7 @@
+read_scope_promoted_to_publish: detected; restored test passed
+human_gate_requirement_removed: detected; restored test passed
+packet_hash_check_removed: detected; restored test passed
+exposure_history_disconnected: detected; restored test passed
+retrieval_promotes_claim_status: detected; restored test passed
+write_ahead_reservation_removed: detected; restored test passed
+6/6 mutation controls detected

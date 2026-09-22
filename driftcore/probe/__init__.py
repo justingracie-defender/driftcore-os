@@ -44,6 +44,23 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Callable, Dict
 
 
+# ── log directory resolution ──────────────────────────────────────────────
+# Ten test files write logs/SHUTDOWN_REASON.json and logs/CHAIN_SHUTDOWN_REASON.json
+# at a fixed RELATIVE path. Run in parallel, one file's cleanup races another
+# file's write and the loser reports a failure that passes when run alone.
+# "Passes when run alone" is not a green suite, so the path is resolvable per
+# process: set DRIFTCORE_LOG_DIR and each runner gets its own.
+def _log_dir() -> str:
+    import os
+    return os.environ.get("DRIFTCORE_LOG_DIR", "logs")
+
+
+def _log_path(name: str) -> str:
+    import os
+    return os.path.join(_log_dir(), name)
+
+
+
 # ── H-signal thresholds ───────────────────────────────────────────
 # These are FIXED regardless of model size.
 # A violation is a violation.
@@ -180,7 +197,7 @@ class ModelProfile:
             "anomaly_threshold":     self.anomaly_threshold(),
         }
 
-    def save(self, path: str = "logs/model_profiles.json"):
+    def save(self, path: str = _log_path("model_profiles.json")):
         """Save profile to disk."""
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -196,7 +213,7 @@ class ModelProfile:
 
     @classmethod
     def load(cls, model_id: str,
-             path: str = "logs/model_profiles.json") -> "ModelProfile":
+             path: str = _log_path("model_profiles.json")) -> "ModelProfile":
         """Load profile from disk, or return fresh profile."""
         try:
             with open(path) as f:
@@ -573,7 +590,7 @@ class ConsistencyProbe:
 
         # Also write to probe log
         try:
-            os.makedirs("logs", exist_ok=True)
+            os.makedirs(_log_dir(), exist_ok=True)
             entry = {
                 "timestamp":   result.timestamp,
                 "action":      action,
@@ -585,7 +602,7 @@ class ConsistencyProbe:
                 "model_id":    self._model_id,
                 "probe_count": result.probe_count,
             }
-            with open("logs/probe_log.jsonl", "a") as f:
+            with open(_log_path("probe_log.jsonl"), "a") as f:
                 f.write(json.dumps(entry) + "\n")
         except Exception:
             pass

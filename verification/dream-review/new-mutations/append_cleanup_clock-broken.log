@@ -1,0 +1,16 @@
+F
+======================================================================
+FAIL: test_len_cleanup_blocks_signed_grant_replay (test_nonce_clock_paths.AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/nonce-clock-control-3furf47m/source/test_nonce_clock_paths.py", line 67, in test_len_cleanup_blocks_signed_grant_replay
+    self.check_cleanup_replay("len")
+  File "/tmp/nonce-clock-control-3furf47m/source/test_nonce_clock_paths.py", line 62, in check_cleanup_replay
+    with self.assertRaises(ClockWentBackwards):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ClockWentBackwards not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

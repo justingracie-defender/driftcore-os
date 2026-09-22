@@ -1,0 +1,47 @@
+[
+  {
+    "control": "append_cleanup_clock",
+    "test": "test_nonce_clock_paths.AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay",
+    "exits": {
+      "healthy": 0,
+      "broken": 1,
+      "restored": 0
+    }
+  },
+  {
+    "control": "sqlite_cleanup_clock",
+    "test": "test_nonce_clock_paths.SqliteClockTests.test_stats_cleanup_blocks_signed_grant_replay",
+    "exits": {
+      "healthy": 0,
+      "broken": 1,
+      "restored": 0
+    }
+  },
+  {
+    "control": "finite_clock",
+    "test": "test_nonce_clock_sequences.SqliteFreshTests.test_infinite_clock_cannot_delete_spent_records",
+    "exits": {
+      "healthy": 0,
+      "broken": 1,
+      "restored": 0
+    }
+  },
+  {
+    "control": "finite_window",
+    "test": "test_nonce_clock_sequences.SqliteFreshTests.test_nan_retention_is_refused",
+    "exits": {
+      "healthy": 0,
+      "broken": 1,
+      "restored": 0
+    }
+  },
+  {
+    "control": "checked_membership_sample",
+    "test": "test_nonce_clock_paths.SqliteClockTests.test_membership_uses_the_checked_clock_sample",
+    "exits": {
+      "healthy": 0,
+      "broken": 1,
+      "restored": 0
+    }
+  }
+]

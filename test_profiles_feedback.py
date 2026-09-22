@@ -39,9 +39,9 @@ def reset_all():
     a._sequence = 0
     a._chain_compromised = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/feedback_entries.jsonl",
-        "logs/feedback_patterns.json",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"feedback_entries.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"feedback_patterns.json"),
         "data/active_profile.json",
     ]:
         try: os.remove(f)
@@ -171,7 +171,7 @@ check("topics detected",             len(entry.flagged_topics) > 0)
 check("unwanted_calls detected",
       "unwanted_calls" in entry.flagged_topics)
 check("feedback file written",
-      os.path.exists("logs/feedback_entries.jsonl"))
+      os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"feedback_entries.jsonl")))
 
 
 # ── TEST 8: Topic detection ───────────────────────────────────────

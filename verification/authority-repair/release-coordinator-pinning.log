@@ -1,0 +1,12 @@
+test_coordinator_does_not_depend_on_global_identity (__main__.PinnedAuthorityFollowup.test_coordinator_does_not_depend_on_global_identity) ... ok
+test_coordinator_preserves_custom_guard_restriction (__main__.PinnedAuthorityFollowup.test_coordinator_preserves_custom_guard_restriction) ... ok
+test_mutating_input_targets_does_not_expand_policy (__main__.PinnedAuthorityFollowup.test_mutating_input_targets_does_not_expand_policy) ... ok
+test_replacement_before_and_after_guard_construction (__main__.PinnedAuthorityFollowup.test_replacement_before_and_after_guard_construction) ... ok
+test_request_cannot_supply_an_authorizer_or_permission (__main__.PinnedAuthorityFollowup.test_request_cannot_supply_an_authorizer_or_permission) ... ok
+test_signed_guard_does_not_read_global_identity (__main__.PinnedAuthorityFollowup.test_signed_guard_does_not_read_global_identity) ... ok
+test_two_coordinators_do_not_share_authority (__main__.PinnedAuthorityFollowup.test_two_coordinators_do_not_share_authority) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.006s
+
+OK

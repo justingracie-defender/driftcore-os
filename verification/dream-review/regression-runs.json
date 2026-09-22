@@ -1,0 +1,75 @@
+[
+  {
+    "name": "frozen-clock-tests",
+    "command": [
+      "python3",
+      "test_nonce_clock_paths.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.1316
+  },
+  {
+    "name": "fresh-clock-sequences",
+    "command": [
+      "python3",
+      "test_nonce_clock_sequences.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.1692
+  },
+  {
+    "name": "new-mutations",
+    "command": [
+      "python3",
+      "scripts/check_nonce_clock_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-dream-review/evidence/new-mutations"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 1.7222
+  },
+  {
+    "name": "finite-guards",
+    "command": [
+      "python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 1.8069
+  },
+  {
+    "name": "nonce-legacy",
+    "command": [
+      "python3",
+      "test_nonce_store.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 4.8187
+  },
+  {
+    "name": "nonce-conformance",
+    "command": [
+      "python3",
+      "test_nonce_store_conformance.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 7.5177
+  },
+  {
+    "name": "nonce-startup",
+    "command": [
+      "python3",
+      "test_nonce_store_startup.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.2821
+  },
+  {
+    "name": "execution-receipts",
+    "command": [
+      "python3",
+      "test_execution_receipts.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.3675
+  }
+]

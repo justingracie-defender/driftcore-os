@@ -1,0 +1,14 @@
+E
+======================================================================
+ERROR: test_read_scope_cannot_publish (test_artifact_channel.ArtifactChannelTests.test_read_scope_cannot_publish)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/artifact-control-esg2bgfn/source/test_artifact_channel.py", line 186, in test_read_scope_cannot_publish
+    self.assertEqual(response["error"],"grant_rejected")
+                     ~~~~~~~~^^^^^^^^^
+KeyError: 'error'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.016s
+
+FAILED (errors=1)

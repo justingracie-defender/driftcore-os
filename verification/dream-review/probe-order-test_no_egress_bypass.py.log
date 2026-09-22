@@ -1,0 +1,5 @@
+  ok: no unmediated network calls outside the sanctioned path
+  ok: the audit still detects a planted bypass (an empty result is meaningful)
+  ok: tree is clean again after the probe
+
+3/3 checks passed

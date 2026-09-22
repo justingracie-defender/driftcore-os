@@ -51,6 +51,23 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 
 
+# ── log directory resolution ──────────────────────────────────────────────
+# Ten test files write logs/SHUTDOWN_REASON.json and logs/CHAIN_SHUTDOWN_REASON.json
+# at a fixed RELATIVE path. Run in parallel, one file's cleanup races another
+# file's write and the loser reports a failure that passes when run alone.
+# "Passes when run alone" is not a green suite, so the path is resolvable per
+# process: set DRIFTCORE_LOG_DIR and each runner gets its own.
+def _log_dir() -> str:
+    import os
+    return os.environ.get("DRIFTCORE_LOG_DIR", "logs")
+
+
+def _log_path(name: str) -> str:
+    import os
+    return os.path.join(_log_dir(), name)
+
+
+
 # ── Alert levels ──────────────────────────────────────────────────
 
 class AlertLevel:
@@ -173,11 +190,11 @@ class AuditReviewer:
         reviewer.daily_summary()  # call once per day
     """
 
-    AUDIT_FILE     = "logs/audit_chain.jsonl"
-    LAST_RUN_FILE  = "logs/reviewer_last_run.json"
-    REPORT_FILE    = "logs/last_review_report.txt"
+    AUDIT_FILE     = _log_path("audit_chain.jsonl")
+    LAST_RUN_FILE  = _log_path("reviewer_last_run.json")
+    REPORT_FILE    = _log_path("last_review_report.txt")
 
-    TAMPER_REASON_FILE = "logs/CHAIN_SHUTDOWN_REASON.json"
+    TAMPER_REASON_FILE = _log_path("CHAIN_SHUTDOWN_REASON.json")
 
     def __init__(self, config: Optional[ReviewConfig] = None):
         self._config = config or ReviewConfig.load()
@@ -728,7 +745,7 @@ class AuditReviewer:
 
     def _save_last_run(self):
         try:
-            os.makedirs("logs", exist_ok=True)
+            os.makedirs(_log_dir(), exist_ok=True)
             with open(self.LAST_RUN_FILE, "w") as f:
                 json.dump({"last_run": time.time()}, f)
         except Exception:
@@ -782,8 +799,8 @@ def setup_review(
 
     Example:
         config = setup_review(
-            admin_email   = "justin@gmail.com",
-            smtp_user     = "driftcore.alerts@gmail.com",
+            admin_email   = "admin@example.invalid",
+            smtp_user     = "alerts@example.invalid",
             smtp_password = "your_app_password",
             phone_number  = "6135551234",
             carrier_gateway = "txt.bell.ca",

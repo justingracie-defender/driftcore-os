@@ -42,13 +42,13 @@ def reset_all():
     a._sequence = 0
     a._chain_compromised = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/SHUTDOWN_REASON.json",
-        "logs/probe_log.jsonl",
-        "logs/model_profiles.json",
-        "logs/drift_policy.json",
-        "logs/safety_drift.jsonl",
-        "logs/session_history.jsonl",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"probe_log.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"model_profiles.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"drift_policy.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"safety_drift.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"session_history.jsonl"),
     ]:
         try: os.remove(f)
         except: pass
@@ -138,7 +138,7 @@ check("result has all required fields",
           "consistency", "variance", "confidence",
           "h_signal", "anomalous", "hard_threshold"
       ]))
-check("probe log written",               os.path.exists("logs/probe_log.jsonl"))
+check("probe log written",               os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"probe_log.jsonl")))
 
 
 # ── TEST 4: Variance tracked separately ──────────────────────────
@@ -227,7 +227,7 @@ with redirect_stdout(f):
 check("calibration completes",             profile6.is_calibrated())
 check("baseline set from measurement",     profile6.baseline_consistency > 0.0)
 check("probe count matches",               profile6.probe_count >= MIN_CALIBRATION_PROBES)
-check("profile saved to disk",             os.path.exists("logs/model_profiles.json"))
+check("profile saved to disk",             os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"model_profiles.json")))
 
 
 # ── TEST 7: Profile persists across sessions ──────────────────────

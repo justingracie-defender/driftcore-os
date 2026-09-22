@@ -33,10 +33,27 @@ for f in test_*.py; do
     # `set -euo pipefail` is active, so a plain assignment from a failing
     # command aborts the whole script. The || branch keeps the loop alive
     # so the crash can be REPORTED rather than silently ending the run.
-    out="$(python3 "$f" 2>&1)" && rc=0 || rc=$?
+    # (red-team, ChatGPT) A test file that HANGS used to stall the gate forever, so
+    # "the suite has not finished" was indistinguishable from "the suite is still
+    # working". A bounded timeout makes a hang a FAILURE (timeout exits 124, which the
+    # non-zero branch below reports as CRASHED) instead of an indefinite wait.
+    # (red-team, Grok 2026-09-12) Ten test files write logs/SHUTDOWN_REASON.json and
+    # logs/CHAIN_SHUTDOWN_REASON.json at a fixed relative path, so run in parallel one
+    # file's cleanup races another's write. DRIFTCORE_LOG_DIR was made configurable
+    # and then nothing set it, which is a knob, not a fix. It is exported HERE,
+    # BEFORE python3 starts, because the audit module binds CHAIN_FILE and HEAD_FILE
+    # at import: a test that sets the variable after importing driftcore.audit has
+    # already missed. One directory per file, removed after.
+    _logdir="$(mktemp -d)"
+    out="$(DRIFTCORE_LOG_DIR="$_logdir/logs" timeout "${PER_TEST_TIMEOUT:-180}" python3 "$f" 2>&1)" && rc=0 || rc=$?
+    rm -rf "$_logdir"
     line="$(printf '%s\n' "$out" | grep -iE '[0-9]+/[0-9]+ (tests?|checks?) passed|ALL [0-9]+ CHECKS? PASSED' | tail -1 || true)"
     if [ "$rc" -ne 0 ]; then
-        printf '  %-28s CRASHED (exit %s) after: %s\n' "$f" "$rc" "${line:-no summary}"
+        if [ "$rc" -eq 124 ]; then
+            printf '  %-28s TIMED OUT (>%ss) after: %s\n' "$f" "${PER_TEST_TIMEOUT:-180}" "${line:-no summary}"
+        else
+            printf '  %-28s CRASHED (exit %s) after: %s\n' "$f" "$rc" "${line:-no summary}"
+        fi
         printf '      %s\n' "$(printf '%s\n' "$out" | tail -1)"
         fail=$((fail + 1))
         continue

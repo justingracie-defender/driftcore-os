@@ -1,0 +1,19 @@
+F
+======================================================================
+FAIL: test_even_signed_wrong_packet_hash_does_not_write (test_artifact_channel.ArtifactChannelTests.test_even_signed_wrong_packet_hash_does_not_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/artifact-control-6s82qz92/source/test_artifact_channel.py", line 205, in test_even_signed_wrong_packet_hash_does_not_write
+    self.assertEqual(self.board.writes,[])
+AssertionError: Lists differ: ['{"artifact_id":"08727bdc584dc024aa96f12b[682 chars]6"}'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'{"artifact_id":"08727bdc584dc024aa96f12b9666fe0abf21e80bb75a8395c59dcf4a74a2b5ab","manifest":{"authority":"NONE","body":"A harmless research note.","body_sha256":"630940cb9224754e4dd012399beafe47b536e0c285e37bfa4d584fa0668e5ab1","claim_status":"UNVERIFIED","context_id":"context-A","created_ns":1790003854669452472,"creator":"model-A","issuer":"test-governor","origin":"model-output","parents":[],"release":{"audience":"PUBLIC","destination":"https://board.example/research","purpose":"research-note"},"roots":["c9b5468da021345d741b1e63bbc08d679b177740225a514af89ff5e35dff9939"],"schema":"driftcore-artifact-v1","sensitivity":["PUBLIC",[]]},"provenance_sig":"a9b54768cefd7eaf5b6df48ed53688758f4d6341ccdd94bc89cf98a07ed0ec46"}'
+
+Diff is 749 characters long. Set self.maxDiff to None to see it.
+
+----------------------------------------------------------------------
+Ran 1 test in 0.013s
+
+FAILED (failures=1)

@@ -1,0 +1,16 @@
+F
+======================================================================
+FAIL: test_actuator_exception_preserves_uncertainty_after_real_effect (test_agent_boundary.AgentBoundaryTests.test_actuator_exception_preserves_uncertainty_after_real_effect)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/agent-boundary-control-9msvb0hq/source/test_agent_boundary.py", line 215, in test_actuator_exception_preserves_uncertainty_after_real_effect
+    self.assertEqual(response["effect_status"], "UNKNOWN")
+AssertionError: 'NOT_STARTED' != 'UNKNOWN'
+- NOT_STARTED
++ UNKNOWN
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

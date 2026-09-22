@@ -1,0 +1,42 @@
+[
+  {
+    "name": "incoming-invariant-guard",
+    "command": [
+      "python3",
+      "test_invariant_guard.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.12,
+    "completed_summary": null
+  },
+  {
+    "name": "incoming-marshmallow",
+    "command": [
+      "python3",
+      "marshmallow/selftest.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.22,
+    "completed_summary": null
+  },
+  {
+    "name": "incoming-full-suite",
+    "command": [
+      "bash",
+      "scripts/count_tests.sh"
+    ],
+    "exit_code": 1,
+    "seconds": 39.07,
+    "completed_summary": true
+  },
+  {
+    "name": "merged-full-suite",
+    "command": [
+      "bash",
+      "scripts/count_tests.sh"
+    ],
+    "exit_code": 1,
+    "seconds": 39.33,
+    "completed_summary": true
+  }
+]

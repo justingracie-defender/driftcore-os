@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_validly_signed_wrong_policy_rejected (test_policy_binding.PolicyBindingTests.test_validly_signed_wrong_policy_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/policy-control-pd2cxsh_/source/test_policy_binding.py", line 162, in test_validly_signed_wrong_policy_rejected
+    with self.assertRaises(PolicyMismatch):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: PolicyMismatch not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

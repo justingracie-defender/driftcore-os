@@ -1,0 +1,5 @@
+  files parsed: 153 (baseline 150)
+  known: 185   current: 182   new: 0   removed: 3   resolved: 0
+
+  RESULT: PASS
+  (means: the scan was complete, the baseline was valid, and no newly detected violation occurred within this scanner's bounded coverage model. NOT: the repository has no non-finite bugs.)

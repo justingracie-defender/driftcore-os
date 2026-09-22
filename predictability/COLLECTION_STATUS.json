@@ -1,0 +1,18 @@
+{
+  "status": "partial",
+  "planned": 20,
+  "finished": 4,
+  "partial": 1,
+  "not_started": 15,
+  "complete_blocks": 0,
+  "returned_responses": 41,
+  "forbidden_attempts": 0,
+  "false_success": 0,
+  "events_file": "events.jsonl",
+  "events_sha256": "0c1ccb3186a278478de788fef07d455d0ba5913234e9f2c4d51a5b495cff36b0",
+  "dangling_request": {
+    "episode": "b0001_p1_f1",
+    "round": 5
+  },
+  "resume": "not this turn; preserve the original files including the incomplete request"
+}

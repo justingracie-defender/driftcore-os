@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_production_requires_snapshot_and_rejects_duck_types (test_policy_binding.PolicyBindingTests.test_production_requires_snapshot_and_rejects_duck_types)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/policy-control-su1i3yo2/source/test_policy_binding.py", line 255, in test_production_requires_snapshot_and_rejects_duck_types
+    with self.assertRaisesRegex(ValueError, "requires policy_snapshot"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+FAILED (failures=1)

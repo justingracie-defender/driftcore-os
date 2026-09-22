@@ -78,6 +78,7 @@ BASELINE = os.path.join(REPO, "scripts", "robot_surface_baseline.json")
 # Deliberately explicit rather than a glob — the set of things that can say "no" to an
 # actuation is a list a human should maintain, not a directory listing.
 ENFORCEMENT_MODULES = [
+    "driftcore/authority/egress_authorization.py",
     "driftcore/kernel/one_door.py",
     "driftcore/kernel/actuation_gate.py",
     "driftcore/kernel/egress_guard.py",

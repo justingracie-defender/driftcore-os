@@ -42,10 +42,10 @@ def reset_all():
     a._sequence = 0
     a._chain_compromised = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/SHUTDOWN_REASON.json",
-        "logs/reviewer_last_run.json",
-        "logs/last_review_report.txt",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"reviewer_last_run.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"last_review_report.txt"),
     ]:
         try: os.remove(f)
         except: pass
@@ -290,15 +290,15 @@ print("\n  [13] setup_review() helper configures correctly")
 reset_all()
 
 config13 = setup_review(
-    admin_email     = "justin@gmail.com",
-    smtp_user       = "alerts@gmail.com",
+    admin_email     = "admin@example.invalid",
+    smtp_user       = "alerts@example.invalid",
     smtp_password   = "test_password",
     phone_number    = "6135551234",
     carrier_gateway = "txt.bell.ca",
     sms_enabled     = True,
 )
 
-check("admin email set",               config13.admin_email == "justin@gmail.com")
+check("admin email set",               config13.admin_email == "admin@example.invalid")
 check("SMS enabled",                   config13.sms_enabled == True)
 check("SMS address correct",           "6135551234@txt.bell.ca" in config13.sms_address)
 check("config file written",           os.path.exists("_config/.driftcore/review_config.json"))

@@ -1,0 +1,30 @@
+{
+  "previous_archive_sha256": "f342417816c99deca78d157a3302974f00af36c617b5f0f6dfcdc8d043f22138",
+  "tested_source_snapshot_sha256": "33a39b1fc19899b826909371eabfd15f452b384a71f09a4e077c6c4df74cf5fa",
+  "tested_files_preserved_except_reports_manifest_patch": 513,
+  "source_changes": [
+    "driftcore/verification/nonce_store.py",
+    "driftcore/verification/nonce_store_sqlite.py",
+    "test_nonce_clock_paths.py",
+    "test_nonce_clock_sequences.py",
+    "scripts/check_nonce_clock_controls.py",
+    "test_no_egress_bypass.py"
+  ],
+  "patches": [
+    {
+      "patch": "dream-review.patch",
+      "base_sha256": "f342417816c99deca78d157a3302974f00af36c617b5f0f6dfcdc8d043f22138",
+      "exit_code": 0,
+      "verified_files": 9
+    },
+    {
+      "patch": "authority-repair.patch",
+      "base_sha256": "328a7ffd64035f27779a84362c68ab5e68f36c2a4ed6ebb6420324dea2f045b6",
+      "exit_code": 0,
+      "verified_files": 31
+    }
+  ],
+  "marshmallow_unchanged": true,
+  "all_previous_files_retained": true,
+  "verification": "Fresh source extraction tested; delivered source bytes, archive CRCs and per-file hashes checked after packaging."
+}

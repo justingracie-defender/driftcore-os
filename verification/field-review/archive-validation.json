@@ -1,0 +1,30 @@
+{
+  "previous_archive_sha256": "6b93e77ba5a0fe68fe467675ad9e23d8f50bf1a86bdb48bb85e88f1329cba2dc",
+  "tested_source_archive_sha256": "e0641716bfe089b84f52a3a0f9cebfbcc105d7d47cd455b6d5b8ad16fc036fbf",
+  "source_changes": [
+    "driftcore/verification/policy_snapshot.py",
+    "driftcore/verification/signed_permission.py",
+    "driftcore/verification/mediated_actuation.py",
+    "test_policy_binding.py",
+    "test_halt_and_restart.py",
+    "test_halt_interlock_integration.py",
+    "scripts/check_policy_binding_controls.py"
+  ],
+  "patches": [
+    {
+      "patch": "field-review.patch",
+      "base_sha256": "6b93e77ba5a0fe68fe467675ad9e23d8f50bf1a86bdb48bb85e88f1329cba2dc",
+      "exit_code": 0,
+      "verified_files": 12
+    },
+    {
+      "patch": "authority-repair.patch",
+      "base_sha256": "328a7ffd64035f27779a84362c68ab5e68f36c2a4ed6ebb6420324dea2f045b6",
+      "exit_code": 0,
+      "verified_files": 37
+    }
+  ],
+  "marshmallow_unchanged": true,
+  "tested_files_preserved_except_history_notices_manifest_cumulative_patch": 602,
+  "verification": "Suite ran on a fresh source-zip extraction. Delivered code/test/script bytes match; CRC and per-file hashes checked."
+}

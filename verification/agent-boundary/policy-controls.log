@@ -1,0 +1,5 @@
+policy_equality_removed: detected; restored test passed
+hash_not_signed: detected; restored test passed
+request_selects_policy: detected; restored test passed
+production_policy_optional: detected; restored test passed
+4/4 mutation controls detected

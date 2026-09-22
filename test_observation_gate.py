@@ -41,10 +41,10 @@ def reset_all():
     a._last_hash = None
     a._sequence  = 0
     a._chain_compromised = False
-    for f in ["logs/SHUTDOWN_REASON.json",
-              "logs/CHAIN_SHUTDOWN_REASON.json",
-              "logs/flagged_attempts.jsonl",
-              "logs/audit_chain.jsonl"]:
+    for f in [os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
+              os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"CHAIN_SHUTDOWN_REASON.json"),
+              os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"flagged_attempts.jsonl"),
+              os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl")]:
         try: os.remove(f)
         except: pass
 
@@ -142,7 +142,7 @@ for injection in injections:
 check("all injections logged",
       gate3.flagged_count() == len(injections))
 check("flagged log file written",
-      os.path.exists("logs/flagged_attempts.jsonl"))
+      os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"flagged_attempts.jsonl")))
 
 
 # ── TEST 5: AI judgment without contradiction — allowed ───────────

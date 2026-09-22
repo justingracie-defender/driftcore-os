@@ -1,0 +1,37 @@
+[
+  {
+    "control": "caller_flags_trusted",
+    "regression": "test_legacy_booleans_never_authorize",
+    "healthy_exit": 0,
+    "broken_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "global_verifier_used",
+    "regression": "test_global_verifier_replacement_does_not_change_pinned_guard",
+    "healthy_exit": 0,
+    "broken_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "principal_seal_removed",
+    "regression": "test_pinned_principal_registry_cannot_be_changed",
+    "healthy_exit": 0,
+    "broken_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "broker_global_trust_root",
+    "regression": "test_broker_global_replacement_has_no_authority",
+    "healthy_exit": 0,
+    "broken_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "destination_check_removed",
+    "regression": "test_broker_wrong_destination_despite_valid_signatures",
+    "healthy_exit": 0,
+    "broken_exit": 1,
+    "restored_exit": 0
+  }
+]

@@ -186,6 +186,8 @@ from typing import Callable, Dict, Optional, Tuple
 from driftcore.verification.signed_permission import (
     Grant, PermissionVerifier, PermissionError_,
 )
+from driftcore.verification.policy_snapshot import PolicySnapshot
+from driftcore.verification.agent_responses import agent_response
 from driftcore.kernel.actuation_gate import ActuationGate, Outcome
 from driftcore.kernel.blast_radius import BlastRadiusGovernor, BreadthVerdict
 from driftcore.kernel.egress_guard import EgressGuard
@@ -197,6 +199,14 @@ from driftcore.verification.invariant_guard import Effect, ActionContext
 def _send(conn: socket.socket, obj: dict) -> None:
     body = json.dumps(obj, separators=(",", ":")).encode("utf-8")
     conn.sendall(struct.pack("!I", len(body)) + body)
+
+
+def _send_agent_response(conn: socket.socket, response: dict) -> None:
+    """CLAIM socket-refusals-are-projected: the server applies the public response
+    projection to normal dispatch, peer refusal and exception paths; private
+    refusal diagnostics remain inside the broker.
+    """
+    _send(conn, agent_response(response))
 
 
 def _recv_exactly(conn: socket.socket, n: int) -> Optional[bytes]:
@@ -268,9 +278,11 @@ class ActuationRecord:
     allowed: bool
     reason: str
     nonce: str = ""
+    policy_hash: Optional[str] = None
     def to_dict(self) -> dict:
         return {"ts": self.ts, "actuator_id": self.actuator_id, "command": self.command,
-                "allowed": self.allowed, "reason": self.reason, "nonce": self.nonce}
+                "allowed": self.allowed, "reason": self.reason, "nonce": self.nonce,
+                "policy_hash": self.policy_hash}
 
 
 class ActuationBroker:
@@ -293,6 +305,7 @@ class ActuationBroker:
                  broker_id: Optional[str] = None,
                  expected_subject: Optional[str] = None,
                  posture_source: Optional[Callable[[], bool]] = None,
+                 halt_state: Optional[Callable[[], bool]] = None,
                  posture_timeout: float = 1.0,
                  socket_group: Optional[object] = None,
                  require_isolation: bool = False,
@@ -304,6 +317,9 @@ class ActuationBroker:
                  evidence_path: Optional[str] = None,
                  require_durable_evidence: bool = False,
                  require_effect_binding: bool = False,
+                 human_approval=None,
+                 envelope_source: Optional[Callable[[], object]] = None,
+                 intent_ledger=None,
                  probe_detector=None,
                  broker_manifest=None,
                  agent_manifest=None,
@@ -313,9 +329,15 @@ class ActuationBroker:
                  # false. Five minutes is long enough for the recon phase of a real
                  # campaign. Short enough to hurt is the point.
                  attestation_max_age_seconds: float = 30.0,
-                 audit_logger=None):
+                 audit_logger=None,
+                 policy_snapshot: Optional[PolicySnapshot] = None):
         self._socket_path = socket_path
         self._verifier = verifier
+        if policy_snapshot is not None and type(policy_snapshot) is not PolicySnapshot:
+            raise TypeError("policy_snapshot must be an operator-created PolicySnapshot")
+        # Pinned at trusted bootstrap, never selected by an execute request or a
+        # process-global registry. No reload API: deploy a new broker to rotate it.
+        self._policy_snapshot = policy_snapshot
         # BREACH COUPLING. A zero-argument callable returning True while the system is
         # OPERATIONAL and False once it is holding in RESTRICTED/HALT — in practice
         # `breach_response.is_operational`. When wired, the wall refuses ALL actuation in
@@ -328,6 +350,22 @@ class ActuationBroker:
         # `is_breach_gated()` reports the state so "no refusals" is never mistaken for
         # "the gate is working". Production deployments MUST wire this.
         self._posture_source = posture_source
+        # (red-team) SafeHalt was referenced by exactly ONE file: itself. Nothing
+        # connected it to actuation, so with a HARD halt active — "all operations
+        # suspended" — a valid grant still moved the arm. A halt that no execution path
+        # consults is a variable, not a stop. `halt_state` is a callable returning True
+        # when the system is halted; it is checked before every actuation and, like the
+        # posture gate, is strict-bool and fails CLOSED.
+        self._halt_state = halt_state
+        # (red-team, self cold pass H1) `self._halt_state` is a plain attribute of an
+        # in-process object. A compromised broker process can reassign it
+        # (`broker._halt_state = lambda: False`) exactly as it could delete the
+        # actuator registry or monkeypatch `_handle`. This is the SAME load-bearing
+        # assumption named at the top of this file for the broker as a whole — the
+        # guarantee holds only if the broker process is not itself compromised, and no
+        # attribute check inside that process can defend against the process owning
+        # the check. The interlock's job is to close the gap where the halt existed but
+        # nothing consulted it; it cannot make the broker process trustworthy.
         # (red-team, cold pass) the posture check sits at position ZERO, so a slow or
         # hanging source stalls EVERY request — the same one-client DoS `conn_timeout`
         # already closed, reintroduced in front of it. Bounded, and a timeout is a
@@ -396,7 +434,16 @@ class ActuationBroker:
         # actuator's effects at registration.
         self._enforce_effects = bool(enforce_effects)
         self._effect_registry = EffectRegistry()
-        self._effect_gate = ActuationGate(self._effect_registry) if self._enforce_effects else None
+        # Conditional authorization is decided by this broker's destination
+        # interlock AND cryptographically bound grant/human gate below. The
+        # early floor checks unconditional prohibitions without consulting a
+        # process-global human identity policy or pretending the broker is a
+        # human. This callback is private bootstrap configuration, never wire
+        # data. A floor pass is not permission to execute; all later gates run.
+        from driftcore.verification.invariant_guard import InvariantGuard
+        self._effect_gate = (ActuationGate(self._effect_registry,
+            decider=InvariantGuard(authorize_egress=lambda request: True))
+            if self._enforce_effects else None)
         # (red-team A9) Declarations supplied while UNENFORCED are still validated and
         # recorded, but they are INERT: there is deliberately no API to switch
         # enforcement on after construction, because a safety gate that can be toggled
@@ -433,6 +480,11 @@ class ActuationBroker:
         # actuator_id -> the param key that carries its destination (declared
         # at registration for any DATA_EGRESS capability, never guessed).
         self._destination_params: Dict[str, str] = {}
+        # Implementation identity captured AT REGISTRATION. Re-deriving it per
+        # request made it a moving target: an actuator writing to its own
+        # closed-over log rewrote its identity on first use and invalidated every
+        # outstanding grant. See _implementation_id.
+        self._impl_ids: Dict[str, str] = {}
         # actuator_id -> the real-world thing it moves (defaults to itself)
         self._physical_resource: Dict[str, str] = {}
         # Optional cross-action gate run on the BROKER side (cumulative_ledger).
@@ -506,6 +558,44 @@ class ActuationBroker:
         # floor. When on, the binding includes a hash of the current declaration, so
         # any change invalidates every outstanding grant for that actuator.
         self._require_effect_binding = bool(require_effect_binding)
+        # WHO AGREED, not just what was signed. A Grant proves the signing KEY
+        # authorised the action. A stolen key, an automation, or an agent that reached
+        # the key store all produce a grant that verifies perfectly and looks approved.
+        # With a gate installed, every actuation must additionally carry a human
+        # attestation whose signature covers the exact effect identity — and the grant
+        # must be bound to that specific attestation. Opt-in: None behaves as before.
+        if human_approval is not None:
+            from driftcore.verification.human_authorization import HumanApprovalGate
+            if not isinstance(human_approval, HumanApprovalGate):
+                raise TypeError(
+                    "human_approval must be a HumanApprovalGate. Accepting a "
+                    "duck-typed stand-in on this boundary is how a wall ends up "
+                    "consulting something that always says yes.")
+            # (red-team, Grok 2026-08-14) With effect binding OFF, the approved
+            # identity names the ACTUATOR and the COMMAND and not the code behind
+            # them: two different implementations answering to "grip" on "arm_left"
+            # hash identically, so a human approves a NAME rather than a BODY OF CODE.
+            # `require_effect_binding` folds in the declaration and its
+            # implementation identity, which is what makes the approval survive a
+            # swapped actuator. A human gate without it is a weaker claim wearing a
+            # stronger name, so the combination is refused at construction rather
+            # than discovered in a safety case.
+            if not require_effect_binding:
+                raise ValueError(
+                    "a HumanApprovalGate requires require_effect_binding=True. "
+                    "Without it the human approves an actuator NAME, not the "
+                    "implementation behind it, and an actuator swapped after "
+                    "approval executes under the old approval.")
+        self._human_approval = human_approval
+        # The safety constraints in force, as an opaque declaration. DriftCore does
+        # not interpret it (no physical values live here); it pins the digest so an
+        # approval cannot outlive the envelope it was given under.
+        self._envelope_source = envelope_source
+        # The purpose side of the chain. When installed, every request must carry an
+        # intent-ledger decision, and that decision is REDEEMED here — single-use,
+        # generation-checked, and bound to this exact action. Opt-in and inert when
+        # None, like every other gate on this wall.
+        self._intent_ledger = intent_ledger
         # THE BROKER IS THE NEW MAIL SLOT. Once every fetch and every actuation is
         # forced through one conduit, that conduit's own surface is the escape hatch —
         # and nothing stopped it running wide open while enforcing a tight manifest on
@@ -582,6 +672,8 @@ class ActuationBroker:
              "a grant is not bound to the effect declaration, so downgrading an "
              "actuator from LETHAL to NONE with replace=True lets outstanding grants "
              "execute under the weaker floor"),
+            ("policy_binding", self._policy_snapshot is not None,
+             "grants do not identify the operator policy artifact that approved them"),
             ("isolation_attested", self.is_isolation_attested(),
              "no external supervisor has verified this process's capability surface, "
              "so the wall property is a claim rather than a measurement — the process "
@@ -618,6 +710,12 @@ class ActuationBroker:
         has not explicitly accepted. Disabling a layer is an event, not a default."""
         return list(self._posture_events)
 
+    @property
+    def policy_hash(self) -> Optional[str]:
+        """Public artifact digest for the issuer; never a credential or an approval."""
+        return (self._policy_snapshot.policy_hash
+                if self._policy_snapshot is not None else None)
+
     def is_blast_radius_gated(self) -> bool:
         """Whether a breadth ceiling is actually enforced. An unarmed governor refuses
         nothing, so a clean record from one is not evidence of safety."""
@@ -641,6 +739,18 @@ class ActuationBroker:
         a sharp footgun if registered by accident. Empty scope is now REFUSED unless
         the operator explicitly opts in with allow_any_scope=True. A silent config
         smell becomes a loud, deliberate choice."""
+        # THE OPT-IN MUST BE THE LITERAL True, NOT MERELY TRUTHY (red-team,
+        # 2026-08-29). Verified by execution: allow_any_scope="false", "no", "0" and
+        # "off" ALL opted in, because every non-empty string is truthy. Operators
+        # configure through JSON, YAML, env vars and CLI flags — every one of which
+        # hands you a string — so `bool(x)` on a safety opt-in reads a config that
+        # says OFF as ON. An identity check has no such boundary.
+        if allow_any_scope is not True and allow_any_scope is not False:
+            raise ValueError(
+                f"actuator {actuator_id!r}: allow_any_scope must be the literal True "
+                f"or False, not {allow_any_scope!r}. Truthiness is not consent — "
+                f"'false', 'no' and '0' are all truthy, so a config that says OFF "
+                f"would switch the scope requirement OFF.")
         if not required_scope and not allow_any_scope:
             raise ValueError(
                 f"actuator {actuator_id!r} registered with empty required_scope. This "
@@ -669,9 +779,9 @@ class ActuationBroker:
             # {"host": "evil.com", "port": 443} and {"endpoint": "evil.com:443"} both
             # produced NOTHING. Guessing where the destination lives is not a control.
             # An egress capability must NAME the param that carries its destination.
-            if Effect.DATA_EGRESS in set(eff) and not destination_param:
+            if set(eff) & {Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS} and not destination_param:
                 raise ValueError(
-                    f"actuator {actuator_id!r} declares DATA_EGRESS and must also declare "
+                    f"actuator {actuator_id!r} declares DATA_EGRESS/ACCOUNT_ACCESS and must also declare "
                     f"destination_param='<key>' — the param that carries its destination. "
                     f"Without it the wall would have to GUESS where the destination is, "
                     f"and a guess that misses fails OPEN.")
@@ -697,7 +807,17 @@ class ActuationBroker:
                 self._effect_registry.register(
                     actuator_id, eff,
                     declared_by=effect_declared_by or "unattributed", replace=replace)
-            self._actuators[actuator_id] = (fn, tuple(required_scope))
+            # The operator's allow_any_scope opt-in travels WITH the entry: the
+            # verifier now refuses an empty required_scope by default, so the flag has
+            # to reach it, and it must come from the registry the agent cannot write —
+            # never from the caller of execute().
+            self._actuators[actuator_id] = (fn, tuple(required_scope),
+                                            bool(allow_any_scope))
+            # Capture identity now, while the code is exactly as installed. A later
+            # replace=True re-registers and recomputes, which is the one case where
+            # the identity SHOULD move.
+            self._impl_ids[actuator_id] = (fn,
+                                           self._derive_implementation_id(actuator_id))
             if destination_param:
                 self._destination_params[actuator_id] = destination_param
             # (cold pass Q2) Two actuator ids can drive the SAME hardware. Quarantining
@@ -707,6 +827,16 @@ class ActuationBroker:
             # behaviour), which is safe for the one-id-per-device case and wrong for
             # any device with two code paths. Declare it.
             self._physical_resource[actuator_id] = physical_resource or actuator_id
+
+    def register_artifact_channel(self, channel, *, prefix: str) -> None:
+        """CLAIM artifact-publication-uses-existing-approval: artifact channels install
+        only on a subject-bound broker with human approval and effect/policy binding.
+        The published artifact and route remain covered by ordinary signed requests.
+        """
+        from driftcore.governance.artifact_channel import ArtifactChannel
+        if type(channel) is not ArtifactChannel:
+            raise TypeError("channel must be an operator-created ArtifactChannel")
+        channel.install(self, prefix=prefix)
 
     @staticmethod
     def _coerce_effects(effects) -> "list":
@@ -930,10 +1060,103 @@ class ActuationBroker:
                 return None
             decl = self._effect_registry.declaration(actuator_id)
             by = getattr(decl, "declared_by", "") if decl else ""
-            payload = "|".join(sorted(e.value for e in eff)) + "|" + str(by)
+            # (red-team Q7) The declaration used to cover EFFECTS + DECLARER only, so
+            # two actuators with identical declarations and completely different code
+            # hashed the same: a `gentle` implementation and a `violent` one were
+            # indistinguishable, and a grant minted against the reviewed code stayed
+            # valid after the code was swapped. A declaration that does not name the
+            # implementation authorises a NAME, not a behaviour. The implementation
+            # identity is now part of the hash, so replacing the code invalidates every
+            # outstanding grant bound to the old declaration.
+            payload = ("|".join(sorted(e.value for e in eff)) + "|" + str(by)
+                       + "|impl=" + self._implementation_id(actuator_id))
             return hashlib.sha256(payload.encode("utf-8")).hexdigest()
         except Exception:
             return None
+
+    def _implementation_id(self, actuator_id: str) -> str:
+        """The identity of the CODE registered behind an actuator, as captured AT
+        REGISTRATION.
+
+        (red-team, Grok 2026-08-14 — REPRODUCED, then fixed here rather than in
+        `_stable_value`.) This used to be recomputed on every request. Because
+        container values are rendered by content, an actuator that closes over a
+        mutable container it WRITES TO — a log, a counter, a handle pool, a retry
+        buffer, all ordinary — rewrote its own identity the first time it ran, and
+        every outstanding grant bound to that declaration then failed with "grant is
+        not bound to this action". Verified: two `declaration_hash` calls either side
+        of one append returned different digests, and 99 of 100 concurrently-issued
+        approvals were rejected after the first actuation succeeded. A fleet of
+        pre-approved actions that works exactly once is the precise pressure that gets
+        effect binding switched off.
+
+        The first attempt at a fix rendered mutable containers by type. That restored
+        stability and BROKE two bypasses an earlier pass had closed —
+        `partial(move, force=1.0)` vs `force=999.0` (keywords are a dict) and bound
+        methods of different instances (state is a `__dict__`) both became
+        indistinguishable. Trading one defect for two is not a fix.
+
+        Capturing at registration keeps full content discrimination AND is stable,
+        because the moment the code is installed is the moment its identity is
+        established. Swapping the callable requires `register_actuator(replace=True)`,
+        which recomputes — so a real swap still invalidates outstanding grants, which
+        is the property that mattered.
+
+        HONEST LIMIT, unchanged and now load-bearing: this pins the callable's
+        STRUCTURE AS REGISTERED, not its runtime behaviour. Mutating closed-over state
+        without re-registering is invisible to this hash — the already-documented
+        limit — and no hash taken at any single moment can close it.
+        """
+        cached = self._impl_ids.get(actuator_id)
+        if cached is None:
+            # Not registered through the normal path: derive now.
+            return self._derive_implementation_id(actuator_id)
+        cached_fn, cached_id = cached
+        # (red-team, cold pass 2026-08-14 — REPRODUCED.) Caching alone bought
+        # stability and LOST a detection that existed before it: re-deriving per
+        # request meant a callable swapped by writing straight into `_actuators`
+        # changed the hash and invalidated outstanding grants. With a plain cache it
+        # did not — verified, the digest was unchanged after the swap.
+        #
+        # So the cache is VALIDATED rather than trusted. Comparing the actual
+        # callable by identity distinguishes the two cases the digest could not:
+        # a swapped OBJECT (an attack, and grants must die) from the same object
+        # whose closed-over state moved (ordinary, and grants must survive).
+        current = self._actuator_fn(actuator_id)
+        if current is not cached_fn:
+            fresh = self._derive_implementation_id(actuator_id)
+            self._impl_ids[actuator_id] = (current, fresh)
+            return fresh
+        return cached_id
+
+    def _derive_implementation_id(self, actuator_id: str) -> str:
+        try:
+            fn = self._actuator_fn(actuator_id)
+        except Exception:
+            return "unknown"
+        if fn is None:
+            return "unknown"
+        try:
+            return "impl:" + hashlib.sha256(
+                _callable_identity(fn).encode("utf-8")).hexdigest()[:32]
+        except Exception:
+            return "unknown"
+
+    def _actuator_fn(self, actuator_id: str):
+        """The callable registered for an actuator, whatever record shape is used."""
+        rec = self._actuators.get(actuator_id)
+        if rec is None:
+            return None
+        if isinstance(rec, dict):
+            return rec.get("fn")
+        for attr in ("fn", "func", "callback"):
+            if hasattr(rec, attr):
+                return getattr(rec, attr)
+        if isinstance(rec, tuple):
+            for item in rec:
+                if callable(item):
+                    return item
+        return None
 
     def is_effect_bound(self) -> bool:
         """Whether grants are bound to the effect declaration current at issuance."""
@@ -1127,7 +1350,7 @@ class ActuationBroker:
                 # PEER-UID CHECK (defense-in-depth; see the honest caveat at __init__).
                 if self._require_peer_uid is not None and not self._peer_uid_ok(conn):
                     try:
-                        _send(conn, {"ok": False, "error": "peer_uid_rejected"})
+                        _send_agent_response(conn, {"ok": False, "error": "peer_uid_rejected"})
                     except OSError:
                         pass
                     self._audit(stage="actuation_broker", refused="peer_uid")
@@ -1135,20 +1358,20 @@ class ActuationBroker:
                 try:
                     req = _recv(conn)
                     if req is not None:
-                        _send(conn, self._handle(req))
+                        _send_agent_response(conn, self._handle(req))
                 except (socket.timeout, OSError, ValueError) as e:
                     # Client stalled, disconnected, or sent a bad frame. Try to tell
                     # them, but NEVER let a failed send on a dead socket escape and
                     # kill the serve thread (found in cold red-team: BrokenPipe in the
                     # error path re-raised and could take down the wall).
                     try:
-                        _send(conn, {"ok": False, "error": "bad_request"})
+                        _send_agent_response(conn, {"ok": False, "error": "bad_request"})
                     except OSError:
                         pass
                     self._audit(stage="actuation_broker", conn_error=str(e))
                 except Exception as e:
                     try:
-                        _send(conn, {"ok": False, "error": "broker_error"})
+                        _send_agent_response(conn, {"ok": False, "error": "broker_error"})
                     except OSError:
                         pass
                     self._audit(stage="actuation_broker", error=str(e))
@@ -1180,6 +1403,7 @@ class ActuationBroker:
                 entry = {"ts": time.time(), "phase": phase,
                          "actuator_id": actuator_id, "command": command,
                          "detail": detail, "nonce": nonce,
+                         "policy_hash": self.policy_hash,
                          "previous_hash": self._evidence_prev}
                 entry["entry_hash"] = hashlib.sha256(
                     json.dumps(entry, sort_keys=True).encode("utf-8")).hexdigest()
@@ -1231,7 +1455,8 @@ class ActuationBroker:
 
     def _record(self, actuator_id: str, command: str, allowed: bool, reason: str,
                 nonce: str = "") -> None:
-        rec = ActuationRecord(time.time(), actuator_id, command, allowed, reason, nonce)
+        rec = ActuationRecord(time.time(), actuator_id, command, allowed, reason, nonce,
+                              self.policy_hash)
         self.records.append(rec)          # in-broker evidence: always kept first
         if not allowed and self._probe_detector is not None:
             try:
@@ -1303,6 +1528,30 @@ class ActuationBroker:
         #    permission set did not COLLAPSE on breach, which is backwards: the moment
         #    the wall matters most is after something has already gone wrong.
         #    FAIL-CLOSED: a posture source that RAISES is a refusal, never a fall-through.
+        if self._halt_state is not None:
+            try:
+                halted = _call_with_timeout(self._halt_state, self._posture_timeout)
+            except Exception as e:
+                self._record(actuator_id, command, False, f"halt_state raised: {e!r}")
+                return {"ok": False, "error": "halt_check_failed",
+                        "detail": ("the halt interlock could not be read; refusing. A "
+                                   "stop that cannot be confirmed is treated as in "
+                                   "force.")}
+            # Strict bool for the same reason the posture gate is: an IntEnum or a
+            # truthy object would silently invert a stop into a permit.
+            if halted is not True and halted is not False:
+                self._record(actuator_id, command, False,
+                             f"halt_state returned {type(halted).__name__}, not bool")
+                return {"ok": False, "error": "halt_misconfigured",
+                        "detail": (f"halt_state must return exactly True or False; got "
+                                   f"{type(halted).__name__}. Refusing.")}
+            if halted:
+                self._record(actuator_id, command, False, "system is HALTED")
+                return {"ok": False, "error": "halted",
+                        "detail": ("the system is in a halt state; actuation is "
+                                   "refused until the halt is released through the "
+                                   "authorised path")}
+
         if self._posture_source is not None:
             try:
                 raw = _call_with_timeout(self._posture_source, self._posture_timeout)
@@ -1341,7 +1590,17 @@ class ActuationBroker:
         if entry is None:
             self._record(actuator_id, command, False, "unknown actuator")
             return {"ok": False, "error": "unknown_actuator"}
-        fn, required_scope = entry
+        # UNKNOWN ENTRY SHAPE IS NOT PERMISSIVE. `register_actuator` writes a
+        # 3-tuple carrying the operator's allow_any_scope opt-in. Anything that
+        # reached `_actuators` by another route — a red-team injection, an older
+        # shape — gets allow_any_scope=False, so it CANNOT inherit an opt-in nobody
+        # granted it. Defaulting the other way would let a bypass that skips
+        # registration also skip the scope requirement.
+        fn, required_scope = entry[0], entry[1]
+        # Identity, not truthiness, and not `bool()`: an entry that reached the
+        # registry by any route other than register_actuator cannot smuggle an opt-in
+        # in as a truthy string.
+        allow_any_scope = (len(entry) > 2 and entry[2] is True)
 
         # 0b. CONSTITUTIONAL EFFECT GATE (fail-closed-on-undeclared).
         #
@@ -1356,26 +1615,18 @@ class ActuationBroker:
         #     attacker who can trigger ledger refusals exhaust an operator's grants");
         #     the gate now sits where nothing has been spent yet.
         #
-        #     AUTHORIZATION SCOPE (red-team A7): the gate is handed an authorized
-        #     context ON PURPOSE and with an honest label. CONDITIONAL effects
-        #     (DATA_EGRESS, ACCOUNT_ACCESS) are governed at this wall by the GRANT and
-        #     its required_scope below — that is the wall's existing job — so the gate
-        #     must not re-adjudicate them here and spuriously refuse a properly-scoped
-        #     egress actuator. What the gate adds is the part scope cannot express:
-        #     undeclared capability, absolute bright lines, lethal-shaped mismatch, and
-        #     those are unaffected by the context (verified: full authorization does not
-        #     unlock an absolute effect). The label names the MECHANISM, not a person:
-        #     it previously said `authorised_by=grant.subject` — i.e. 'robot-1', the
-        #     machine naming ITSELF as the authorizer of its own effect decision, on a
-        #     project whose whole thesis is that machines do not self-authorize.
+        #     CONDITIONAL AUTHORIZATION: the early floor is configured at trusted
+        #     bootstrap to leave conditional egress to the broker's destination
+        #     interlock and exact-action grant/human approval checks below. It
+        #     makes no claim that a machine label is a human. None of the early
+        #     results alone permits execution, and caller-supplied contexts or
+        #     target_authorized booleans are never read from the wire.
         #
         #     FAIL CLOSED (red-team A6): wrapped, because the ledger stage below has a
         #     wrapper and this one did not — an exception escaped `_handle` entirely.
         if self._effect_gate is not None:
             try:
-                gate_ctx = ActionContext(
-                    owner_authorized=True, target_authorized=True,
-                    authorised_by="broker:scope-mediated")
+                gate_ctx = ActionContext()
                 # params are part of the scan surface (red-team A4): lethal intent in
                 # {"target": "kill the intruder"} previously never reached the lexicon,
                 # blinding the mismatch escalation to where the content actually lives.
@@ -1493,7 +1744,7 @@ class ActuationBroker:
                     "detail": "the effect declaration could not be read, so it is "
                               "unknown whether this action egresses. Refusing: a gate "
                               "that cannot check does not open."}
-        _is_egress = Effect.DATA_EGRESS in set(_declared_eff)
+        _is_egress = bool(set(_declared_eff) & {Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS})
         if _dests and not _is_egress:
             self._record(actuator_id, command, False,
                          f"egress mismatch: {len(_dests)} destination(s) supplied to a "
@@ -1501,7 +1752,7 @@ class ActuationBroker:
             return {"ok": False, "error": "egress_declaration_mismatch",
                     "error_code": "EGRESS_DECLARATION_MISMATCH",
                     "detail": f"capability {actuator_id!r} was handed a network "
-                              f"destination but does not declare Effect.DATA_EGRESS. "
+                              f"destination but does not declare DATA_EGRESS or ACCOUNT_ACCESS. "
                               f"Being handed a URL is structural evidence it can reach "
                               f"the network, so the declaration is wrong or the call is. "
                               f"A human must resolve which."}
@@ -1509,12 +1760,12 @@ class ActuationBroker:
             try:
                 if not _dests:
                     ok_e, reason_e, code_e = False, (
-                        f"capability {actuator_id!r} declares DATA_EGRESS but no "
+                        f"capability {actuator_id!r} declares DATA_EGRESS/ACCOUNT_ACCESS but no "
                         f"destination was found in params. An egress action whose "
                         f"destination cannot be established does not act."), "NO_DESTINATION"
                 elif self._egress_guard is None:
                     ok_e, reason_e, code_e = False, (
-                        "this capability declares DATA_EGRESS but no egress allowlist "
+                        "this capability declares DATA_EGRESS/ACCOUNT_ACCESS but no egress allowlist "
                         "is configured on this broker. Unconfigured is not permissive."
                     ), "UNCONFIGURED"
                 else:
@@ -1560,9 +1811,104 @@ class ActuationBroker:
                         "error_code": "DECLARATION_UNREADABLE",
                         "detail": f"require_effect_binding is on but {actuator_id!r} has "
                                   f"no readable effect declaration to bind to."}
-        binding_now = PermissionVerifier.bind_action(actuator_id, command, params,
-                                                     broker_id=self._broker_id,
-                                                     effects_hash=_eff_hash)
+        # 2b. THE ENVELOPE IN FORCE. Read at execution, not at approval. If the
+        #     deployment widened it in between, the digest differs and the binding
+        #     below stops matching — the approval does not survive the widening.
+        _env_hash = None
+        if self._envelope_source is not None:
+            try:
+                from driftcore.verification.human_authorization import envelope_digest
+                _env_hash = envelope_digest(self._envelope_source())
+            except Exception as e:
+                self._record(actuator_id, command, False,
+                             f"envelope source failed closed: {e!r}")
+                return {"ok": False, "error": "envelope_error",
+                        "error_code": "ENVELOPE_ERROR",
+                        "detail": f"the safety envelope could not be read, so what "
+                                  f"this action was approved under cannot be "
+                                  f"established: {e!r}"}
+
+        # 2c. HUMAN APPROVAL — structural half. A pure hash over the presented
+        #     attestation, no crypto and no side effect, so it is safe to run before
+        #     the gates that may refuse for unrelated reasons. The signature check
+        #     burns a single-use nonce and therefore runs LATE (step 4b), so a ledger
+        #     refusal cannot consume a human's approval without acting.
+        # 2b-bis. THE PURPOSE DECISION. Its digest goes into the binding below, so a
+        #     grant minted against one ledger decision cannot be presented with
+        #     another. The decision is REDEEMED later (step 4d), after the gates that
+        #     can refuse for unrelated reasons — redemption is single-use and must not
+        #     be spent by a request that was never going to act.
+        _decision = req.get("intent_decision")
+        _intent_digest = None
+        if self._intent_ledger is not None:
+            if _decision is None:
+                self._record(actuator_id, command, False, "no intent decision")
+                return {"ok": False, "error": "no_intent_decision",
+                        "error_code": "NO_INTENT_DECISION",
+                        "detail": "this broker requires a decision from the intent "
+                                  "ledger. A signed grant proves someone was allowed "
+                                  "to act; it says nothing about whether the action "
+                                  "is accountable to what a human actually asked for."}
+            _intent_digest = getattr(_decision, "digest", None)
+            if not _intent_digest:
+                self._record(actuator_id, command, False, "malformed intent decision")
+                return {"ok": False, "error": "malformed_intent_decision",
+                        "error_code": "MALFORMED_INTENT_DECISION",
+                        "detail": "the presented object carries no decision digest"}
+        elif _decision is not None:
+            # Silently ignoring a supplied decision is the failure this closes.
+            self._record(actuator_id, command, False,
+                         "intent decision supplied to a broker with no ledger")
+            return {"ok": False, "error": "intent_ledger_unconfigured",
+                    "error_code": "INTENT_LEDGER_UNCONFIGURED",
+                    "detail": "an intent decision was presented but this broker has "
+                              "no ledger to redeem it against, so it would be "
+                              "ignored rather than checked."}
+
+        _att_raw = req.get("attestation")
+        _att_hash = None
+        if self._human_approval is not None:
+            if _att_raw is None:
+                self._record(actuator_id, command, False, "no human attestation")
+                return {"ok": False, "error": "no_human_attestation",
+                        "error_code": "NO_HUMAN_ATTESTATION",
+                        "detail": "this broker requires a human approval bound to the "
+                                  "exact action. A signed grant alone proves only that "
+                                  "the signing key authorised it."}
+            try:
+                _att_hash = self._human_approval.pair_digest(_att_raw)
+            except Exception as e:
+                self._record(actuator_id, command, False, f"malformed attestation: {e}")
+                return {"ok": False, "error": "malformed_attestation",
+                        "error_code": "MALFORMED_ATTESTATION", "detail": str(e)}
+        elif _att_raw is not None:
+            # Silently ignoring a supplied approval is the failure this module exists
+            # to close: the request would look approved and be enforced as if it were
+            # not. Unconfigured is not permissive.
+            self._record(actuator_id, command, False,
+                         "attestation supplied to a broker with no approval gate")
+            return {"ok": False, "error": "human_approval_unconfigured",
+                    "error_code": "HUMAN_APPROVAL_UNCONFIGURED",
+                    "detail": "an attestation was presented but this broker has no "
+                              "HumanApprovalGate, so it would be ignored rather than "
+                              "checked. Refusing instead of accepting an approval "
+                              "nothing verifies."}
+
+        try:
+            binding_now = PermissionVerifier.bind_action(
+                actuator_id, command, params,
+                broker_id=self._broker_id, effects_hash=_eff_hash,
+                envelope_hash=_env_hash, attestation_hash=_att_hash,
+                subject=(grant.subject if self._human_approval is not None else None),
+                intent_digest=_intent_digest)
+        except (ValueError, TypeError) as e:
+            # json.loads accepts the NaN and Infinity tokens by default, so these
+            # reach the wall over the socket. An action whose parameters have no
+            # canonical form cannot be bound to, and an unbindable action is not
+            # approvable — refuse by name rather than escaping as a broker error.
+            self._record(actuator_id, command, False, f"unbindable parameters: {e}")
+            return {"ok": False, "error": "unbindable_parameters",
+                    "error_code": "UNBINDABLE_PARAMETERS", "detail": str(e)}
 
         # 3. Verify signature / expiry / replay / scope / binding — all in ONE place,
         #    on the PRIVILEGED side, with the key the agent does not have.
@@ -1576,7 +1922,9 @@ class ActuationBroker:
         try:
             self._verifier.reserve(grant, required_scope=required_scope,
                                    expected_subject=self._expected_subject,
-                                   action_binding=binding_now)
+                                   action_binding=binding_now,
+                                   expected_policy_hash=self.policy_hash,
+                                   allow_any_scope=allow_any_scope)
         except PermissionError_ as e:
             self._record(actuator_id, command, False, f"grant rejected: {e}", grant.nonce)
             return {"ok": False, "error": "grant_rejected", "detail": str(e)}
@@ -1601,6 +1949,83 @@ class ActuationBroker:
                 self._record(actuator_id, command, False, f"ledger refused: {refusal}",
                              grant.nonce)
                 return {"ok": False, "error": "ledger_refused", "detail": refusal}
+
+        # 4b. HUMAN APPROVAL — cryptographic half. Deliberately AFTER the ledger gate.
+        #     Verification burns the attestation's single-use nonce, so running it
+        #     earlier would let anything that can provoke a ledger refusal consume a
+        #     human's approvals without a single actuation ever happening — the same
+        #     reasoning that made grant nonces reserve-then-commit rather than
+        #     burn-up-front. By here the request has passed every gate that can refuse
+        #     for reasons unrelated to who approved it.
+        if self._human_approval is not None:
+            try:
+                _principal = self._human_approval.verify(
+                    _att_raw, actuator_id=actuator_id, command=command, params=params,
+                    broker_id=self._broker_id, effects_hash=_eff_hash,
+                    envelope_hash=_env_hash, subject=grant.subject)
+            except Exception as e:
+                self._verifier.release(grant)
+                self._record(actuator_id, command, False,
+                             f"human approval rejected: {e}", grant.nonce)
+                return {"ok": False, "error": "human_approval_rejected",
+                        "error_code": "HUMAN_APPROVAL_REJECTED", "detail": str(e)}
+            self._record(actuator_id, command, True,
+                         f"human approval verified: {_principal}", grant.nonce)
+
+        # 4c. THE ENVELOPE, RE-READ. (red-team, ChatGPT 2026-08-14 — REPRODUCED.)
+        #     Reading it once at step 2b proved only that the envelope was right when
+        #     the request arrived. Every gate between there and here takes time, and a
+        #     ledger hook that widened the envelope mid-request executed under 800N on
+        #     an approval given for 20N: grant valid, attestation valid, action wrong.
+        #     Re-read as late as a CLEAN refusal still allows — before the evidence
+        #     write and the nonce burn — so a moved envelope releases the grant instead
+        #     of spending it.
+        #
+        #     HONEST LIMIT: this shrinks the window, it does not abolish it. DriftCore
+        #     does not enforce the envelope — LifeCore does — so between this check and
+        #     the actuator's physical effect there remains a gap no software gate on
+        #     this side can close. The durable answer is to hand the approved envelope
+        #     digest DOWN to the actuator and have the physical layer refuse a mismatch.
+        #     That is a LifeCore change, and it is named here rather than papered over.
+        if self._envelope_source is not None:
+            try:
+                from driftcore.verification.human_authorization import envelope_digest
+                _env_now = envelope_digest(self._envelope_source())
+            except Exception as e:
+                self._verifier.release(grant)
+                self._record(actuator_id, command, False,
+                             f"envelope re-read failed closed: {e!r}", grant.nonce)
+                return {"ok": False, "error": "envelope_error",
+                        "error_code": "ENVELOPE_ERROR",
+                        "detail": f"the safety envelope could not be re-read before "
+                                  f"acting: {e!r}"}
+            if _env_now != _env_hash:
+                self._verifier.release(grant)
+                self._record(actuator_id, command, False,
+                             "envelope changed between authorization and execution",
+                             grant.nonce)
+                return {"ok": False, "error": "envelope_changed",
+                        "error_code": "ENVELOPE_CHANGED",
+                        "detail": "the safety envelope changed after this action was "
+                                  "authorized. What was approved is no longer what "
+                                  "would be executed, so nothing is executed. Re-approve "
+                                  "under the current envelope."}
+
+        # 4d. REDEEM THE PURPOSE DECISION. Late, for the same reason the human
+        #     attestation is late: redemption is single-use, so a request refused by
+        #     the ledger, the envelope or the blast radius must not consume it. The
+        #     ledger re-derives its digest from the action presented HERE, so a
+        #     decision obtained for one action cannot be spent on another.
+        if self._intent_ledger is not None:
+            try:
+                self._intent_ledger.redeem(_decision, action=f"{actuator_id}:{command}",
+                                           actor=grant.key_id)
+            except Exception as e:
+                self._verifier.release(grant)
+                self._record(actuator_id, command, False,
+                             f"intent decision rejected: {e}", grant.nonce)
+                return {"ok": False, "error": "intent_decision_rejected",
+                        "error_code": "INTENT_DECISION_REJECTED", "detail": str(e)}
 
         # 5. COMMIT THE RESERVATION (burn the nonce), THEN ACT. Single-use: a replayed
         #    grant cannot re-actuate. Committing BEFORE the actuator runs is deliberate —
@@ -1667,7 +2092,54 @@ class ActuationBroker:
         # agent that retries with a fresh grant then DOUBLE-ACTUATES. Verified: the
         # actuator ran, the client was told "broker_error", the nonce was burned.
         #
-        # The report must never be able to fail after the act. Serialize HERE, and if the
+        # EXECUTION RECEIPT. (red-team, ChatGPT 2026-08-14.) Everything above proves
+        # the broker COMMANDED the approved action. It does not prove the actuator
+        # executed it. A wrapper that inserts a default, converts a unit, clamps to
+        # its own idea of a limit, or simply ignores its kwargs produces a perfect
+        # authorization trail around a different physical act — the whole chain says
+        # APPROVED about an action that never happened as approved.
+        #
+        # Three facts, kept separate rather than collapsed:
+        #     AUTHORIZED               — proven by the grant + attestation + binding
+        #     COMMAND_ACCEPTED         — proven by fn() returning at all
+        #     EXECUTION_CONFIRMED      — proven ONLY by a receipt echoing what ran
+        #
+        # An actuator opts in by returning a mapping with an `executed_args` key. It
+        # is then held to it: the args it reports must equal the args that were
+        # approved, or the run is reported as a mismatch. Actuators that return
+        # anything else are unchanged and simply do not claim the third fact.
+        #
+        # HONEST LIMIT: a LYING actuator can echo the approved args and do something
+        # else. This is not a defence against a malicious actuator — nothing on this
+        # side of the boundary can be. It catches the far more common case, an actuator
+        # that diverges by ACCIDENT, and it makes the third fact something a deployment
+        # can require rather than assume. The real answer to a lying actuator is a
+        # hardware layer that clamps independently of any software claim, which is
+        # LifeCore's job, not DriftCore's (see §0b of 000_AI_START_HERE.md).
+        execution_confirmed = None
+        if isinstance(result, dict) and "executed_args" in result:
+            reported = result.get("executed_args")
+            if reported == (params or {}):
+                execution_confirmed = True
+            else:
+                execution_confirmed = False
+                self._record(
+                    actuator_id, command, False,
+                    f"EXECUTION MISMATCH: approved {params!r} but the actuator "
+                    f"reports executing {reported!r}. The action HAS occurred and "
+                    f"was not the approved one.", grant.nonce)
+                self._write_evidence("MISMATCH", actuator_id, command,
+                                     f"approved={params!r} executed={reported!r}",
+                                     grant.nonce)
+                return {"ok": False, "error": "execution_mismatch",
+                        "error_code": "EXECUTION_MISMATCH",
+                        "executed_args": reported, "approved_args": params or {},
+                        "detail": "the actuator reported executing arguments that are "
+                                  "not the ones approved. This is NOT a clean refusal "
+                                  "— a physical action occurred. A human must "
+                                  "establish the state before anything else runs."}
+
+
         # result cannot be represented, still report SUCCESS (it happened) with the result
         # replaced by a description. Losing the return value is recoverable; telling the
         # caller a completed action was refused is not.
@@ -1687,7 +2159,12 @@ class ActuationBroker:
         self._write_evidence("COMPLETION", actuator_id, command, "executed",
                              grant.nonce)
         self._record(actuator_id, command, True, "executed", grant.nonce)
-        return {"ok": True, "result": payload}
+        # `execution_confirmed` is True only when the actuator RETURNED A RECEIPT that
+        # matched. None means the actuator made no such claim — the command was
+        # accepted and nothing beyond that is proven. A caller must not read None as
+        # confirmation; that conflation is the failure this field exists to prevent.
+        return {"ok": True, "result": payload,
+                "execution_confirmed": execution_confirmed}
 
 
 class ActuatorProxy:
@@ -1719,3 +2196,168 @@ class ActuatorProxy:
             raise ActuationRefused(
                 f"{resp.get('error')}: {resp.get('detail', '')}".strip(": "))
         return resp.get("result")
+
+# ══════════════════════════════════════════════════════════════════
+#  The hardened profile: safe BY DEFAULT, not safe IF CONFIGURED
+# ══════════════════════════════════════════════════════════════════
+
+#: Switches that must be ON for anything that can physically actuate. Every one of
+#: these defaults to False on the base broker for backward compatibility, which means
+#: the safe configuration is not the default configuration — a deployment is safe only
+#: if someone remembered six separate flags. Three independent reviews named this as
+#: the top residual, and "the operator remembered" is not a safety property.
+PRODUCTION_REQUIRED_FLAGS = (
+    "require_isolation",
+    "enforce_effects",
+    "require_durable_evidence",
+    "require_effect_binding",
+)
+
+
+class ProductionActuationBroker(ActuationBroker):
+    """An ActuationBroker whose safety switches CANNOT be turned off.
+
+    Use this for any deployment that can actuate anything physical. It is the same
+    broker with the hardening mandatory instead of optional: attempting to weaken a
+    required flag raises rather than quietly producing a permissive broker.
+
+    This does not add a new mechanism. It removes a way to forget one — which is the
+    same move `preflight.py` makes for deployment invariants, applied to the object
+    that actually holds the actuators.
+
+    A development or simulation deployment that genuinely needs the permissive
+    behaviour uses `ActuationBroker` directly and says so out loud.
+    """
+
+    def __init__(self, *args, **kwargs):
+        weakened = [f for f in PRODUCTION_REQUIRED_FLAGS
+                    if f in kwargs and not kwargs[f]]
+        if weakened:
+            raise ValueError(
+                "ProductionActuationBroker refuses to disable "
+                + ", ".join(weakened) + ". These are the switches that make the wall a "
+                "wall: effect gating, isolation, effect binding and durable evidence. "
+                "If a deployment genuinely needs them off it is not a production "
+                "deployment — use ActuationBroker directly and record why.")
+        for f in PRODUCTION_REQUIRED_FLAGS:
+            kwargs[f] = True
+        if not kwargs.get("halt_state"):
+            raise ValueError(
+                "ProductionActuationBroker requires halt_state: a halt that no "
+                "execution path consults is a variable, not a stop. Pass a callable "
+                "returning True while the system is halted (e.g. "
+                "lambda: safe_halt.status()['active']).")
+        if not kwargs.get("evidence_path"):
+            raise ValueError(
+                "ProductionActuationBroker requires evidence_path: durable evidence is "
+                "mandatory here, and an evidence store with nowhere to write is a "
+                "record that does not survive the event it exists to record.")
+        if kwargs.get("human_approval") is None:
+            raise ValueError(
+                "ProductionActuationBroker requires human_approval: install a "
+                "HumanApprovalGate with operator-controlled principal keys. "
+                "A caller's identity label is not an approval.")
+        if kwargs.get("policy_snapshot") is None:
+            raise ValueError(
+                "ProductionActuationBroker requires policy_snapshot: supply the "
+                "immutable operator policy artifact and bind its hash into grants.")
+        super().__init__(*args, **kwargs)
+
+
+def _stable_value(v, depth: int = 0) -> str:
+    """A representation that is identical across processes.
+
+    `repr()` of an arbitrary object embeds its memory address, which would make an
+    actuator's identity change on every restart and invalidate every outstanding grant
+    for no reason. Primitives are rendered exactly (so force=1.0 and force=1000.0 are
+    distinguishable); anything else is rendered by TYPE, which is stable but blind to
+    swapping one instance for another of the same class — a limit named in
+    `_implementation_id`.
+
+    Containers are rendered by CONTENT, which is what distinguishes
+    `partial(move, force=1.0)` from `partial(move, force=999.0)` (the keywords are a
+    dict) and one bound instance from another (the state is a `__dict__`). Content
+    rendering means this function's output moves if the container moves — see
+    `_implementation_id`, which is why the identity is captured ONCE at registration
+    rather than recomputed per request.
+    """
+    if depth > 4:
+        return "..."
+    if v is None or isinstance(v, (bool, int, float, complex, str, bytes)):
+        return repr(v)
+    if isinstance(v, (list, tuple)):
+        return "[" + ",".join(_stable_value(x, depth + 1) for x in v) + "]"
+    if isinstance(v, (set, frozenset)):
+        return "{" + ",".join(sorted(_stable_value(x, depth + 1) for x in v)) + "}"
+    if isinstance(v, dict):
+        return "{" + ",".join(
+            f"{_stable_value(k, depth + 1)}:{_stable_value(val, depth + 1)}"
+            for k, val in sorted(v.items(), key=lambda kv: repr(kv[0]))) + "}"
+    code = getattr(v, "__code__", None)
+    if code is not None:
+        return _callable_identity(v, depth + 1)
+    return f"<{type(v).__module__}.{type(v).__qualname__}>"
+
+
+def _code_identity(code, depth: int = 0) -> str:
+    """Everything about a code object that determines what it does."""
+    if depth > 4:
+        return "..."
+    consts = []
+    for c in code.co_consts:
+        inner = getattr(c, "co_code", None)
+        consts.append(_code_identity(c, depth + 1) if inner is not None
+                      else _stable_value(c, depth + 1))
+    return "|".join([
+        code.co_name,
+        repr(code.co_code),
+        "consts=" + ",".join(consts),
+        # co_names carries the GLOBALS a function calls. Omitting it was the wrapper
+        # bypass: two lambdas that call different functions have identical bytecode.
+        "names=" + ",".join(code.co_names),
+        "vars=" + ",".join(code.co_varnames),
+        "free=" + ",".join(code.co_freevars),
+        f"argcount={code.co_argcount},kwonly={code.co_kwonlyargcount},"
+        f"flags={code.co_flags}",
+    ])
+
+
+def _callable_identity(fn, depth: int = 0) -> str:
+    """Structural identity of a callable, stable across processes."""
+    if depth > 4:
+        return "..."
+    parts = []
+    # functools.partial: unwrap, and include the BOUND ARGUMENTS. Without this a
+    # partial pinned nothing — the force limit lives in the bound kwargs.
+    target = getattr(fn, "func", None)
+    if target is not None and hasattr(fn, "args") and hasattr(fn, "keywords"):
+        parts.append("partial(")
+        parts.append(_callable_identity(target, depth + 1))
+        parts.append("args=" + _stable_value(tuple(fn.args or ()), depth + 1))
+        parts.append("kw=" + _stable_value(dict(fn.keywords or {}), depth + 1))
+        parts.append(")")
+        return "|".join(parts)
+    # A bound method: the code plus the instance it is bound to.
+    slf = getattr(fn, "__self__", None)
+    if slf is not None:
+        parts.append("bound_to=" + _stable_value(getattr(slf, "__dict__", slf), depth + 1))
+        fn = getattr(fn, "__func__", fn)
+    code = getattr(fn, "__code__", None)
+    if code is None:
+        mod = getattr(fn, "__module__", "?")
+        qual = getattr(fn, "__qualname__", getattr(fn, "__name__", "?"))
+        parts.append(f"symbol:{mod}.{qual}")
+        return "|".join(parts)
+    parts.append(_code_identity(code, depth))
+    parts.append("defaults=" + _stable_value(getattr(fn, "__defaults__", None), depth + 1))
+    parts.append("kwdefaults=" + _stable_value(getattr(fn, "__kwdefaults__", None), depth + 1))
+    # Closure cells: where a captured force limit actually lives.
+    cells = getattr(fn, "__closure__", None) or ()
+    cell_vals = []
+    for cell in cells:
+        try:
+            cell_vals.append(_stable_value(cell.cell_contents, depth + 1))
+        except ValueError:
+            cell_vals.append("<empty>")
+    parts.append("closure=" + ",".join(cell_vals))
+    return "|".join(parts)

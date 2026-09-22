@@ -54,9 +54,9 @@ def reset_all():
     s._KEY_SALT = None
     s._KEY_VERIFIED = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/SHUTDOWN_REASON.json",
-        "logs/CHAIN_SHUTDOWN_REASON.json",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"CHAIN_SHUTDOWN_REASON.json"),
         TEST_DB,
     ]:
         try: os.remove(f)
@@ -341,8 +341,16 @@ storage_entries = [e for e in entries
                    if "STORED" in e.get("action", "")]
 
 check("storage recorded in audit chain", len(storage_entries) >= 1)
-check("audit entry has memory text",
-      any("emma" in e.get("memory_text", "") for e in storage_entries))
+# (external red-team, 2026-09-04) This asserted that the audit entry CONTAINS the
+# memory text — i.e. it required the plaintext to be in the log, while the row it
+# describes is encrypted. A passing test pinning a confidentiality leak, the same
+# shape as the euphemism check removed in v103. Inverted: the audit entry must
+# identify the record and must NOT carry its contents.
+check("audit entry identifies the record",
+      any("id=" in str(e.get("memory_text", "")) for e in storage_entries))
+check("audit entry does NOT carry the record contents — the row is encrypted "
+      "and the log must not undo that",
+      not any("emma" in str(e).lower() for e in entries))
 
 
 # ── RESULTS ───────────────────────────────────────────────────────

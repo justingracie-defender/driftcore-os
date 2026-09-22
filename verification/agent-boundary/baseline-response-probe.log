@@ -1,0 +1,11 @@
+{
+  "request_contains_canary": false,
+  "agent_received_canary": true,
+  "operator_retained_canary": true,
+  "actual_effects": 0,
+  "response": {
+    "ok": false,
+    "error": "ledger_refused",
+    "detail": "PRIVATE-CANARY-policy-key-path-threshold-84729"
+  }
+}

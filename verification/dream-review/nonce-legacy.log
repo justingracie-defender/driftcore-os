@@ -1,0 +1,49 @@
+=== the window remembers while the grant is still valid ===
+  ok   a spent nonce is remembered
+  ok   replaying a still-valid grant is refused as a REPLAY
+=== THE SAFETY TEST: after pruning, is the replay still refused? ===
+  ok   nonce present immediately after use
+  ok   the nonce is pruned once its grant is certainly expired
+  ok   the store has actually forgotten it
+  ok   PRUNING DOES NOT REOPEN REPLAY: the forgotten grant is still refused
+  ok   ...and it is refused by EXPIRY, which is what makes forgetting safe
+=== N3: an unsafe retention window cannot be CONSTRUCTED ===
+  ok   N3: retention < max grant TTL is refused at construction (not a hook)
+  ok   N3: an adequate window constructs fine
+  ok   a grant that OUTLIVES its declared max TTL is replayable (why N3 matters)
+=== N1: concurrent owners can no longer erase each other ===
+  ok   N1: a second owner is REFUSED loudly (single-owner enforced)
+  ok   N1: the store is usable again once the first owner releases it
+  ok   N1: another writer's live nonce SURVIVES an unrelated prune (merge, not clobber)
+  ok   N1: the genuinely expired entry is still gone
+=== N2: a backwards clock jump fails CLOSED ===
+  ok   N2: the nonce is pruned on the forward timeline
+  ok   N2: a backwards jump beyond tolerance REFUSES instead of reopening the window
+  ok   N2: a small jitter within skew tolerance is still tolerated
+=== N5: nonce content cannot forge records ===
+  ok   N5: a nonce containing a record separator is REJECTED
+  ok   N5: the forged nonce never became 'spent'
+=== N7: corrupted security state fails CLOSED ===
+  ok   N7: a malformed record refuses to load (not silently ignored)
+  ok   N7: explicit salvage_corrupt=True is the only way past it
+=== N4: a failed durable write does not mark the nonce spent ===
+  ok   N4: a normal add is remembered
+  ok   N4: the durable write failure propagates
+  ok   N4: the nonce was NOT marked spent in memory (RAM matches disk)
+=== bounded by rate x retention, and durable across process death ===
+  ok   the store returns to empty once the window elapses
+  ok   it held entries while they were live
+  ok   stats() reports a bounded footprint
+  ok   nonce burned in a process that then exited
+  ok   a SEPARATE process refuses the replay (durable across process death)
+=== self red-team (B2/B5/B6/B10): attacks on the N1-N7 fixes themselves ===
+  ok   B2: deleting the .hw sidecar does NOT erase the rollback guard
+  ok   B10: a poisoned high-water sidecar does not permanently brick the store
+  ok   B10: and the spent nonce is still remembered
+  ok   B6: a future-dated record does not brick the store
+  ok   B6: the legitimate record is intact
+  ok   B5: a torn trailing record is discarded, not silently accepted
+  ok   B5: committed records before the tear are preserved
+  ok   the rollback guard still REFUSES a genuine backwards jump
+------------------------------------------------------------
+  37/37 tests passed

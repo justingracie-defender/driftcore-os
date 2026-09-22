@@ -1,0 +1,75 @@
+
+########## backend: append-log ##########
+  ok   [append-log] a spent nonce is remembered
+  ok   [append-log] an unspent nonce is not
+  ok   [append-log] replaying a valid grant is refused as a REPLAY
+  ok   [append-log] nonce present immediately after use
+  ok   [append-log] pruned once the grant is certainly expired
+  ok   [append-log] the store has forgotten it
+  ok   [append-log] PRUNING DOES NOT REOPEN REPLAY
+  ok   [append-log] ...refused by EXPIRY, which is what makes forgetting safe
+  ok   [append-log] N3: retention < max grant TTL refused at construction
+  ok   [append-log] N3: an adequate window constructs fine
+  ok   [append-log] N5: a nonce with a record separator is rejected
+  ok   [append-log] N5: the forged nonce never became spent
+  ok   [append-log] N2: pruned on the forward timeline
+  ok   [append-log] N2: a backwards jump beyond tolerance REFUSES
+  ok   [append-log] N2: jitter within skew tolerance is tolerated
+  ok   [append-log] N2: the rollback guard survives a restart
+  ok   [append-log] returns to empty once the window elapses
+  ok   [append-log] held entries while they were live
+  ok   [append-log] stats() reports a bounded footprint
+  ok   [append-log] burned in a process that then exited
+  ok   [append-log] a SEPARATE process refuses the replay (durable)
+
+########## backend: sqlite ##########
+  ok   [sqlite   ] a spent nonce is remembered
+  ok   [sqlite   ] an unspent nonce is not
+  ok   [sqlite   ] replaying a valid grant is refused as a REPLAY
+  ok   [sqlite   ] nonce present immediately after use
+  ok   [sqlite   ] pruned once the grant is certainly expired
+  ok   [sqlite   ] the store has forgotten it
+  ok   [sqlite   ] PRUNING DOES NOT REOPEN REPLAY
+  ok   [sqlite   ] ...refused by EXPIRY, which is what makes forgetting safe
+  ok   [sqlite   ] N3: retention < max grant TTL refused at construction
+  ok   [sqlite   ] N3: an adequate window constructs fine
+  ok   [sqlite   ] N5: a nonce with a record separator is rejected
+  ok   [sqlite   ] N5: the forged nonce never became spent
+  ok   [sqlite   ] N2: pruned on the forward timeline
+  ok   [sqlite   ] N2: a backwards jump beyond tolerance REFUSES
+  ok   [sqlite   ] N2: jitter within skew tolerance is tolerated
+  ok   [sqlite   ] N2: the rollback guard survives a restart
+  ok   [sqlite   ] returns to empty once the window elapses
+  ok   [sqlite   ] held entries while they were live
+  ok   [sqlite   ] stats() reports a bounded footprint
+  ok   [sqlite   ] burned in a process that then exited
+  ok   [sqlite   ] a SEPARATE process refuses the replay (durable)
+
+########## documented divergence: concurrent owners (N1) ##########
+  ok   [append-log] N1 handled by REFUSING a second owner (single-owner lock)
+  ok   [sqlite   ] N1 handled by SUPPORTING concurrent owners: A's nonce survives
+  ok   [sqlite   ] N1: ...and B's nonce survives an unrelated prune by A
+  note: this is the intended difference — the append-log AVOIDS the clobber by
+  forbidding a second owner; SQLite makes the clobber impossible, so concurrent
+  owners are safe and `single_owner` is accepted-and-ignored.
+
+########## the attacks that beat the append-log, re-run on SQLite ##########
+  ok   [sqlite   ] B5: a hard kill mid-burn leaves the db valid and the nonce durable
+  ok   [sqlite   ] B6: a far-future record does not brick the store
+  ok   [sqlite   ] B10: a poisoned high-water value does not brick the store
+  ok   [sqlite   ] B2: dropping the meta table does not erase the rollback guard
+  ok   [sqlite   ] N7: a corrupted database fails CLOSED, never open
+  ok   [sqlite   ] N1 torture: 4 concurrent writers x 50 nonces, ZERO lost (200/200)
+
+########## second red-team pass (ChatGPT #1-#4) ##########
+  ok   [sqlite   ] #2: a crash in the add() window leaves clock and nonces consistent
+  ok   [sqlite   ] #2: the store still opens and works after that crash
+  ok   [sqlite   ] #2: and can still record new nonces
+  ok   [sqlite   ] #1: a MODEST future row cannot ratchet the guard or brick the store
+  ok   [sqlite   ] #1: records still carry the rollback guard when meta is destroyed
+  ok   [sqlite   ] #3: no false negative for a live nonce during concurrent pruning
+  ok   [sqlite   ] #4: a re-added nonce keeps the LATER timestamp (no early prune)
+  FAIL [sqlite   ] N1 torture + concurrent pruner: 200/200 nonces survive
+
+--------------------------------------------------------------
+  58/59 checks passed

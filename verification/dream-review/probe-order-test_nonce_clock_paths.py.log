@@ -1,0 +1,32 @@
+26/26 tests passed
+test_automatic_prune_never_forgets_on_an_unrecorded_timeline (__main__.AppendLogClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_explicit_prune_never_forgets_on_an_unrecorded_timeline (__main__.AppendLogClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) ... ok
+test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) ... ok
+test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) ... ok
+test_len_cleanup_blocks_signed_grant_replay (__main__.AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay) ... ok
+test_len_cleanup_rollback_is_refused_after_reopen (__main__.AppendLogClockTests.test_len_cleanup_rollback_is_refused_after_reopen) ... ok
+test_membership_uses_the_checked_clock_sample (__main__.AppendLogClockTests.test_membership_uses_the_checked_clock_sample) ... ok
+test_nonpositive_windows_and_overflow_are_rejected (__main__.AppendLogClockTests.test_nonpositive_windows_and_overflow_are_rejected) ... ok
+test_stats_cleanup_blocks_signed_grant_replay (__main__.AppendLogClockTests.test_stats_cleanup_blocks_signed_grant_replay) ... ok
+test_stats_cleanup_rollback_is_refused_after_reopen (__main__.AppendLogClockTests.test_stats_cleanup_rollback_is_refused_after_reopen) ... ok
+test_valid_grant_and_small_clock_jitter_still_work (__main__.AppendLogClockTests.test_valid_grant_and_small_clock_jitter_still_work) ... ok
+test_watermark_write_failure_prevents_cleanup (__main__.AppendLogClockTests.test_watermark_write_failure_prevents_cleanup) ... ok
+test_automatic_prune_never_forgets_on_an_unrecorded_timeline (__main__.SqliteClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_explicit_prune_never_forgets_on_an_unrecorded_timeline (__main__.SqliteClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) ... ok
+test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) ... ok
+test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) ... ok
+test_len_cleanup_blocks_signed_grant_replay (__main__.SqliteClockTests.test_len_cleanup_blocks_signed_grant_replay) ... ok
+test_len_cleanup_rollback_is_refused_after_reopen (__main__.SqliteClockTests.test_len_cleanup_rollback_is_refused_after_reopen) ... ok
+test_membership_uses_the_checked_clock_sample (__main__.SqliteClockTests.test_membership_uses_the_checked_clock_sample) ... ok
+test_nonpositive_windows_and_overflow_are_rejected (__main__.SqliteClockTests.test_nonpositive_windows_and_overflow_are_rejected) ... ok
+test_stats_cleanup_blocks_signed_grant_replay (__main__.SqliteClockTests.test_stats_cleanup_blocks_signed_grant_replay) ... ok
+test_stats_cleanup_rollback_is_refused_after_reopen (__main__.SqliteClockTests.test_stats_cleanup_rollback_is_refused_after_reopen) ... ok
+test_valid_grant_and_small_clock_jitter_still_work (__main__.SqliteClockTests.test_valid_grant_and_small_clock_jitter_still_work) ... ok
+test_watermark_write_failure_prevents_cleanup (__main__.SqliteClockTests.test_watermark_write_failure_prevents_cleanup) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.031s
+
+OK

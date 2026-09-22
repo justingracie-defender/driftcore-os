@@ -42,13 +42,13 @@ def reset_all():
     a._sequence = 0
     a._chain_compromised = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/SHUTDOWN_REASON.json",
-        "logs/CHAIN_SHUTDOWN_REASON.json",
-        "logs/flagged_attempts.jsonl",
-        "logs/safety_drift.jsonl",
-        "logs/session_history.jsonl",
-        "logs/drift_policy.json",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"CHAIN_SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"flagged_attempts.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"safety_drift.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"session_history.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"drift_policy.json"),
     ]:
         try: os.remove(f)
         except: pass
@@ -90,7 +90,7 @@ check("safety trigger detected",       state.safety_triggers >= 1)
 check("safety drift score raised",     state.safety_drift_score > 0.0)
 check("safety level not healthy",
       state.safety_level() != DriftLevel.HEALTHY)
-check("safety drift log written",      os.path.exists("logs/safety_drift.jsonl"))
+check("safety drift log written",      os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"safety_drift.jsonl")))
 
 
 # ── TEST 3: Lane 1 — oversight undermining detected ──────────────
@@ -220,7 +220,7 @@ state8 = detector8._session
 check("user flag recorded",            state8.user_flagged_count == 1)
 check("weird example saved",
       len(detector8._policy.weird_examples) == 1)
-check("policy file saved",             os.path.exists("logs/drift_policy.json"))
+check("policy file saved",             os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"drift_policy.json")))
 
 
 # ── TEST 10: Raise vigilance tightens soft thresholds ────────────
@@ -252,7 +252,7 @@ detector10.set_preference("pushback_rate_min", 0.20)
 check("preference updated",
       detector10._policy.pushback_rate_min == 0.20)
 check("policy saved",
-      os.path.exists("logs/drift_policy.json"))
+      os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"drift_policy.json")))
 
 
 # ── TEST 12: Cannot set safety hard thresholds via preference ─────
@@ -303,7 +303,7 @@ check("new session score reset to 0",
 check("preferences carried over",
       detector12._policy.pushback_rate_min == old_pref)
 check("session history saved",
-      os.path.exists("logs/session_history.jsonl"))
+      os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"session_history.jsonl")))
 
 
 # ── TEST 14: current_scores() returns full picture ────────────────

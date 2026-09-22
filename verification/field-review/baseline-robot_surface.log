@@ -1,0 +1,5 @@
+REGRESSION driftcore/verification/mediated_actuation.py: robot surface grew 42 -> 52
+REGRESSION driftcore/verification/mediated_actuation.py: robot decision LEAVES grew 49 -> 62 (merging branches cannot hide this)
+REGRESSION driftcore/verification/mediated_actuation.py: leaky failure paths grew 14 -> 15
+
+FAIL: the decision surface grew. Every bug found in this repo's enforcement code lived in a robot branch. If the growth is genuinely necessary, move the baseline deliberately and say why in the commit.

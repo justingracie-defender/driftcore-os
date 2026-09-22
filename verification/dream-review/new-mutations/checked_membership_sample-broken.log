@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_membership_uses_the_checked_clock_sample (test_nonce_clock_paths.SqliteClockTests.test_membership_uses_the_checked_clock_sample)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/nonce-clock-control-m7zqhwbx/source/test_nonce_clock_paths.py", line 81, in test_membership_uses_the_checked_clock_sample
+    self.assertIn("spent", self.store,
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store_sqlite.SqliteNonceStore object at 0x7fd2dc08eea0> : a second unchecked clock read must not forget a live nonce
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

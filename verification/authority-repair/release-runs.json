@@ -1,0 +1,50 @@
+[
+  {
+    "name": "release-full-suite",
+    "command": [
+      "bash",
+      "scripts/count_tests.sh"
+    ],
+    "exit_code": 1,
+    "completed_summary": true
+  },
+  {
+    "name": "release-authority-controls",
+    "command": [
+      "python3",
+      "scripts/check_authority_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-sep13-review/evidence/release-authority-mutations"
+    ],
+    "exit_code": 0,
+    "completed_summary": null
+  },
+  {
+    "name": "release-sqlite-control",
+    "command": [
+      "python3",
+      "scripts/check_nonce_startup_control.py",
+      "/workspace/scratch/68864b741aa4/driftcore-sep13-review/evidence/release-sqlite-mutation"
+    ],
+    "exit_code": 0,
+    "completed_summary": null
+  },
+  {
+    "name": "release-marshmallow",
+    "command": [
+      "python3",
+      "marshmallow/selftest.py"
+    ],
+    "exit_code": 0,
+    "completed_summary": null
+  },
+  {
+    "name": "release-coordinator-pinning",
+    "command": [
+      "python3",
+      "/workspace/scratch/68864b741aa4/driftcore-sep13-review/probe_pinned_authority.py",
+      "/workspace/scratch/68864b741aa4/driftcore-sep13-review/release-verification/driftcore-os"
+    ],
+    "exit_code": 0,
+    "completed_summary": null
+  }
+]

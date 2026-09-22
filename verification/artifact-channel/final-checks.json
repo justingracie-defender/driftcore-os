@@ -1,0 +1,303 @@
+[
+  {
+    "check": "final-full-suite",
+    "command": [
+      "bash",
+      "scripts/count_tests.sh"
+    ],
+    "exit": 1,
+    "seconds": 39.643,
+    "tail": [
+      "  test_trust_model.py            44/44 tests passed",
+      "  test_uncertainty_engine.py     25/25 tests passed",
+      "  test_vector_memory.py          35/35 tests passed",
+      "------------------------------------------------------------",
+      "  4934 tests passing across 137 test files",
+      "  WARNING: 7 file(s) did not report all-passing"
+    ]
+  },
+  {
+    "check": "baseline-full-suite",
+    "command": [
+      "bash",
+      "scripts/count_tests.sh"
+    ],
+    "exit": 1,
+    "seconds": 39.12,
+    "tail": [
+      "  test_trust_model.py            44/44 tests passed",
+      "  test_uncertainty_engine.py     25/25 tests passed",
+      "  test_vector_memory.py          35/35 tests passed",
+      "------------------------------------------------------------",
+      "  4903 tests passing across 136 test files",
+      "  WARNING: 7 file(s) did not report all-passing"
+    ]
+  },
+  {
+    "check": "final-artifact-tests",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "test_artifact_channel.py"
+    ],
+    "exit": 0,
+    "seconds": 0.377,
+    "tail": [
+      "test_wrong_receipt_is_uncertain_and_retry_is_blocked (__main__.ArtifactChannelTests.test_wrong_receipt_is_uncertain_and_retry_is_blocked) ... ok",
+      "",
+      "----------------------------------------------------------------------",
+      "Ran 31 tests in 0.172s",
+      "",
+      "OK"
+    ]
+  },
+  {
+    "check": "final-agent-boundary-tests",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "test_agent_boundary.py"
+    ],
+    "exit": 0,
+    "seconds": 0.131,
+    "tail": [
+      "test_unknown_codes_and_invalid_responses_fail_conservatively (__main__.AgentBoundaryTests.test_unknown_codes_and_invalid_responses_fail_conservatively) ... ok",
+      "",
+      "----------------------------------------------------------------------",
+      "Ran 18 tests in 0.028s",
+      "",
+      "OK"
+    ]
+  },
+  {
+    "check": "final-artifact-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_artifact_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-artifact-review/evidence/final-artifact-controls"
+    ],
+    "exit": 0,
+    "seconds": 3.007,
+    "tail": [
+      "human_gate_requirement_removed: detected; restored test passed",
+      "packet_hash_check_removed: detected; restored test passed",
+      "exposure_history_disconnected: detected; restored test passed",
+      "retrieval_promotes_claim_status: detected; restored test passed",
+      "write_ahead_reservation_removed: detected; restored test passed",
+      "6/6 mutation controls detected"
+    ]
+  },
+  {
+    "check": "final-boundary-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_agent_boundary_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-artifact-review/evidence/final-boundary-controls"
+    ],
+    "exit": 0,
+    "seconds": 1.621,
+    "tail": [
+      "dispatch_filter_disconnected: detected; restored test passed",
+      "private_detail_echoed: detected; restored test passed",
+      "uncertain_effect_reported_clean: detected; restored test passed",
+      "untrusted_success_truthiness: detected; restored test passed",
+      "4/4 mutation controls detected"
+    ]
+  },
+  {
+    "check": "final-policy-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_policy_binding_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-artifact-review/evidence/final-policy-controls"
+    ],
+    "exit": 0,
+    "seconds": 1.591,
+    "tail": [
+      "policy_equality_removed: detected; restored test passed",
+      "hash_not_signed: detected; restored test passed",
+      "request_selects_policy: detected; restored test passed",
+      "production_policy_optional: detected; restored test passed",
+      "4/4 mutation controls detected"
+    ]
+  },
+  {
+    "check": "final-authority-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_authority_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-artifact-review/evidence/final-authority-controls"
+    ],
+    "exit": 0,
+    "seconds": 1.928,
+    "tail": [
+      "caller_flags_trusted: detected; restored control passed",
+      "global_verifier_used: detected; restored control passed",
+      "principal_seal_removed: detected; restored control passed",
+      "broker_global_trust_root: detected; restored control passed",
+      "destination_check_removed: detected; restored control passed",
+      "5/5 mutation controls detected"
+    ]
+  },
+  {
+    "check": "baseline-finite_guards",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit": 0,
+    "seconds": 1.496,
+    "tail": [
+      "  files parsed: 153 (baseline 150)",
+      "  known: 185   current: 182   new: 0   removed: 3   resolved: 0",
+      "",
+      "  RESULT: PASS",
+      "  (means: the scan was complete, the baseline was valid, and no newly detected violation occurred within this scanner's bounded coverage model. NOT: the repository has no non-finite bugs.)"
+    ]
+  },
+  {
+    "check": "baseline-robot_surface",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit": 1,
+    "seconds": 0.26,
+    "tail": [
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot surface grew 42 -> 52",
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot decision LEAVES grew 49 -> 62 (merging branches cannot hide this)",
+      "REGRESSION driftcore/verification/mediated_actuation.py: leaky failure paths grew 14 -> 15",
+      "",
+      "FAIL: the decision surface grew. Every bug found in this repo's enforcement code lived in a robot branch. If the growth is genuinely necessary, move the baseline deliberately and say why in the commit."
+    ]
+  },
+  {
+    "check": "baseline-untested_modules",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit": 1,
+    "seconds": 0.405,
+    "tail": [
+      "  A line-count delta alone can hide a swap of comments for code, so the",
+      "  callable surface is tracked separately. Re-review, then re-baseline.",
+      "",
+      "  NOTE: 25 waiver(s) carry no `reason`. A waiver without a stated",
+      "  reason is indistinguishable from an oversight; add \"reason\"/\"reviewer\"/\"date\"",
+      "  to the baseline entry so the next person knows it was a decision."
+    ]
+  },
+  {
+    "check": "baseline-claims_ledger",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit": 1,
+    "seconds": 0.359,
+    "tail": [
+      "    driftcore/kernel/state_machine.py  (proposed_by claude (cold pass))",
+      "    driftcore/safety/amplification_guard.py  (proposed_by claude (latch))",
+      "",
+      "  reviewer of record: 2 human, 0 self-reviewed by the model",
+      "",
+      "  RESULT: FAIL"
+    ]
+  },
+  {
+    "check": "final-finite_guards",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit": 0,
+    "seconds": 1.343,
+    "tail": [
+      "  files parsed: 154 (baseline 150)",
+      "  known: 185   current: 182   new: 0   removed: 3   resolved: 0",
+      "",
+      "  RESULT: PASS",
+      "  (means: the scan was complete, the baseline was valid, and no newly detected violation occurred within this scanner's bounded coverage model. NOT: the repository has no non-finite bugs.)"
+    ]
+  },
+  {
+    "check": "final-robot_surface",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit": 1,
+    "seconds": 0.232,
+    "tail": [
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot surface grew 42 -> 52",
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot decision LEAVES grew 49 -> 62 (merging branches cannot hide this)",
+      "REGRESSION driftcore/verification/mediated_actuation.py: leaky failure paths grew 14 -> 15",
+      "",
+      "FAIL: the decision surface grew. Every bug found in this repo's enforcement code lived in a robot branch. If the growth is genuinely necessary, move the baseline deliberately and say why in the commit."
+    ]
+  },
+  {
+    "check": "final-untested_modules",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit": 1,
+    "seconds": 0.507,
+    "tail": [
+      "  A line-count delta alone can hide a swap of comments for code, so the",
+      "  callable surface is tracked separately. Re-review, then re-baseline.",
+      "",
+      "  NOTE: 25 waiver(s) carry no `reason`. A waiver without a stated",
+      "  reason is indistinguishable from an oversight; add \"reason\"/\"reviewer\"/\"date\"",
+      "  to the baseline entry so the next person knows it was a decision."
+    ]
+  },
+  {
+    "check": "final-claims_ledger",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit": 1,
+    "seconds": 0.362,
+    "tail": [
+      "    driftcore/kernel/state_machine.py  (proposed_by claude (cold pass))",
+      "    driftcore/safety/amplification_guard.py  (proposed_by claude (latch))",
+      "",
+      "  reviewer of record: 2 human, 0 self-reviewed by the model",
+      "",
+      "  RESULT: FAIL"
+    ]
+  },
+  {
+    "check": "final-marshmallow",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "marshmallow/selftest.py"
+    ],
+    "exit": 0,
+    "seconds": 0.197,
+    "tail": [
+      "N. Trailing unparsed content is an error, not a silent success",
+      "  [PASS] N: a valid object followed by garbage is an ERROR, not a clean parse",
+      "  [PASS] N: two FULLY valid concatenated objects are still clean (no regression)",
+      "",
+      "============================================================",
+      "43/43 checks passed"
+    ]
+  },
+  {
+    "check": "final-os-isolation",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/verify_authority_isolation.py"
+    ],
+    "exit": 77,
+    "seconds": 0.099,
+    "tail": [
+      "{\"status\": \"ENVIRONMENT_UNAVAILABLE\", \"reason\": \"[Errno 22] Invalid argument: '/tmp/driftcore-uid-check-ebrrf6ak/channel'\"}"
+    ]
+  }
+]

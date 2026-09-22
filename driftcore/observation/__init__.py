@@ -40,6 +40,23 @@ from typing import Optional, List
 from dataclasses import dataclass
 
 
+# ── log directory resolution ──────────────────────────────────────────────
+# Ten test files write logs/SHUTDOWN_REASON.json and logs/CHAIN_SHUTDOWN_REASON.json
+# at a fixed RELATIVE path. Run in parallel, one file's cleanup races another
+# file's write and the loser reports a failure that passes when run alone.
+# "Passes when run alone" is not a green suite, so the path is resolvable per
+# process: set DRIFTCORE_LOG_DIR and each runner gets its own.
+def _log_dir() -> str:
+    import os
+    return os.environ.get("DRIFTCORE_LOG_DIR", "logs")
+
+
+def _log_path(name: str) -> str:
+    import os
+    return os.path.join(_log_dir(), name)
+
+
+
 # ── Trust levels ──────────────────────────────────────────────────
 
 class TrustLevel(IntEnum):
@@ -342,13 +359,25 @@ class ObservationGate:
         """
         trust = TrustLevel.from_source(source)
 
-        # ── Full family trust — always allowed ────────────────────
-        if trust >= TrustLevel.FAMILY_LIMITED:
-            return GateResult(
-                allowed=True,
-                reason=f"Trusted family source ({source}).",
-                trust_level=trust,
-            )
+        # (external red-team, 2026-09-06) This returned allowed=True BEFORE any
+        # detection ran, for any caller whose `source` string mapped to
+        # FAMILY_LIMITED or above. Confirmed by execution: the identical injection
+        # payload was blocked and flagged as `source="external"`, and allowed with
+        # nothing recorded as `source="dad"`, `"justin"`, `"operator"`, `"kid"`.
+        # The only variable was a string the caller chose.
+        #
+        # `TrustLevel.from_source` is a string comparison against a word list. It
+        # cannot establish that a caller is Dad; it establishes that a caller typed
+        # "dad". Skipping detection on the strength of that is trusting the label.
+        #
+        # THE FIX IS NOT to distrust the family. Detection now runs for EVERY
+        # source, and trust decides the RESPONSE — a trusted source that trips a
+        # detector is asked rather than blocked, an untrusted one is blocked. What
+        # trust no longer decides is whether anyone looks.
+        #
+        # Not fixed here, and the reviewer is right about it: trust should come
+        # from a registered principal or a grant, not a label. That is a change to
+        # every caller of this gate and it is recorded as open, not smuggled in.
 
         # ── Get existing Tier 1 items for contradiction check ─────
         existing_tier1 = []
@@ -474,8 +503,8 @@ class ObservationGate:
 
         # Write to disk
         try:
-            os.makedirs("logs", exist_ok=True)
-            with open("logs/flagged_attempts.jsonl", "a") as f:
+            os.makedirs(_log_dir(), exist_ok=True)
+            with open(_log_path("flagged_attempts.jsonl"), "a") as f:
                 import json
                 f.write(json.dumps(entry) + "\n")
         except Exception:

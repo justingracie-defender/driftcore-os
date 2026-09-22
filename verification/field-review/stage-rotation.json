@@ -1,0 +1,9 @@
+{
+  "policy_binding_supported": true,
+  "actual_effects": 0,
+  "result": {
+    "ok": false,
+    "error": "grant_rejected",
+    "detail": "grant policy_hash does not match the broker policy"
+  }
+}

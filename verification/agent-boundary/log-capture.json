@@ -1,0 +1,6 @@
+{
+  "method": "Capture complete stdout/stderr in memory, then write and byte-compare the log before packaging.",
+  "exit": 1,
+  "bytes": 7765,
+  "reason": "Packaging rejected an earlier saved log missing its final lines; the complete suite was rerun from a new extraction."
+}

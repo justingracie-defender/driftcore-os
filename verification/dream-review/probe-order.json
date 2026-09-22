@@ -1,0 +1,47 @@
+[
+  {
+    "file": "test_no_egress_bypass.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_nonce_clock_paths.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_nonce_clock_sequences.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_nonce_store.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_nonce_store_conformance.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_nonce_store_startup.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_observation_gate.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_one_door.py",
+    "exit_code": 0,
+    "probe_exists": false
+  },
+  {
+    "file": "test_one_door_client.py",
+    "exit_code": 0,
+    "probe_exists": false
+  }
+]

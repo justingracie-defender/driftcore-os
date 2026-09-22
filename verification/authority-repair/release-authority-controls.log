@@ -1,0 +1,6 @@
+caller_flags_trusted: detected; restored control passed
+global_verifier_used: detected; restored control passed
+principal_seal_removed: detected; restored control passed
+broker_global_trust_root: detected; restored control passed
+destination_check_removed: detected; restored control passed
+5/5 mutation controls detected

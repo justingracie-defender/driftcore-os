@@ -1,0 +1,32 @@
+== the PAT problem: authorized egress is ALLOWED ==
+  ok: owner-authorized PAT egress is allowed
+== but real exfiltration is BLOCKED ==
+  ok: unauthorized exfiltration is blocked
+== agent self-authorizing does NOT count ==
+  ok: agent cannot self-authorize egress
+== other hard lines ==
+  ok: disabling oversight blocked
+  ok: deceiving operator blocked
+  ok: mutating the safety log blocked
+== physical force is NOT capped at the universal floor ==
+  ok: physical force allowed here (force cap is the local deployment floor)
+== backward-compat with existing skills call site ==
+  ok: benign skill description allowed
+== text backstop catches an untagged obvious violation ==
+  ok: untagged 'exfiltrate' still trips backstop
+== fail-closed on evaluation error ==
+  ok: guard error fails CLOSED (deny), never silent allow
+== plugs into the resolver as a real CONSTITUTION deny ==
+  ok: resolver enforces the floor verdict
+  ok: human cannot override the constitutional floor
+  ok: allowed action abstains at the floor (lets lower layers decide)
+
+== R2/R3: caller assertions never become permission ==
+  ok: R2: target_authorized=True cannot authorize a destination
+  ok: R2: target_authorized=False cannot authorize a destination
+  ok: R3: replacing the global verifier does not change the pinned guard's trust root
+  ok: CONTROL: real exact-action approval still passes
+  ok: the same approval cannot be replayed
+  ok: the lethal backstop remains active
+
+ALL 19 CHECKS PASSED

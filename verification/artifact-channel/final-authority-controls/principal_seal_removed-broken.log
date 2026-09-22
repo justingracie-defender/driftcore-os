@@ -1,0 +1,23 @@
+FF
+======================================================================
+FAIL: test_pinned_principal_registry_cannot_be_changed (test_authority_boundary.AuthorityBoundaryTests.test_pinned_principal_registry_cannot_be_changed) (principal='justin')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-rsr3l540/source/test_authority_boundary.py", line 124, in test_pinned_principal_registry_cannot_be_changed
+    with self.subTest(principal=principal), self.assertRaises(PermissionError):
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: PermissionError not raised
+
+======================================================================
+FAIL: test_pinned_principal_registry_cannot_be_changed (test_authority_boundary.AuthorityBoundaryTests.test_pinned_principal_registry_cannot_be_changed) (principal='mallory')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-rsr3l540/source/test_authority_boundary.py", line 124, in test_pinned_principal_registry_cannot_be_changed
+    with self.subTest(principal=principal), self.assertRaises(PermissionError):
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: PermissionError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=2)

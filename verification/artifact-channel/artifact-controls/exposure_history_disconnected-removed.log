@@ -1,0 +1,20 @@
+F
+======================================================================
+FAIL: test_three_agent_derivative_chain_keeps_original_roots (test_artifact_channel.ArtifactChannelTests.test_three_agent_derivative_chain_keeps_original_roots)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/artifact-control-vpfcj51x/source/test_artifact_channel.py", line 272, in test_three_agent_derivative_chain_keeps_original_roots
+    self.assertEqual(a["roots"],b["roots"])
+AssertionError: Lists differ: ['b62765977277d79519851914d1b3eb8c13e7cddb1fefa57f9bd41fef76c91df4'] != ['5645e64a221798e2dc757caed242d7d25e9a53cd9d2259713a710d143e4b8625']
+
+First differing element 0:
+'b62765977277d79519851914d1b3eb8c13e7cddb1fefa57f9bd41fef76c91df4'
+'5645e64a221798e2dc757caed242d7d25e9a53cd9d2259713a710d143e4b8625'
+
+- ['b62765977277d79519851914d1b3eb8c13e7cddb1fefa57f9bd41fef76c91df4']
++ ['5645e64a221798e2dc757caed242d7d25e9a53cd9d2259713a710d143e4b8625']
+
+----------------------------------------------------------------------
+Ran 1 test in 0.017s
+
+FAILED (failures=1)

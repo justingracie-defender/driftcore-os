@@ -1,0 +1,76 @@
+[
+  {
+    "name": "authority-boundary",
+    "command": [
+      "python3",
+      "test_authority_boundary.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.37
+  },
+  {
+    "name": "coordinator-pinning",
+    "command": [
+      "python3",
+      "/workspace/scratch/68864b741aa4/driftcore-sep13-review/probe_pinned_authority.py",
+      "/workspace/scratch/68864b741aa4/driftcore-sep13-review/verification/driftcore-os"
+    ],
+    "exit_code": 0,
+    "seconds": 0.16
+  },
+  {
+    "name": "merged-invariant-guard",
+    "command": [
+      "python3",
+      "test_invariant_guard.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "name": "merged-marshmallow",
+    "command": [
+      "python3",
+      "marshmallow/selftest.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.16
+  },
+  {
+    "name": "authority-controls",
+    "command": [
+      "python3",
+      "scripts/check_authority_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-sep13-review/evidence/mutations"
+    ],
+    "exit_code": 0,
+    "seconds": 1.87
+  },
+  {
+    "name": "audience-mutations",
+    "command": [
+      "python3",
+      "scripts/mutate_audience_release.py"
+    ],
+    "exit_code": 0,
+    "seconds": 6.53
+  },
+  {
+    "name": "eval-harness",
+    "command": [
+      "python3",
+      "eval_harness.py"
+    ],
+    "exit_code": 1,
+    "seconds": 0.11
+  },
+  {
+    "name": "os-isolation",
+    "command": [
+      "python3",
+      "scripts/verify_authority_isolation.py"
+    ],
+    "exit_code": 77,
+    "seconds": 0.11
+  }
+]

@@ -1,0 +1,28 @@
+test_absolute_prohibition_does_not_spend_approval (__main__.AuthorityBoundaryTests.test_absolute_prohibition_does_not_spend_approval) ... ok
+test_account_access_cannot_omit_destination (__main__.AuthorityBoundaryTests.test_account_access_cannot_omit_destination) ... ok
+test_action_and_effect_swaps (__main__.AuthorityBoundaryTests.test_action_and_effect_swaps) ... ok
+test_authorizer_errors_and_non_bool_fail_closed (__main__.AuthorityBoundaryTests.test_authorizer_errors_and_non_bool_fail_closed) ... ok
+test_broker_changed_bytes_rejected_before_effect (__main__.AuthorityBoundaryTests.test_broker_changed_bytes_rejected_before_effect) ... ok
+test_broker_global_replacement_has_no_authority (__main__.AuthorityBoundaryTests.test_broker_global_replacement_has_no_authority) ... ok
+test_broker_missing_human_approval_rejected (__main__.AuthorityBoundaryTests.test_broker_missing_human_approval_rejected) ... ok
+test_broker_registry_and_remote_configuration_closed (__main__.AuthorityBoundaryTests.test_broker_registry_and_remote_configuration_closed) ... ok
+test_broker_replay_does_not_repeat_effect (__main__.AuthorityBoundaryTests.test_broker_replay_does_not_repeat_effect) ... ok
+test_broker_wrong_destination_despite_valid_signatures (__main__.AuthorityBoundaryTests.test_broker_wrong_destination_despite_valid_signatures) ... ok
+test_coarse_identity_token_is_not_an_action_approval (__main__.AuthorityBoundaryTests.test_coarse_identity_token_is_not_an_action_approval) ... ok
+test_destination_swap_and_missing_destination (__main__.AuthorityBoundaryTests.test_destination_swap_and_missing_destination) ... ok
+test_exact_signed_approval_and_replay (__main__.AuthorityBoundaryTests.test_exact_signed_approval_and_replay) ... ok
+test_global_verifier_replacement_does_not_change_pinned_guard (__main__.AuthorityBoundaryTests.test_global_verifier_replacement_does_not_change_pinned_guard) ... ok
+test_installing_policy_preserves_custom_guard_checks (__main__.AuthorityBoundaryTests.test_installing_policy_preserves_custom_guard_checks) ... ok
+test_invalid_effect_type_is_not_silently_dropped (__main__.AuthorityBoundaryTests.test_invalid_effect_type_is_not_silently_dropped) ... ok
+test_legacy_booleans_never_authorize (__main__.AuthorityBoundaryTests.test_legacy_booleans_never_authorize) ... ok
+test_pinned_principal_registry_cannot_be_changed (__main__.AuthorityBoundaryTests.test_pinned_principal_registry_cannot_be_changed) ... ok
+test_policy_sealing_blocks_all_public_reconfiguration (__main__.AuthorityBoundaryTests.test_policy_sealing_blocks_all_public_reconfiguration) ... ok
+test_production_requires_human_approval (__main__.AuthorityBoundaryTests.test_production_requires_human_approval) ... ok
+test_separate_process_retains_its_own_trust_root (__main__.AuthorityBoundaryTests.test_separate_process_retains_its_own_trust_root) ... ok
+test_standing_policy_is_pinned_and_exact (__main__.AuthorityBoundaryTests.test_standing_policy_is_pinned_and_exact) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.230s
+
+OK
+22/22 tests passed

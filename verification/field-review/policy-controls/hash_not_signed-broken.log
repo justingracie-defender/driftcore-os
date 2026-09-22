@@ -1,0 +1,24 @@
+EE
+======================================================================
+ERROR: test_signed_hash_cannot_be_changed_removed_or_null (test_policy_binding.PolicyBindingTests.test_signed_hash_cannot_be_changed_removed_or_null) (operation='change')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/policy-control-i1wbbs4l/source/test_policy_binding.py", line 118, in test_signed_hash_cannot_be_changed_removed_or_null
+    verifier().verify(Grant.from_dict(wire), required_scope=("backup:send",),
+  File "/tmp/policy-control-i1wbbs4l/source/driftcore/verification/signed_permission.py", line 343, in verify
+    raise PolicyMismatch("grant policy_hash does not match the broker policy")
+driftcore.verification.signed_permission.PolicyMismatch: grant policy_hash does not match the broker policy
+
+======================================================================
+ERROR: test_signed_hash_cannot_be_changed_removed_or_null (test_policy_binding.PolicyBindingTests.test_signed_hash_cannot_be_changed_removed_or_null)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/policy-control-i1wbbs4l/source/test_policy_binding.py", line 114, in test_signed_hash_cannot_be_changed_removed_or_null
+    del wire["policy_hash"]
+        ~~~~^^^^^^^^^^^^^^^
+KeyError: 'policy_hash'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (errors=2)

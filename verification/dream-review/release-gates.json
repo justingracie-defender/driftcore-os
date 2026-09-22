@@ -1,0 +1,77 @@
+[
+  {
+    "name": "authority-controls",
+    "command": [
+      "python3",
+      "scripts/check_authority_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-dream-review/evidence/authority-controls"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 2.359
+  },
+  {
+    "name": "startup-control",
+    "command": [
+      "python3",
+      "scripts/check_nonce_startup_control.py",
+      "/workspace/scratch/68864b741aa4/driftcore-dream-review/evidence/startup-control"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.3931
+  },
+  {
+    "name": "marshmallow",
+    "command": [
+      "python3",
+      "marshmallow/selftest.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 0.1927
+  },
+  {
+    "name": "finite-guards",
+    "command": [
+      "python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 1.4035
+  },
+  {
+    "name": "robot-surface",
+    "command": [
+      "python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit_code": 1,
+    "duration_seconds": 0.344
+  },
+  {
+    "name": "untested-modules",
+    "command": [
+      "python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit_code": 1,
+    "duration_seconds": 0.5703
+  },
+  {
+    "name": "claims-ledger",
+    "command": [
+      "python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit_code": 1,
+    "duration_seconds": 0.397
+  },
+  {
+    "name": "os-isolation",
+    "command": [
+      "python3",
+      "scripts/verify_authority_isolation.py"
+    ],
+    "exit_code": 77,
+    "duration_seconds": 0.1391
+  }
+]

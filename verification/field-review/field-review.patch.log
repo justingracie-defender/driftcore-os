@@ -1,0 +1,12 @@
+patching file AUTHORITY_REPAIR.md
+patching file DREAM_REVIEW.md
+patching file FIELD_REVIEW.md
+patching file FINDINGS.md
+patching file POLICY_BINDING.md
+patching file driftcore/verification/mediated_actuation.py
+patching file driftcore/verification/policy_snapshot.py
+patching file driftcore/verification/signed_permission.py
+patching file scripts/check_policy_binding_controls.py
+patching file test_halt_and_restart.py
+patching file test_halt_interlock_integration.py
+patching file test_policy_binding.py

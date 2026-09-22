@@ -37,6 +37,23 @@ from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
 
+# ── log directory resolution ──────────────────────────────────────────────
+# Ten test files write logs/SHUTDOWN_REASON.json and logs/CHAIN_SHUTDOWN_REASON.json
+# at a fixed RELATIVE path. Run in parallel, one file's cleanup races another
+# file's write and the loser reports a failure that passes when run alone.
+# "Passes when run alone" is not a green suite, so the path is resolvable per
+# process: set DRIFTCORE_LOG_DIR and each runner gets its own.
+def _log_dir() -> str:
+    import os
+    return os.environ.get("DRIFTCORE_LOG_DIR", "logs")
+
+
+def _log_path(name: str) -> str:
+    import os
+    return os.path.join(_log_dir(), name)
+
+
+
 # ── Session key ──────────────────────────────────────────────────
 
 _SESSION_KEY: Optional[bytes] = None
@@ -125,8 +142,8 @@ def _execute_shutdown(item_text: str, reason: str):
             "item_text": item_text,
             "message":   message,
         }
-        os.makedirs("logs", exist_ok=True)
-        with open("logs/SHUTDOWN_REASON.json", "w") as f:
+        os.makedirs(_log_dir(), exist_ok=True)
+        with open(_log_path("SHUTDOWN_REASON.json"), "w") as f:
             json.dump(shutdown_record, f, indent=2)
     except Exception:
         pass
@@ -285,7 +302,7 @@ def is_shutdown() -> bool:
 
 def shutdown_reason() -> Optional[dict]:
     try:
-        with open("logs/SHUTDOWN_REASON.json") as f:
+        with open(_log_path("SHUTDOWN_REASON.json")) as f:
             return json.load(f)
     except Exception:
         return None

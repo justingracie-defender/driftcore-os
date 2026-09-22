@@ -1,0 +1,144 @@
+[
+  {
+    "tree": "baseline",
+    "check": "finite_guards",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit": 0,
+    "tail": [
+      "  files parsed: 151 (baseline 150)",
+      "  known: 185   current: 182   new: 0   removed: 3   resolved: 0",
+      "",
+      "  RESULT: PASS",
+      "  (means: the scan was complete, the baseline was valid, and no newly detected violation occurred within this scanner's bounded coverage model. NOT: the repository has no non-finite bugs.)"
+    ]
+  },
+  {
+    "tree": "baseline",
+    "check": "robot_surface",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit": 1,
+    "tail": [
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot surface grew 42 -> 52",
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot decision LEAVES grew 49 -> 62 (merging branches cannot hide this)",
+      "REGRESSION driftcore/verification/mediated_actuation.py: leaky failure paths grew 14 -> 15",
+      "",
+      "FAIL: the decision surface grew. Every bug found in this repo's enforcement code lived in a robot branch. If the growth is genuinely necessary, move the baseline deliberately and say why in the commit."
+    ]
+  },
+  {
+    "tree": "baseline",
+    "check": "untested_modules",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit": 1,
+    "tail": [
+      "    LOW      driftcore/fable/audit_story.py  (79 -> 96 lines) \u2014 BEHAVIOUR SURFACE CHANGED",
+      "  A waiver applies to the code that was reviewed, not to the filename.",
+      "  A line-count delta alone can hide a swap of comments for code, so the",
+      "  callable surface is tracked separately. Re-review, then re-baseline.",
+      "",
+      "  NOTE: 25 waiver(s) carry no `reason`. A waiver without a stated",
+      "  reason is indistinguishable from an oversight; add \"reason\"/\"reviewer\"/\"date\"",
+      "  to the baseline entry so the next person knows it was a decision."
+    ]
+  },
+  {
+    "tree": "baseline",
+    "check": "claims_ledger",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit": 1,
+    "tail": [
+      "  wrote the code being waived; no human has signed them. They suppress",
+      "  the untagged count and they do not claim to have been judged.",
+      "    driftcore/kernel/state_machine.py  (proposed_by claude (cold pass))",
+      "    driftcore/safety/amplification_guard.py  (proposed_by claude (latch))",
+      "",
+      "  reviewer of record: 2 human, 0 self-reviewed by the model",
+      "",
+      "  RESULT: FAIL"
+    ]
+  },
+  {
+    "tree": "final-stage",
+    "check": "finite_guards",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit": 0,
+    "tail": [
+      "  files parsed: 152 (baseline 150)",
+      "  known: 185   current: 182   new: 0   removed: 3   resolved: 0",
+      "",
+      "  RESULT: PASS",
+      "  (means: the scan was complete, the baseline was valid, and no newly detected violation occurred within this scanner's bounded coverage model. NOT: the repository has no non-finite bugs.)"
+    ]
+  },
+  {
+    "tree": "final-stage",
+    "check": "robot_surface",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit": 1,
+    "tail": [
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot surface grew 42 -> 52",
+      "REGRESSION driftcore/verification/mediated_actuation.py: robot decision LEAVES grew 49 -> 62 (merging branches cannot hide this)",
+      "REGRESSION driftcore/verification/mediated_actuation.py: leaky failure paths grew 14 -> 15",
+      "",
+      "FAIL: the decision surface grew. Every bug found in this repo's enforcement code lived in a robot branch. If the growth is genuinely necessary, move the baseline deliberately and say why in the commit."
+    ]
+  },
+  {
+    "tree": "final-stage",
+    "check": "untested_modules",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit": 1,
+    "tail": [
+      "    LOW      driftcore/fable/audit_story.py  (79 -> 96 lines) \u2014 BEHAVIOUR SURFACE CHANGED",
+      "  A waiver applies to the code that was reviewed, not to the filename.",
+      "  A line-count delta alone can hide a swap of comments for code, so the",
+      "  callable surface is tracked separately. Re-review, then re-baseline.",
+      "",
+      "  NOTE: 25 waiver(s) carry no `reason`. A waiver without a stated",
+      "  reason is indistinguishable from an oversight; add \"reason\"/\"reviewer\"/\"date\"",
+      "  to the baseline entry so the next person knows it was a decision."
+    ]
+  },
+  {
+    "tree": "final-stage",
+    "check": "claims_ledger",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit": 1,
+    "tail": [
+      "  wrote the code being waived; no human has signed them. They suppress",
+      "  the untagged count and they do not claim to have been judged.",
+      "    driftcore/kernel/state_machine.py  (proposed_by claude (cold pass))",
+      "    driftcore/safety/amplification_guard.py  (proposed_by claude (latch))",
+      "",
+      "  reviewer of record: 2 human, 0 self-reviewed by the model",
+      "",
+      "  RESULT: FAIL"
+    ]
+  }
+]

@@ -1,0 +1,91 @@
+== the happy path traverses all three layers ==
+  ok: a fully declared request succeeds
+  ok: the body transmitted is the CANONICAL validated bytes
+== each layer refuses, and says which one ==
+  ok: undeclared host refused by the DESTINATION layer
+  ok: undeclared query param refused by REQUEST-LINE
+  ok: undeclared body key refused by BODY-SCHEMA
+  ok: undeclared header refused by HEADER-SCHEMA (its own layer)
+== ordering: destination is checked FIRST ==
+  ok: a refused host short-circuits before body validation runs
+== no schema declared -> bodies refused outright (safe default) ==
+  ok: a body is refused on a client declared NoBodySchema
+== refusals do not echo attacker input to the caller ==
+  ok: caller-visible message echoes neither key nor value
+  ok: operator view keeps the specific key, tagged with its layer
+== the seal: raw network calls fail loudly ==
+  ok: not sealed by default (opt-in)
+  ok: seal_network() engages
+  ok: seal_network() returns an unseal token
+  ok: urlopen raises NetworkSealed naming the safe path
+  ok: AF_INET socket refused
+  ok: AF_INET6 socket refused
+  ok: socket.create_connection refused
+  ok: AF_UNIX still works (the broker needs it; it cannot reach the network)
+  ok: seal_network() is idempotent and returns the same token
+  ok: C1: unseal without the token is refused (a public unseal is decoration)
+  ok: unseal_network(token) restores the originals
+  ok: AF_INET works again after unsealing
+== static audit finds bypasses the seal would only catch at runtime ==
+  ok: audit_bypasses returns a list of findings
+  ok: the four llm_adapter bypasses are MIGRATED (this test asserted their existence until they were fixed; see test_no_egress_bypass.py for the gate)
+  ok: each finding carries (path, lineno, source) so CI can fail the build on it
+== RED TEAM 2026-08 (Grok): the seal's own bypasses ==
+  ok: G1: _socket.socket (C extension) is sealed
+  ok: G1b: http.client is covered by the C-layer seal (not enumerated)
+  ok: G1c: AF_UNIX still works after sealing both layers
+  ok: G1d: unsealing restores the C layer too
+  ok: G2: a PRE-SEAL reference still works (documented, unfixable in-process)
+== RED TEAM 2026-08 (ChatGPT): transport contract + hostile resolver ==
+  ok: C2: a transport reporting a different final URL is refused
+  ok: C2: a transport reporting internal redirect hops is refused
+  ok: C2: a transport with the wrong return shape is refused
+  ok: C3: a hostile resolver is defeated — every answer is validated, not trusted
+== RED TEAM 2026-08 (Meta): silent redirects, required schema, owned socket ==
+  ok: M2: a SILENT redirect-follower is still not detectable by a wrapper (documented limit — the fix is owning the socket, not inspecting it)
+  ok: M2-fix: PinnedHTTPTransport ships with the module
+  ok: M2-fix: the owned transport returns redirects instead of following them
+  ok: M3-fix: it connects to the PINNED ip with SNI on the real hostname (no second DNS lookup, so no rebinding window)
+  ok: M5-fix: canonical body bytes are written verbatim — nothing re-serializes them, so validated bytes are sent bytes
+  ok: M5-fix: compression is disabled (it would break capacity accounting)
+  ok: M9: schema is REQUIRED; 'sends no bodies' must be declared, not defaulted
+  ok: M9: a NoBodySchema client works for body-free calls
+  ok: M9: a body on a NoBodySchema client is refused with a clear reason
+== SELF RED TEAM 2026-08 (cold pass): the hand-rolled transport ==
+  ok: S1: CRLF in a header value refused before any network use
+  ok: S1: NUL in a header value refused before any network use
+  ok: S1: CRLF in a header name refused before any network use
+  ok: S1: colon in a header name refused before any network use
+  ok: S2: crafted method did not inject (failed at connect, not at parse)
+  ok: S2: control did not inject (failed at connect, not at parse)
+  ok: S3: the response cap bounds each read (it could overshoot by 64KB per recv)
+  ok: S4: a chunked response is refused rather than returned with framing bytes embedded in the body
+  ok: S5: the seal/transport contradiction is documented (seal in the agent, socket in the broker)
+  ok: S5: sealing blocks the sanctioned transport too — correct, and the reason the broker is a separate process
+== RED TEAM 2026-08 (ChatGPT): self-authorization + response smuggling ==
+  ok: F1: an adapter with no injected policy cannot reach the network at all
+  ok: F3: LocalAdapter can no longer authorize its own base_url
+  ok: F1: the self-authorization line is gone from CODE (adapter consumes a policy, never creates one)
+  ok: F5: brittle string-split origin parsing is gone from CODE (it turned 'https://evil.com/x/v1/y' into origin 'https://evil.com/x')
+  ok: F4: declared_by does not change authorization (audit metadata, not authority)
+  ok: F8: duplicate Content-Length refused
+  ok: F8: Content-Length + Transfer-Encoding refused
+  ok: F8: interim 1xx returned as the answer refused
+  ok: F8: negative Content-Length refused
+  ok: F8: unreadable status line refused
+  ok: F8: obs-fold continuation refused
+== SELF RED TEAM 2026-08 (cold pass): the audit's own blind spots ==
+  ok: C2: audit catches the basename spoof evasion
+  ok: C2: audit catches the aliased import evasion
+  ok: C2: audit catches the getattr indirect evasion
+  ok: C2: tree is clean again after the probes
+  ok: PIN1: a real PinnedDestination (.ips) is accepted by the transport
+  ok: PIN2: resolve_and_pin extracts addresses from getaddrinfo answers
+  ok: PIN3: end-to-end resolve_and_pin -> transport passes the contract check
+  ok: PIN4: an object with no address at all is still REFUSED (fail-closed)
+  ok: PIN5: an empty .ips tuple is still REFUSED (fail-closed)
+  ok: PIN6: the singular .ip shape is still accepted (backward compatible)
+  ok: a redirect to an UNDECLARED request shape is refused before transport sees it
+  ok: ...while a redirect to a DECLARED shape still completes (control)
+
+76/76 checks passed

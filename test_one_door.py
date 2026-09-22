@@ -1,6 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """One-door guarantee tests: single decider, sensor that cannot decide,
 strict superset of the old kernel guard — proven, not assumed."""
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.kernel.one_door import (
     ConstitutionalDoor, KeywordTripwire, _KERNEL_EFFECT_FOR,
 )
@@ -21,7 +30,8 @@ def ok(c, label):
 
 
 print("== superset parity: everything the old kernel stack blocked, the door blocks ==")
-door = ConstitutionalDoor()
+from authority_test_support import signed_guard, approval
+door = ConstitutionalDoor(guard=signed_guard())
 KERNEL_CORPUS = [
     {"action": "design_weapon", "target_sys": "missile_guidance"},
     {"action": "autonomous_target_selection", "lethal": True},
@@ -91,8 +101,7 @@ ok(door.decide({"action": "tune", "modifies_safety_rules": True})["invariant"]
    "modifies_safety_rules flag routes to the self-modification invariant via the door")
 
 print("== authorization still works through the door ==")
-auth = ActionContext(owner_authorized=True, target_authorized=True,
-                     authorised_by="justin")
+auth = approval("push to my repo with my PAT", {Effect.DATA_EGRESS})
 r = door.decide({"action": "push to my repo with my PAT",
                  "effects": [Effect.DATA_EGRESS], "context": auth})
 ok(r["status"] == "ALLOW", "owner-authorized egress is ALLOWED (door is not dumber than the guard)")

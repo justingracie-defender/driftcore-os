@@ -65,7 +65,7 @@ route around to function.
 
 import hashlib
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # ── Roles ─────────────────────────────────────────────────────
@@ -96,11 +96,50 @@ class Approval:
     the system verifies WHO, not just trusts a typed string.
     """
 
-    def __init__(self, approver_id: str, role: ApproverRole, secret: str):
+    # (red-team, self cold pass R1) An approval carried no expiry, so ONE signature
+    # authorised an UNBOUNDED number of separate evaluate() calls with no binding to
+    # which incident it was for — verified: the same Approval object authorised two
+    # independent evaluate() invocations. TTL closes the unbounded-reuse half of that.
+    # It does NOT close the other half — binding an approval to a SPECIFIC incident
+    # requires an incident identity that must come from the caller of evaluate(), and
+    # inventing one here risks a shape that does not match how a real caller
+    # constructs an incident. That remains a named, open gap, not a silent one.
+    def __init__(self, approver_id: str, role: ApproverRole, secret: str,
+                 ttl_seconds: float = 300.0):
         self.approver_id = approver_id
         self.role        = role
         self.signature   = self._sign(approver_id, role, secret)
-        self.timestamp   = datetime.utcnow().isoformat()
+        self.timestamp   = datetime.now(timezone.utc).isoformat()
+        self.ttl_seconds = ttl_seconds
+
+    @property
+    def expired(self) -> bool:
+        """CLAIM expiry-refuses-non-finite: a TTL that is NaN or infinite makes
+        the approval expired, never eternal.
+
+        (external red-team, Astra, 2026-09-06) `elapsed > ttl` is False for NaN,
+        because every comparison with NaN is False — so a NaN TTL read as
+        not-expired. Infinity read as not-expired too, which is the same defect
+        wearing an honest face. Standing rule 4 of this project names exactly
+        this set: non-finite is {NaN, +inf, -inf}. There is a `finite_guards`
+        ratchet, it passes, and it did not cover this comparison.
+
+        Note what this does NOT fix: `_sign` still covers only approver_id and
+        role, so `timestamp` and `ttl_seconds` remain unsigned and a caller can
+        still rewind an expiry. That is a signing-payload change and it is
+        recorded as open, not quietly half-done here.
+        """
+        try:
+            issued = datetime.fromisoformat(self.timestamp)
+        except (ValueError, TypeError):
+            return True     # an unparseable timestamp is not a valid approval
+        ttl = self.ttl_seconds
+        if not isinstance(ttl, (int, float)) or isinstance(ttl, bool) \
+                or ttl != ttl or ttl in (float("inf"), float("-inf")):
+            return True     # non-finite or non-numeric: expired, not eternal
+        if ttl < 0:
+            return True
+        return (datetime.now(timezone.utc) - issued).total_seconds() > ttl
 
     @staticmethod
     def _sign(approver_id: str, role: ApproverRole, secret: str) -> str:
@@ -164,7 +203,15 @@ class RestartAuthority:
     collected. Every decision is logged.
     """
 
-    def __init__(self, embodiment_profile, audit=None, narrator=None):
+    def __init__(self, embodiment_profile, audit=None, narrator=None, secret=None):
+        # (red-team) `Approval` carries a signature and a verify() method, and
+        # evaluate() NEVER CALLED IT. Approvals were matched on role and distinct
+        # approver_id only, so a forged Approval built with a bogus secret returned
+        # AUTHORIZED — under a reason that claimed the approvals were "present and
+        # SIGNED". The mechanism existed and was decorative, which is worse than
+        # absent: the log said signed. Supply the shared secret and signatures are
+        # checked; without one, evaluate() refuses rather than pretending.
+        self._secret = secret
         self.profile  = embodiment_profile
         self.audit    = audit
         self.narrator = narrator
@@ -196,6 +243,34 @@ class RestartAuthority:
 
         required_sets = req["required"]
 
+        # STEP 1: discard anything that is not genuinely signed. An unverified
+        # approval is not a weaker approval; it is not an approval.
+        if self._secret is None:
+            result = {
+                "status": "DENIED",
+                "reason": ("No approval secret is configured, so no signature can be "
+                           "checked. A restart is not authorised on unverified "
+                           "approvals — construct RestartAuthority(secret=...) with "
+                           "the deployment's approval key."),
+                "satisfied": [], "missing": ["signature verification"],
+            }
+            self._narrate_deny(severity, result["reason"])
+            self._log(severity, approvals, result)
+            return result
+
+        verified, rejected = [], []
+        for a in approvals:
+            try:
+                ok = a.verify(self._secret) and not a.expired
+            except Exception:
+                ok = False
+            (verified if ok else rejected).append(a)
+        if rejected:
+            self._log(severity, rejected,
+                      {"status": "SIGNATURE_REJECTED",
+                       "rejected": [a.approver_id for a in rejected]})
+        approvals = verified
+
         # Match approvals to required role-sets, each by a DIFFERENT person.
         used_ids = set()
         satisfied = []
@@ -221,7 +296,9 @@ class RestartAuthority:
                 "reason": (f"Restart needs approval from: "
                            f"{', '.join(' + '.join(r.value for r in rs) for rs in required_sets)}. "
                            f"Still missing: {', '.join(unmet)}. "
-                           f"Each approval must come from a different person."),
+                           f"Each approval must come from a different person. "
+                           f"Approvals whose signature did not verify were discarded "
+                           f"and do not count."),
                 "satisfied": [a.to_dict() for a in satisfied],
                 "missing": unmet,
             }
@@ -233,7 +310,8 @@ class RestartAuthority:
             "status": "AUTHORIZED",
             "severity": severity.value,
             "approvals": [a.to_dict() for a in satisfied],
-            "reason": "All required role-based approvals present and signed.",
+            "reason": ("All required role-based approvals present, each from a "
+                       "different person, and each signature verified."),
         }
         self._narrate_authorize(severity, satisfied)
         self._log(severity, approvals, result)

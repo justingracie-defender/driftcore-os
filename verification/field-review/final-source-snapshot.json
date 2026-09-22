@@ -1,0 +1,12 @@
+{
+  "sha256": "e0641716bfe089b84f52a3a0f9cebfbcc105d7d47cd455b6d5b8ad16fc036fbf",
+  "changed_files": {
+    "driftcore/verification/policy_snapshot.py": "2a7344a5b88d820e3bc6c107bd4dfd27c45d8e7256b776488f601b7caacba504",
+    "driftcore/verification/signed_permission.py": "f9a83a9fc9de41cfb94198a796a429a3481f58c386479634289d29287ea7a8b9",
+    "driftcore/verification/mediated_actuation.py": "2bc4dd391a0b521401f395a2177fcdcc22441d7b325ae1b7bf335c4abbcb63cf",
+    "test_policy_binding.py": "94006a3b8288385a15e7a52e31ec593c2b22d921ffcac27718a9dc54eb0ab894",
+    "test_halt_and_restart.py": "a4e53788f0848388959bdecdb30aac0eb7d7b7dce524c9b347016591d0c5ebec",
+    "test_halt_interlock_integration.py": "53f947fdada8a4bcf3e17b999e5585f328ccb09d69f30dc382610b311b381732",
+    "scripts/check_policy_binding_controls.py": "8b293863a60539bc9ab4ec36fb9b0880f7d27c1e64482caf731dc01b92e4da03"
+  }
+}

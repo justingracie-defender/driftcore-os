@@ -44,7 +44,7 @@ def reset_all():
     a._last_hash = None
     a._sequence = 0
     a._chain_compromised = False
-    for f in ["logs/audit_chain.jsonl", "logs/SHUTDOWN_REASON.json"]:
+    for f in [os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"), os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json")]:
         try: os.remove(f)
         except: pass
 

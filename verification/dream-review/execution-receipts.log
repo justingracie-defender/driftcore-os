@@ -1,0 +1,31 @@
+== 20 PROCESSES race for one nonce; the database picks the winner ==
+     1 won, 19 lost, 0 errored
+  ok   exactly one process claimed the nonce (got 1)
+  ok   every process got a definite answer ([])
+  ok   a later claim on the same nonce still loses
+  ok   an unrelated nonce is unaffected (durable, not merely broken)
+  ok   and it is STILL spent after a reopen
+== the verifier uses the atomic claim when the store offers one ==
+  ok   first use succeeds
+  ok   second use is refused via the atomic claim
+== AUTHORIZED, COMMAND_ACCEPTED and EXECUTION_CONFIRMED are three facts ==
+  ok   a silent actuator still executes
+  ok   and confirmation is None — NOT True — because it claimed nothing
+  ok   an actuator returning a matching receipt executes
+  ok   and execution is CONFIRMED
+  ok   an actuator executing different arguments is caught
+  ok   the mismatch names what actually ran
+  ok   and what had been approved
+  ok   the report is NOT a clean refusal — the physical action did occur
+  ok   an unapproved default inserted by the actuator is caught
+== display fidelity: one object, both outputs ==
+  ok   every approved parameter appears in the text the human reads
+  ok   the safety envelope appears in the text
+  ok   the subject appears in the text
+  ok   the identity the signature covers is shown too
+  ok   the signature covers exactly the identity that was rendered
+  ok   and the gate accepts it against the same action
+  ok   a changed parameter cannot be hidden from the description
+  ok   and it produces a different identity, so the old approval will not verify
+------------------------------------------------------------
+  24/24 tests passed

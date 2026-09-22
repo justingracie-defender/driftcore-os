@@ -23,6 +23,15 @@ Run with:
     python test_cognitive_mode.py
 """
 
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
+
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -46,13 +55,13 @@ def reset_all():
     a._sequence = 0
     a._chain_compromised = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/SHUTDOWN_REASON.json",
-        "logs/drift_policy.json",
-        "logs/safety_drift.jsonl",
-        "logs/session_history.jsonl",
-        "logs/probe_log.jsonl",
-        "logs/model_profiles.json",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"drift_policy.json"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"safety_drift.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"session_history.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"probe_log.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"model_profiles.json"),
     ]:
         try: os.remove(f)
         except: pass

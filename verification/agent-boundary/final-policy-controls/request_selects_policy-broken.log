@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_new_policy_blocks_old_grant_before_effect_and_allows_new (test_policy_binding.PolicyBindingTests.test_new_policy_blocks_old_grant_before_effect_and_allows_new)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/policy-control-pzonblwb/source/test_policy_binding.py", line 188, in test_new_policy_blocks_old_grant_before_effect_and_allows_new
+    self.assertEqual(refused.get("error"), "grant_rejected", refused)
+AssertionError: None != 'grant_rejected' : {'ok': True, 'result': {'executed_args': {'url': 'https://backup.example/', 'text': 'approved'}}, 'execution_confirmed': True}
+
+----------------------------------------------------------------------
+Ran 1 test in 0.009s
+
+FAILED (failures=1)

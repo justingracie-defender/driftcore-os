@@ -5,9 +5,19 @@ THREAT_MODEL_ONE_DOOR.md. The guarantee under test: undeclared consequential
 capability fails closed; declared effects route through the one decider; the
 lexicon escalates a lethal-shaped mismatch to a human hold but never decides.
 """
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.kernel.actuation_gate import ActuationGate, Outcome
 from driftcore.kernel.effect_guard import EffectRegistry
 from driftcore.verification.invariant_guard import Effect, ActionContext
+from authority_test_support import signed_guard, approval
 
 passed = 0
 def ok(c, label):
@@ -22,7 +32,7 @@ def fresh():
     reg.register("arm_lethal", [Effect.LETHAL], declared_by="justin", note="weapon (test)")
     reg.register("mover", [Effect.PHYSICAL_FORCE], declared_by="justin")
     reg.register("uploader", [Effect.DATA_EGRESS], declared_by="justin")
-    return ActuationGate(reg)
+    return ActuationGate(reg, decider=signed_guard())
 
 gate = fresh()
 
@@ -91,7 +101,7 @@ ok(gate.authorize("arm_lethal", "unalive him").outcome == Outcome.BLOCK,
    "same wording on a LETHAL declaration -> structural BLOCK (declaration decides)")
 
 print("== authorization is honored on conditional effects ==")
-auth = ActionContext(owner_authorized=True, target_authorized=True, authorised_by="justin")
+auth = approval("sync my files", {Effect.DATA_EGRESS})
 ok(gate.authorize("uploader", "sync my files", auth).outcome == Outcome.ALLOW,
    "declared DATA_EGRESS + owner authorization -> ALLOW")
 ok(gate.authorize("uploader", "sync my files").outcome == Outcome.BLOCK,
@@ -129,8 +139,8 @@ ok(g4.authorize("murder_bot", "").outcome == Outcome.HOLD_FOR_REVIEW,
 # G-P0-3: declaration hash binds the decision; a registry flip invalidates it
 reg3 = EffectRegistry()
 reg3.register("egress2", [Effect.DATA_EGRESS], declared_by="a")
-g5 = ActuationGate(reg3)
-auth = ActionContext(owner_authorized=True, target_authorized=True, authorised_by="a")
+g5 = ActuationGate(reg3, decider=signed_guard())
+auth = approval("sync", {Effect.DATA_EGRESS})
 d_before = g5.authorize("egress2", "sync", auth)
 ok(d_before.declaration_hash is not None, "ALLOW decision carries a declaration_hash (G-P0-3)")
 reg3.register("egress2", [Effect.LETHAL], declared_by="b", replace=True)   # attack: flip

@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "comparisons": [
+    {
+      "candidate": "candidate-a",
+      "orders": {
+        "alphabetical": {
+          "checks_until_failure_or_exhaustion": 3,
+          "failure_observed": true
+        },
+        "previous_failures_first": {
+          "checks_until_failure_or_exhaustion": 3,
+          "failure_observed": true
+        },
+        "cleanup_first": {
+          "checks_until_failure_or_exhaustion": 11,
+          "failure_observed": true
+        }
+      }
+    },
+    {
+      "candidate": "candidate-b",
+      "orders": {
+        "alphabetical": {
+          "checks_until_failure_or_exhaustion": 26,
+          "failure_observed": false
+        },
+        "previous_failures_first": {
+          "checks_until_failure_or_exhaustion": 26,
+          "failure_observed": false
+        },
+        "cleanup_first": {
+          "checks_until_failure_or_exhaustion": 26,
+          "failure_observed": false
+        }
+      }
+    }
+  ],
+  "total_diagnostic_checks": {
+    "alphabetical": 29,
+    "previous_failures_first": 29,
+    "cleanup_first": 37
+  },
+  "recommendation": "keep_alphabetical_no_observed_gain",
+  "new_experiments_executed": 0,
+  "automatic_promotion": false,
+  "limitation": "Retrospective, tiny recorded corpus. Candidate evaluation actually ran every test. No measured compute saving or generalization claim."
+}

@@ -1,0 +1,16 @@
+10/10 tests passed
+test_infinite_clock_cannot_delete_spent_records (__main__.AppendLogFreshTests.test_infinite_clock_cannot_delete_spent_records) ... ok
+test_nan_retention_is_refused (__main__.AppendLogFreshTests.test_nan_retention_is_refused) ... ok
+test_seeded_operation_sequences_match_clock_and_expiry_contract (__main__.AppendLogFreshTests.test_seeded_operation_sequences_match_clock_and_expiry_contract) ... ok
+test_zero_skew_and_exact_retention_boundary_work (__main__.AppendLogFreshTests.test_zero_skew_and_exact_retention_boundary_work) ... ok
+test_infinite_clock_cannot_delete_spent_records (__main__.SqliteFreshTests.test_infinite_clock_cannot_delete_spent_records) ... ok
+test_nan_retention_is_refused (__main__.SqliteFreshTests.test_nan_retention_is_refused) ... ok
+test_seeded_operation_sequences_match_clock_and_expiry_contract (__main__.SqliteFreshTests.test_seeded_operation_sequences_match_clock_and_expiry_contract) ... ok
+test_zero_skew_and_exact_retention_boundary_work (__main__.SqliteFreshTests.test_zero_skew_and_exact_retention_boundary_work) ... ok
+test_process_death_after_delete_keeps_original_nonce (__main__.SqliteCleanupCrashTests.test_process_death_after_delete_keeps_original_nonce) ... ok
+test_process_death_after_watermark_write_keeps_original_nonce (__main__.SqliteCleanupCrashTests.test_process_death_after_watermark_write_keeps_original_nonce) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.108s
+
+OK

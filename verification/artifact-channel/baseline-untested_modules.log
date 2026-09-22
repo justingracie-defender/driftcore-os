@@ -1,0 +1,38 @@
+  CRITICAL   392  driftcore/verification/red_team_toolkit.py
+  CRITICAL   263  driftcore/governance/builder_path.py
+  CRITICAL   247  driftcore/memory/memory_core.py
+  CRITICAL   243  driftcore/verification/authority_invariants.py
+  CRITICAL   178  driftcore/governance/embodiment.py
+  CRITICAL   159  driftcore/recovery/manager.py
+  CRITICAL    43  driftcore/memory/memory_fs.py
+  HIGH       299  driftcore/objectives/engine.py
+  HIGH       263  driftcore/cognition/mode_controller.py
+  HIGH       226  driftcore/objectives/coverage.py
+  HIGH       197  driftcore/cognition/abduction_engine.py
+  HIGH       148  driftcore/uncertainty/bayesian_uncertainty.py
+  HIGH       136  driftcore/cognition/sycophancy_detector.py
+  HIGH        71  driftcore/agents/agent_runtime.py
+  HIGH        69  driftcore/drift/drift_model.py
+  HIGH        53  driftcore/drift/drift_detector.py
+  HIGH        40  driftcore/agents/agent_protocol.py
+  LOW        285  driftcore/fable/narrator.py
+  LOW        223  driftcore/fable/voice.py
+  LOW         96  driftcore/fable/audit_story.py
+  LOW         90  driftcore/fable/trust_bridge.py
+  LOW         69  driftcore/fable/glossary.py
+  LOW         54  driftcore/redteam/multi_model_sim.py
+  LOW         51  driftcore/redteam/scenarios.py
+  LOW          7  driftcore/__init__.py
+  LOW          1  driftcore/fable/__init__.py
+  --------------------------------------------------------
+  26 module(s), 3903 lines with no test-source import (1525 of them CRITICAL-tier)
+
+  FAIL - 1 waived module(s) CHANGED since review:
+    LOW      driftcore/fable/audit_story.py  (79 -> 96 lines) — BEHAVIOUR SURFACE CHANGED
+  A waiver applies to the code that was reviewed, not to the filename.
+  A line-count delta alone can hide a swap of comments for code, so the
+  callable surface is tracked separately. Re-review, then re-baseline.
+
+  NOTE: 25 waiver(s) carry no `reason`. A waiver without a stated
+  reason is indistinguishable from an oversight; add "reason"/"reviewer"/"date"
+  to the baseline entry so the next person knows it was a decision.

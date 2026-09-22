@@ -48,7 +48,22 @@ def reset_audit():
     except Exception:
         pass
     try:
-        os.remove("logs/CHAIN_SHUTDOWN_REASON.json")
+        # The head anchor is chain state too. Removing the log and leaving the
+        # anchor is not "first startup" — it is exactly the deleted-log case the
+        # anchor exists to catch.
+        os.remove(a.HEAD_FILE)
+    except Exception:
+        pass
+    try:
+        # The head anchor is chain state too. Removing the log and leaving the
+        # anchor is not "first startup" — it is exactly the deleted-log case the
+        # anchor exists to catch, and this helper was creating it in every test
+        # that followed a write.
+        os.remove(a.HEAD_FILE)
+    except Exception:
+        pass
+    try:
+        os.remove(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"CHAIN_SHUTDOWN_REASON.json"))
     except Exception:
         pass
 
@@ -58,7 +73,7 @@ def reset_enforcement():
     e._SHUTDOWN_HOOKS.clear()
     e._SESSION_KEY = None
     try:
-        os.remove("logs/SHUTDOWN_REASON.json")
+        os.remove(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"))
     except Exception:
         pass
 
@@ -136,7 +151,7 @@ import driftcore.audit as audit_mod
 check("tampered entry triggers shutdown",   audit_mod._chain_compromised == True)
 check("verify returns False",              result == False)
 check("chain shutdown record written",
-      os.path.exists("logs/CHAIN_SHUTDOWN_REASON.json"))
+      os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"CHAIN_SHUTDOWN_REASON.json")))
 
 
 # ── TEST 4: Deleted entry detected (sequence gap) ─────────────────
@@ -315,6 +330,51 @@ check("new entry continues sequence",   e_new["sequence"] == 4)
 
 
 # ── RESULTS ───────────────────────────────────────────────────────
+
+# ── R4: concurrent writers (external red-team, Astra, 2026-09-06) ──────────
+# Five steps — allocate a sequence, capture the previous head, append, publish in
+# memory, write the anchor — none serialised. Two threads interleaved and both
+# returned success while the chain they produced failed verification: sequences
+# written [2, 1]. Acceptance criteria are theirs.
+import threading as _threading
+
+reset_audit()
+reset_enforcement()
+audit_mod._chain_compromised = False
+
+_bar = _threading.Barrier(8)
+_orig_hash = audit_mod._hash_entry
+
+
+def _paced(entry):
+    h = _orig_hash(entry)
+    try:
+        _bar.wait(5)      # pauses only; delegates the original hash unchanged
+    except Exception:
+        pass
+    return h
+
+
+audit_mod._hash_entry = _paced
+try:
+    _res = []
+    _ts = [_threading.Thread(target=lambda i=i: _res.append(
+        audit_mod.record(action=f"CONC_{i}", memory_text="x", authorised_by="jane")))
+        for i in range(8)]
+    [t.start() for t in _ts]
+    [t.join(20) for t in _ts]
+finally:
+    audit_mod._hash_entry = _orig_hash
+
+_seqs = [e["sequence"] for e in read_chain()]
+check("R4: all 8 concurrent writes succeeded", sum(1 for r in _res if r) == 8)
+check("R4: sequence numbers are unique and continuous",
+      _seqs == list(range(1, len(_seqs) + 1)))
+check("R4: the chain concurrent writers produced VERIFIES", verify_chain() is True)
+check("R4: the anchor matches the last committed entry",
+      audit_mod._read_head() is not None and audit_mod._read_head()[0] == _seqs[-1])
+
+
 print("\n" + "=" * 60)
 passed = sum(1 for _, ok in results if ok)
 total  = len(results)

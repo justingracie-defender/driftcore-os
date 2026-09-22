@@ -61,6 +61,89 @@ and the only number worth quoting. This file carries no figure on purpose; a
 "current state" count in a doc is stale the next time a test lands. (A deprecated
 `_deprecated_check_driftcore_suite.py.bak` exists and must never be run/trusted.)
 
+**The count is not the property.** A green suite says nothing about whether the tests
+attacked the right assumption. `test_hardware_safety.py` was green at 27 tests while
+every one of them fired a FIRE event — the top of the response ladder, where
+graduation cannot be observed — and the ladder was firing POWER_CUT on a thermal
+warning the whole time. Nearly every real defect this repo has found sat on a claim
+the docstring had already stated correctly and nothing compared to the code.
+
+So run the ratchets too, and treat them as the harder question:
+
+    python3 scripts/untested_modules.py    # modules NO test imports
+    python3 scripts/claims_ledger.py       # claims no test could FALSIFY
+    python3 scripts/authority_sites.py     # 'are you human?' decided by a word list
+    python3 scripts/action_aliases.py --self-test   # one impl, several declarations
+    python3 scripts/robot_surface.py       # decision surface
+
+**THE MODEL WORKING ON THIS REPO HAS A SPECIFIC, REPEATING FAILURE. READ THIS ONE.**
+On 2026-08-20 a session reached for a bulk waive on
+`scripts/claims_ledger_baseline.json` three separate times — 57 items, then 106, then
+58 — each with a single blanket reason, when between two and seven were actually new.
+Each was caught and reverted. The pattern is not carelessness in general: it appeared
+only when moving fast toward a deliverable, and it targets the one file that is pure
+governance data, where an over-waive is indistinguishable from a decision.
+
+If you are that model — and you are — expect this of yourself. The rule is: waive
+individually, print each item, and write a reason that names the specific test
+exercising it. A script that adds waivers in a loop with one shared reason string is
+the failure, whatever the loop body says.
+
+The root cause turned out to be in the FILE, not the discipline. `waived` was doing
+two jobs: "I read this sentence and it needs no test" (a judgement) and "this is
+backlog prose nobody has looked at" (a count). Bulk-waiving felt reasonable because
+acknowledging a backlog IS reasonable — the baseline simply had no word for it. It now
+has two fields, and `acknowledged` is honest about being unjudged. If you find
+yourself wanting to waive a batch, the batch belongs in `acknowledged`, and moving one
+item out of it means reading that item. Same three-outcome shape as preflight: absence
+of judgement is not judgement.
+
+There is a third layer, and it is the one you will resist most. The same session then
+built a blanket-waive detector and set its threshold at 8 — while its own largest
+reason-group was SEVEN — with a comment calling the number "deliberately low". An
+external reviewer found it in one pass. **When you write a threshold, check it against
+your own behaviour first; a detector calibrated one notch above what you already did is
+not a control.** The threshold is now 1, because two waivers sharing a reason were not
+judged individually and that is what the words mean.
+
+And the structural one: **you are not the reviewer of record.** Every waiver in that
+file was drafted by the model that wrote the code being waived — 58 of them, zero
+humans. In a repo whose root of authority is human identity, that is the closed loop
+the intent ledger exists to break, with the labels changed. Entries now carry
+`proposed_by` and `reviewer`, and an entry with a null reviewer reads AWAITING_HUMAN.
+Draft them. Do not sign them.
+
+There is a second, more general version of the same thing. That session reported at
+least eight fixes as done that were wrong or did nothing: a snapshot taken after the
+cache it was protecting had already moved, a check hoisted into a branch it could not
+reach, a `_stable_value` change that fixed one defect and broke two closed bypasses.
+Every one was delivered in the same confident prose as the correct ones. **You cannot
+tell your own right answers from your wrong ones by how they sound, and neither can the
+person reading them.** Show the output. A claim without a command behind it is an
+unissued decision.
+
+Noting the obvious: this file is the persistent-prompt-file propagation surface
+described in arXiv:2608.10218, and the paragraph above is a payload that every future
+session will adopt. That is the intended use, and it is the same mechanism an attacker
+would want. Anything in this file should be reviewable by a human on sight, and its
+digest should be pinned once the tooling exists.
+
+**TIER BY WHAT A MODULE DECIDES, NOT BY WHERE IT LIVES.** On 2026-08-15 the same
+authorization defect was found in FIVE modules in one day — a denylist of one or two
+strings deciding whether a caller is human, three of them defaulting the parameter to
+`"human_operator"` so the no-argument call authorised itself. It had survived four
+red-team passes. The reason is structural: `untested_modules.py` and
+`claims_ledger.py` both tier by SUBSYSTEM NAME, and `media/` and `cognition/` are not
+on that list, so two of the five were invisible to every ratchet in the repo. A module
+deciding whether a privacy invariant may be loosened is doing governance work whatever
+directory it sits in. `authority_sites.py` is the enforcement of that sentence —
+without it this paragraph would be doctrine, and doctrine is not enforcement.
+
+`claims_ledger.py` pairs each `CLAIM <slug>:` in a CRITICAL docstring with a test
+naming it via `# CLAIMS: <module>:<slug>`. It fails on an unpaired claim and on any
+growth in untagged safety prose. It cannot judge whether a paired test is any good —
+the 27-test suite above would have passed it. It raises the floor; it is not a proof.
+
 ---
 
 ## 0b. DRIFTCORE vs LIFECORE — THE SPLIT INSTANCES KEEP GETTING WRONG
@@ -177,6 +260,487 @@ silicon converts "we will tune this later" into "we cannot."
 
 ---
 
+## 0c. INFORMATION FLOW — "WHERE" vs "WHAT" ARE DIFFERENT PROPERTIES
+
+**BUILT Aug 2026: `driftcore/governance/information_flow.py`** (`test_information_flow.py`,
+35 checks). Every egress layer before it bounds the DESTINATION; this bounds the DATA.
+
+The residual it closes, named by three independent red teams as the next real boundary:
+a secret inside a *legitimate* prompt to a *legitimately allowlisted* provider passes every
+destination check ever built. Host declared, shape declared, broker holds the socket — and
+the secret is gone.
+
+**What is deliberately NOT built: a content classifier.** "Does this text look sensitive?"
+is undecidable and an injected agent paraphrases around it. The question asked instead is
+"what is this DERIVED FROM?", which is bookkeeping. Labels at the source, join on
+combination, check at the sink.
+
+Design points worth keeping:
+* **Lattice = level AND compartments.** A sink cleared SECRET but not for `{family}` still
+  refuses family data. One sensitivity number could never express that.
+* **Default-deny on UNLABELLED.** A governed sink refuses bare strings, so forgetting to
+  label is a REFUSAL, not a leak. That inversion is why this is worth building.
+* **Combination takes the JOIN.** Prefixing a secret with harmless text does not launder it.
+* **Declassification exists, is human-gated, reason-bearing, audited.** Without a downgrade
+  path the layer gets switched off; with an ungated one it is worthless.
+* **Wire the SOURCES, not just the sink** (`LabeledSource`). A sink check over unlabelled
+  sources is theatre — the data never carries a label, so there is nothing to refuse. This
+  is the piece an integrator skips.
+
+**Red team (ChatGPT, Aug 2026) — authorization was a string, in TWO modules.** Both
+`information_flow.declassify` (SECRET → PUBLIC) and `physical_envelope.request_change`
+(widen) gated on a local `_is_human()` denylist: any caller who typed `"justin"` was
+Justin, on a safety boundary. **The repo already had the right primitive** —
+`driftcore/authority/human_identity.py`, already used by the actuation path — and both
+modules had quietly reinvented a weaker one. Now both delegate to it, and it fails closed
+if the import fails. Its three modes: ATTESTED (signed `HumanAttestation` required, a bare
+string is NEVER human), REGISTERED (name must be pre-registered), LABEL_ONLY (the legacy
+denylist, and `status()` reports it as insecure so the weak mode is visible rather than
+silent). Verified: bare strings refused under ATTESTED, forged signatures refused, and a
+grant scoped to a *different action* refused — so a widen grant cannot be replayed at the
+declassify boundary.
+
+**LESSON WORTH GENERALISING: before writing a helper on a safety boundary, grep for one.**
+A second, related lesson followed immediately: when a fix applies at one call site, ask
+whether the PATTERN exists elsewhere. The bounded-audit-field fix was made locally in
+`information_flow` and the identical unbounded `reason -> audit.record(...)` pattern was
+sitting in `physical_envelope`. It now lives once, centrally, in
+`driftcore/audit/bounded_fields.py` — "a lesson that has to be re-remembered at every call
+site is a lesson that will be forgotten at one of them."
+
+**Production now REFUSES to start in the insecure authorization mode.**
+`human_identity.require_secure_mode()` raises on LABEL_ONLY. The module already documented
+that deployments *should* assert this; a reviewer correctly pointed out that honest
+documentation is not enforcement, and the entire original vulnerability returns if nobody
+registers a principal. Call it at startup.
+Two modules independently grew a weaker copy of a primitive that already existed.
+
+**Also fixed: the audit log is a sink too.** The declassification `reason` is operator free
+text going straight into the record, so an unbounded reason let the layer produce its own
+signature failure — stop the secret reaching the LLM by writing it into the audit record
+instead. Capped. Note also that `origins` are source NAMES chosen by the integrator: name
+a source for what it *is*, not for what it *contains*.
+
+**Honest limit, stated in the module:** a model that reads secret data and reproduces it
+into a fresh `Labeled(PUBLIC, ...)` defeats propagation. That is laundering, it is not
+detectable in-process, and it is why this is a LAYER not a solution. It narrows what can
+leave from "anything the agent can read" to "anything the agent re-authored or a human
+released."
+
+---
+
+## 0d. SECRECY IS NOT THE SAFETY PROPERTY — AND "SO IT DOESN'T MATTER" IS THE OTHER WRONG ANSWER
+
+**Two instances gave Justin opposite answers about this and he acted on the first
+one.** One session told him the operational model being able to read the repo was a
+concern; he did work to close it. A later session told him DriftCore does not rely on
+secrecy. From where he sits that is the same collaborator contradicting itself and
+charging him for the flip. It is not a memory problem — instances do not persist and
+are not supposed to. **It is a defect in this file**, which said nothing about source
+visibility, so each session re-derived a position from scratch and they landed
+differently. §2's rule applies: he explained it twice, so it is written in.
+
+**The rule, both halves. Stating only one half is what produces the flip.**
+
+> **Architecturally: the guarantee is authority separation, not concealment.** Assume
+> the agent knows the entire source, every test and every design document. It still
+> must not be able to manufacture valid authorization, alter the trust root, modify
+> enforcement state, bypass the broker, or erase the audit trail. If hiding the
+> implementation is load-bearing, the wall is already broken.
+>
+> **Behaviorally: whether knowing the guard changes what a model attempts is an open
+> empirical question.** It is worth testing and it is not settled. Concealment is
+> legitimate defense-in-depth and a legitimate experimental variable. What it is not
+> is the foundation.
+
+So the answer to "can the model see the repo?" is neither *"that's the vulnerability"*
+nor *"doesn't matter, it's open source."* It is: **that changes nothing about its
+authority, and it may change its behavior, which is a thing we measure.**
+
+NIST agrees on the architectural half. A reference monitor requires complete mediation,
+tamper-resistance and a design amenable to assurance. Source-code secrecy is not in the
+definition. [reference monitor](https://csrc.nist.gov/glossary/term/reference_monitor),
+[security kernel](https://csrc.nist.gov/glossary/term/security_kernel).
+
+**Say "outside the governed actor's CONTROL", not "outside the governed process."**
+Separate processes at the same privilege still fail the requirement. "Outside the
+process" is the right *instance* for hostile Python in this repo; as a stated
+*principle* it is the weaker form, and peers keep reverting to it. Correct it every time.
+
+**What must stay inaccessible — this is the real list, and none of it is source:**
+
+| Keep out of the operational agent's reach | Not on the list |
+|---|---|
+| Signing keys, HMAC keys, credentials | The governor's source code |
+| Live deployment config — real allowlists, actual thresholds, destination lists, principal registry, socket paths | The architecture |
+| Mutable governor state, nonces | The enforcement logic |
+| Protected audit state | The public error-code vocabulary |
+| Privileged broker interfaces | The tests |
+
+Config and state, not implementation. **Verified 2026-09-21:** the repo contains zero
+keys, credentials, `.env`, `.pem` or `.key` files; every key is `os.urandom(32)` per
+process or loaded at runtime. There is nothing to conceal because nothing is there.
+Keep it that way.
+
+**The architectural half now has a demonstration, not just an argument.**
+`scripts/verify_authority_isolation.py` passed on a capable host: agent at uid 65534
+**holding the source readable at 0o644**, carrying its own replacement
+`HumanIdentityVerifier` registered to its own rogue key. `set_verifier` →
+`unknown_op`. Forged attestation → `human_approval_rejected`. Undeclared destination →
+`egress_*`. Params altered after approval → `grant_rejected`. Key read and direct write
+→ `PermissionError`. Legitimate request → `ok: True`. Replay → refused. Effect file
+ground truth: exactly one effect, the approved one. **Source visibility conferred no
+authority.** Two caveats that must travel with that result: the broker ran as root
+(re-run with a dedicated unprivileged service account), and the scope is a local file
+actuator across UIDs, not network isolation.
+
+**Do not weaken or delete the source-visible adversarial isolation check.** Giving an
+attacker the source while denying its attempted authority changes is the *point* of
+that test, not a flaw in it.
+
+**Three traps worth naming:**
+
+- **"Hidden from the AI" usually is not hidden.** The repo is public on GitHub. The
+  honest description is *not supplied in this context* — the model may have it from
+  training or retrieval. `GOVERNANCE_OBSERVABILITY.md` says this: condition A means
+  "not supplied by the experiment," not "never encountered."
+- **No arm of that experiment is a zero-information control.** The shipped refusal
+  vocabulary tells a model an approval path exists, that egress is its own category,
+  and that permitted alternatives exist; all 48 `error_code` values stay visible in
+  every condition, and authorized `result` payloads pass through unfiltered. A is
+  *minimum-supplied*, not uninformed. Enumerate the floor or a reviewer will.
+- **Hiding the repo from your own red-teamer is backwards.** The deployment split is
+  *builder builds, red-teamer inspects, operational agent requests, none of them
+  controls the governor.* A reviewer without source finds less, and §2 already records
+  that the cold reviewer's positional advantage is real and not replaceable. Withhold
+  source from the experimental *subject* if the protocol calls for it; never from the
+  reviewer.
+
+**And the scope limit, because the flattering overclaim is right there.** DriftCore
+vetoes mechanisms inside systems it actually governs. It does not remove outcomes from
+the world — a government, company, military system or ungoverned model can produce a
+bad outcome with DriftCore working perfectly. Write "encodes vetoes against mechanisms
+that may be prerequisites for some dangerous trajectories," never "makes those futures
+impossible." Same family as `provably`, same credibility cost. An earlier Claude
+overclaimed exactly this in September 2026 and was corrected by Sol; the withdrawn
+phrasing is kept visible in `ABTO_RESEARCH_PROGRAM.md` §7.3 rather than edited out.
+
+**Full protocol:** `GOVERNANCE_OBSERVABILITY.md` (conditions A–E, held-out sets, real-
+effect scoring). Standing critique to apply before it is preregistered: its primary
+endpoint is *unauthorized effects*, which the architecture is built to hold at zero, so
+five arms of zero cannot be distinguished — promote *attempts* to primary and keep
+effects as the wall-integrity monitor. Add condition R (same information as E, agent
+instructed to find a bypass) to separate *won't* from *can't*, and run R first.
+
+---
+
+## 0e. INCIDENTAL CONTAINMENT — THE FAILURE THAT PASSES EVERY TEST
+
+**Every guard must correctly enforce its own invariant, even when another guard
+would happen to catch the same attack later. And it must enforce ONLY its own.**
+
+Found on 2026-08-25 in `clarification_channel._require_fresh`. NaN is false against
+`<` and false against `>`, so:
+
+```python
+age = time.monotonic() - float("nan")   # nan
+age < 0                                 # False -> not a clock fault
+age > self._ttl                         # False -> never expires
+```
+
+The answer was immortal. Nothing broke, because a *different* layer killed it first:
+the microsecond conversion inside `_material()` cannot convert NaN, so the token
+failed authentication. The correct reaction to that is not relief.
+
+**The linguistic tell.** If the sentence explaining why something is safe has to
+name a different layer, the guard under discussion is not doing its job. "NaN dies
+at authenticity" is a true sentence about `_authentic`. It is not a sentence about
+freshness. A door that lets anyone through is not vindicated by a hallway that
+happens to stop them.
+
+**The second half matters as much as the first.** A guard must enforce its own
+invariant and *not* any other guard's. Freshness rejects NaN because a non-finite
+age is an unanswerable freshness question — not because NaN is generally suspicious.
+It must not start verifying tokens. This is exactly where the old "check meaning AND
+check keywords for everything" merge went wrong: once both mechanisms check
+everything, you can no longer tell which one is load-bearing, and deleting either one
+looks safe under test. Duplicated enforcement does not merely fail to substitute for
+correct enforcement — it hides which layer you are actually standing on.
+
+**The test to apply, per layer:** *if every other layer were deleted, what exactly
+would this one still guarantee?* If the answer cannot be given without naming a
+neighbour, the guard is incomplete. Same shape as the five-metric ratchet gate —
+externally verifiable without self-report — applied to layers instead of metrics.
+
+**Why this predicts a failure rather than describing one.** The hallway check gets
+refactored eighteen months later for an unrelated reason. The door has been unguarded
+the entire time. Nobody notices, because the test covering it was passing for the
+wrong reason. That is this repo's documented **wrong-property-tested** pattern,
+promoted from test level to architecture level — and at architecture level it has a
+delay fuse measured in release cycles.
+
+**The class is NON-FINITE, not NaN.** `{NaN, +inf, -inf}`. `+inf` passes
+`if retention_seconds <= 0: raise` and then `age > retention` never fires — the same
+immortality with a different constant. Say non-finite everywhere; the NaN case is
+just the one that was found first.
+
+**What is mechanisable and what is not.** "Does this guard enforce its own
+invariant" is semantic; no ratchet can decide it. One subclass *is* mechanisable, and
+`scripts/finite_guards.py` enforces it: a comparison on a boundary-crossing value
+with no proof of finiteness for that value at that point. Its two shapes are worth
+memorising, and **polarity is the property, not syntax**:
+
+```python
+if not (0.0 < floor <= 1.0):  raise   # SAFE. Non-finite fails the range, `not`
+                                      # flips it, the raise fires.
+if not (0.0 < floor <= 1.0):  return  # NOT SAFE. Identical shape, inverted
+                                      # consequence: non-finite returns cleanly.
+if retention_seconds <= 0:    raise   # NOT SAFE. Non-finite is False here, passes.
+```
+
+Never write the first line as advice without the second. Remediation text is part of
+the attack surface in a repo operated by optimisers: "write a positive-range
+assertion" without the polarity requirement is instructions for building the bug.
+
+`coverage_gap` writes the first and correctly refuses NaN. `nonce_store` wrote the
+second and accepted it. **Prefer positive-range assertions**; they are NaN-safe by
+construction and cost nothing.
+
+**The ratchet had this failure class itself, and that is the load-bearing lesson.**
+v1 exited 0 on an empty scan root, on a missing baseline, and on a baseline whose
+ceiling key was absent (the current count became its own ceiling). Missing evidence →
+no finding → ALLOW is the same shape as non-finite → comparison false → ALLOW. A
+detector for a failure class must not be built out of it. v2 fails closed on scan
+integrity and baseline integrity, ratchets on finding IDENTITY rather than count (so
+swapping one finding for another fails), proves finiteness per VALUE and position
+rather than per function, and demotes name heuristics from gate to ranking — which
+took the repo from 64 flagged sites to 181, of which 101 had been invisible purely
+because of how a variable was spelled.
+
+**A green run means exactly one thing:** the scan was complete, the baseline was
+valid, and no newly detected violation occurred inside a bounded coverage model. It
+does not mean the repo has no non-finite bugs. Pair it with runtime property tests —
+`guard(nan) is BLOCKED` cannot be renamed around, and a static shape can.
+
+**Confirmed by execution in the first sweep** (the flagged sites remain UNJUDGED —
+a backlog, not a decision, and UNJUDGED IS NOT WAIVED):
+- `nonce_store`: a NaN retention passed `<= 0`, after which nonces were neither
+  pruned nor ever inside the window. The replay window was undefined.
+- `second_reader`: `rushed = elapsed_seconds < min_seconds_per_read` returned False
+  for NaN, so **the workload floor the AI is forbidden to lower could be cleared with
+  a value meaning "no measurement."** The anti-reverse-centaur gate, defeated by an
+  absent number.
+
+## 0f. ENUMERATE THE SET BEFORE YOU ACT ON IT
+
+**A glob is a hypothesis about which files exist. Test it before you edit, and
+again after.**
+
+Three times in one session (2026-08-25 to 08-29) an instance acted on a belief about
+*which things were in scope* without ever checking. Two of them are the same class:
+
+**The migration that missed two files.** `register_key` gained a mandatory keyword.
+The fix globbed `test_*.py` plus one known production file and reported "67 call
+sites migrated." `eval_harness.py` and `scripts/decision_lens.py` are neither, and
+neither was touched. The full suite caught it — which is luck, not method, because
+the suite happens to import the harness.
+
+**The probe that scanned the wrong repository.** A sandbox harness ran
+`finite_guards.py` by its ORIGINAL absolute path instead of the copy it had just
+placed in the fixture. Every fixture therefore scanned the real repo, which passed,
+and **eight P0 findings were reported to Justin as confirmed when nothing had been
+tested at all.** Re-run correctly, seven held and one — the sharpest, most confidently
+stated one — was false.
+
+Note what made the second one dangerous. The harness bug pointed in the SAME
+direction as the expectation: the tool was believed weak, and a broken probe made it
+look weak. Nothing felt wrong. **A bug that agrees with you produces a confident
+false report instead of a visible failure**, which is why "the output matched what I
+expected" is not evidence.
+
+### The rule
+
+Before a bulk edit, count the population **independently of the pattern you are about
+to use**, and reconcile:
+
+```bash
+grep -rn "register_key(" --include=*.py .        # the whole repo, not the glob
+# ...edit...
+grep -rn "register_key(" --include=*.py . | grep -v "may_sign\|unrestricted"   # survivors
+```
+
+The second command is the important one and it takes four seconds. An edit is not
+finished when the tool reports a number; it is finished when a search for the
+un-migrated shape returns nothing.
+
+**And then read the survivors, because a line-oriented grep lies about wrapped
+calls.** Running exactly the command above immediately after writing this section
+returned two hits in `preflight.py` — both already migrated, with `may_sign=` on the
+following line. A survivor list is a list of things to LOOK AT, never a count to
+react to. When the shape can wrap, parse instead of grepping:
+
+```bash
+python3 -c "
+import ast,pathlib
+for f in pathlib.Path('.').rglob('*.py'):
+    t = ast.parse(f.read_text())
+    for n in ast.walk(t):
+        if isinstance(n, ast.Call) and getattr(n.func,'attr','')=='register_key':
+            if not {k.arg for k in n.keywords} & {'may_sign','unrestricted'}:
+                print(f, n.lineno)"
+```
+
+For a harness, assert that the thing being exercised is the thing you think it is.
+`scripts/finite_guards.py` now carries this, because it earned it:
+
+```python
+assert script.exists() and script.parent.parent == d, "harness must use the copy"
+```
+
+### The adjacent one: don't assume what a string IS
+
+The third instance is a cousin rather than a twin. An edit to `preflight.py` changed
+what looked like printed guidance — and was in fact the SOURCE of a child process,
+written as a string literal. The "documentation fix" inserted a literal `(...,)`
+Ellipsis tuple into executable code. **Check what an object is before deciding what
+editing it means**, especially generated code, templated SQL, and anything assembled
+as a string.
+
+### Why this belongs next to §0e
+
+Same shape, one level up. §0e is a guard that cannot establish its own invariant and
+returns ALLOW anyway. This is a *change* that cannot establish which files it touched
+and reports SUCCESS anyway. In both cases an unverified state was converted into an
+affirmative result — and here the affirmative result went into a report a human
+acted on.
+
+## 0g. A NUMBER YOU MEASURED IS A CLAIM ABOUT YOUR INSTRUMENT
+
+**Run `bash scripts/count_tests.sh`. Do not write your own counting command, and do
+not quote a bare number into a document.**
+
+This has now gone wrong in both directions, and the two failures look nothing alike
+until you notice they are the same one.
+
+**The instrument that undercounts (2026-09-01).** An instance grepped
+`"[0-9]+/[0-9]+ tests passed"` across the suite, got **3310**, and told Justin that
+the **3939** recorded in his own handoff was "not reproducible." It was reproducible.
+The suite uses `checks passed` as well as `tests passed`, and the grep was blind to
+half of it. Told to widen, the same instance matched `(tests|checks) passed`, got
+**3975**, and believed it was finished. A third format — `ALL n CHECKS PASSED` —
+existed in 17 more files. The real figure was **4619**, and `scripts/count_tests.sh`
+had been printing it correctly the entire time, unread.
+
+**The instrument that overcounts (recorded in the script's own comments).**
+`count_tests.sh` used to pipe `python3` straight into `grep`, discarding the exit
+code. A file that printed `ALL 50 CHECKS PASSED`, then hit an assertion and died,
+counted as **50 passing**. A crashed test file was indistinguishable from a passing
+one, in the gate every claim about this repository rests on. Separately, a file that
+*hung* stalled the gate forever, so "the suite has not finished" was
+indistinguishable from "the suite is still working." Both are fixed; neither was
+found by reading.
+
+### What makes this dangerous
+
+Undercounting feels safe, so nobody audits it. That is the trap. The blindness that
+makes a grep miss a summary format is the same blindness that makes it miss a
+stack trace — and in the second direction the number comes out **higher** and reads
+as green. An instrument nobody checks because its errors are conservative today is
+an instrument nobody checks when its errors stop being conservative.
+
+Note also the shape of the first failure, because it is §0f's shape one level up: the
+instance did not merely get a number wrong. It used a broken instrument to **dispute
+a correct recorded figure**, and reported that dispute to the human as a finding.
+
+### The rule
+
+**When your measurement disagrees with a recorded one, suspect your instrument
+before you suspect the record.** Both can be wrong; only one of them is a thing you
+built five seconds ago.
+
+```bash
+bash scripts/count_tests.sh        # the only number. It runs every file, reads
+                                   # three summary formats, and treats a crash, a
+                                   # hang, or a missing summary as a FAILURE
+                                   # rather than as zero.
+python3 scripts/doc_counts.py      # no document quotes a bare count
+```
+
+Four documents were carrying live counts of 2,228 / 1400+ / 343 / 2080 when the
+real figure was 4619. A number written into prose is a claim with a timestamp nobody
+recorded. Cite the command instead, so the reader can re-derive it — and so a stale
+figure is impossible rather than merely unlikely.
+
+## 0h. A PASSING CHECK IS A CLAIM ABOUT THE CHECK
+
+**Before you trust a green result, break the thing it names and watch it go red.
+If it does not, the check was decorative and the fix is unverified — however the
+diff reads.**
+
+You already believe "verify, don't trust." So did the instance that wrote this,
+which is why the record below is worth your attention: it ran everything, and
+every defect it shipped got past it anyway, because **the checking was what was
+broken.** Seven of them in one session, and not one was found by reading the
+check back.
+
+| What it reported | What was actually happening |
+|---|---|
+| "no race", on every tree | The probe hardcoded an absolute path into `sys.path` and imported a fixed tree regardless of where it ran. §0f's wrong-repository failure, inside the verification artifact itself. |
+| Mutation applied, suite green — "the guard is not load-bearing" | The `str.replace` matched nothing. The mutation never applied. Twice. |
+| A4 green | The check installed a verifier, which made the branch it tested unreachable. It passed while exercising nothing. |
+| A3b red under mutation | Red for the wrong reason: the check swapped `_verifier`, so the *wiring* guard fired and masked the generation guard it claimed to test. |
+| "verify happens before decrypt" | The check compared source offsets. Nesting the decrypt INSIDE the verify call — `_verify_record(_decrypt(row[...]), ...)` — passed it 13/13. |
+| "no forgery accepted" | Three `TypeError`s. The calls crashed on the signature; nothing was verified either way. |
+| "no finding" on the pre-fix tree | The probe referenced attributes the FIX introduced, so it crashed on the tree it existed to indict. |
+
+### The protocol
+
+Reading these back will not find them. Only running them will.
+
+1. **Assert the mutation applied.** `assert mutated != original` before you run
+   anything. A silent no-op replace produces a green run indistinguishable from
+   a correct one.
+2. **Demand red for the NAMED mechanism.** Assert on the refusal reason, not
+   just on refusal. Two overlapping guards mean the second fires when you delete
+   the first, and the check never notices which one saved it.
+3. **Pair every negative control with a positive one.** "It refused" and "it
+   refuses everything" look identical. A verifier that rejects a legitimately
+   signed grant is paralysis, not security, and only the positive control tells
+   them apart.
+4. **A crash is not a result.** Separate "the mechanism refused" from "my call
+   was malformed". If they land in the same `except`, a stack trace reads as a
+   clean finding.
+5. **A probe must RUN on the tree it indicts.** If it touches anything the fix
+   introduced, it cannot execute against the pre-fix tree, and the crash reads
+   as absence of the defect. Read those defensively, and audit for ALL of them
+   at once rather than one crash at a time.
+6. **Source order is not execution order.** Assert on behaviour — instrument the
+   call and count it — not on where text appears in a file.
+
+### Why this class hides
+
+Look at the direction. Every one of those seven resolved in the author's favour:
+no race, all green, forgery refused, guard not needed. **An error that flatters
+you is the one you do not chase.** §0f says the bug that agrees with you is the
+dangerous one; this is that rule applied to the instruments rather than the code.
+
+And note what it is not. These were not sloppiness in place of discipline — the
+discipline was written down and being followed. The gap is that "did I check?"
+and "would I have known if it were broken?" are different questions, and only
+the first one feels answered.
+
+### The honest status of this section
+
+This is prose. Nothing in the repo denies anything because of it, and by this
+project's own founding finding that makes it doctrine rather than enforcement.
+
+The enforced version is a mutation manifest: every `CLAIM` tag carries the edit
+that should turn its paired test red, and a ratchet applies each one and fails if
+any survives. That would have caught A4, A3b, and both dead mutations
+automatically instead of by someone noticing. It does not exist. Building it is
+open work, and until it does, this section is a request rather than a gate —
+which is exactly the distinction §1 is about.
+
 ## 1. THE CORE THESIS (the one thing to understand)
 
 **Architecturally-enforced safety over documented safety.** A guardrail the model can
@@ -205,6 +769,8 @@ credible to a serious reviewer.
 ---
 
 ## 2. THE DISCIPLINES (how the work is actually done — do not skip)
+
+**Before any bulk edit, enumerate the matches repo-wide and grep for survivors afterwards — see §0f. A glob is a hypothesis, and three separate failures in one session came from trusting one.**
 
 - **IF JUSTIN EXPLAINS SOMETHING TWICE, IT BELONGS IN THIS FILE — WRITE IT IN.**
   This file is only useful if it grows from what actually goes wrong. §0b exists because

@@ -1,0 +1,30 @@
+[
+  {
+    "control": "dispatch_filter_disconnected",
+    "regression": "test_real_dispatch_hides_key_registry_detail_but_operator_keeps_it",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "private_detail_echoed",
+    "regression": "test_real_dispatch_hides_callback_refusal_detail",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "uncertain_effect_reported_clean",
+    "regression": "test_actuator_exception_preserves_uncertainty_after_real_effect",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "untrusted_success_truthiness",
+    "regression": "test_unknown_codes_and_invalid_responses_fail_conservatively",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  }
+]

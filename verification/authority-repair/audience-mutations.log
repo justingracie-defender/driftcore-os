@@ -1,0 +1,70 @@
+mutation                                           exit  result
+M1 label check at release off                         1  KILLED - 12 red
+M2 members dropped from fingerprint                   1  KILLED - 1 red
+M3 stale check off                                    1  KILLED - 4 red
+M4 history floor not applied                          1  KILLED - 3 red
+M5 unregistered members skipped                       1  KILLED - 3 red
+M6 wrong-room answer accepted                         1  KILLED - 1 red
+M6b unreadable at release voids the ticket            1  KILLED - 1 red
+M7 clean draft held at PUBLIC                         1  KILLED - 4 red
+M7b drafter may label itself                          1  KILLED - 1 red
+M8 context builder keeps everything                   1  KILLED - 4 red
+M9 brief not checked                                  1  KILLED - 1 red
+M9b bare candidates tolerated                         1  KILLED - 1 red
+M10 a ticket being sent can be reserved again         1  KILLED - 1 red
+M10b different bytes sent                             1  KILLED - 13 red
+M11 attestation checked against itself                1  KILLED - 3 red then CRASHED
+M12 floor breach not checked at hold                  1  KILLED - 3 red
+M13 no post-send roster check                         1  KILLED - 2 red
+M14 hold proceeds unrecorded                          1  KILLED - 3 red
+M14b release proceeds unrecorded                      1  KILLED - 2 red
+M15 audience fingerprint left out of records          1  KILLED - 1 red
+M15b unkeyed digest                                   1  KILLED - 2 red
+MA1 agent draft held at PUBLIC                        1  KILLED - 16 red
+MA2 observe does not raise the label                  1  KILLED - 5 red
+MA3 observe replaces instead of joining               1  KILLED - 3 red
+MA4 a label arriving with the words is used           1  KILLED - 1 red
+MA5 declaring nothing reads as PUBLIC                 1  KILLED - 1 red
+MA6 any object or another session's id accepted       1  KILLED - 1 red
+MB1 refusal record failure dropped                    1  KILLED - 1 red
+MB2 unreadable roster after send = unmoved            1  KILLED - 1 red
+MB3 post-send record failure dropped                  1  KILLED - 1 red
+N1 G1 callable accepted at draft time                 1  KILLED - 1 red
+N2 G1 drafter's own session not joined                1  KILLED - 3 red
+N3 G2 seal not checked                                1  KILLED - 3 red
+N26 G2 a public hold() re-added                       1  KILLED - 1 red
+N4 F01 no receipt accepted                            1  KILLED - 2 red
+N5 F02 staleness checked before the breach            1  KILLED - 2 red
+N6 F02 breach record without the two audiences        1  KILLED - 1 red
+N7 F03 non-text coerced to text                       1  KILLED - 2 red
+N9 L02 digest without the ticket                      1  KILLED - 1 red
+N10 F04 platform not pinned                           1  KILLED - 2 red
+N11 F05 spent tickets kept with their text            1  KILLED - 1 red
+N12 F05 no cap on held drafts                         1  KILLED - 1 red
+N13 F05 held drafts never expire                      1  KILLED - 2 red
+N14 F05 no size cap                                   1  KILLED - 1 red
+N15 G4 review offers a dead action                    1  KILLED - 1 red
+N16 L03 review hides the exposure facts               1  KILLED - 1 red
+N17 G5 floors above PUBLIC unverified                 1  KILLED - 3 red
+N18 G5 floor author not bound                         1  KILLED - 1 red
+N19 G5 floor attestation not bound to the floor       1  KILLED - 1 red
+N21 L07 discloser's clearance ignored                 1  KILLED - 2 red
+N22 L04 anything not False counts as sent             1  KILLED - 5 red
+N23 L06 async sender accepted                         1  KILLED - 1 red
+N24 L06 an awaitable counts as sent                   1  KILLED - 1 red
+N25 L01 epoch left out of the fingerprint             1  KILLED - 1 red
+  M11b attestation not required                       0  SURVIVES ALONE, as expected
+  N20 discloser list ignored                          1  SURVIVES ALONE, as expected
+  N21 discloser clearance ignored                     1  SURVIVES ALONE, as expected
+bare name: attestation + disclosers + clearance       1  KILLED (all parts together)
+  N8 ticket left out of the action                    0  SURVIVES ALONE, as expected
+  N9 digest without the ticket                        1  SURVIVES ALONE, as expected
+same text, two tickets: action + digest               1  KILLED (all parts together)
+  N13b the isfinite check removed                     0  SURVIVES ALONE, as expected
+  N13c the age test written in rejecting polarity     0  SURVIVES ALONE, as expected
+non-finite clock: isfinite + comparison polarity      1  KILLED (all parts together)
+  M3 stale check off                                  1  SURVIVES ALONE, as expected
+  M1 label check at release off                       1  SURVIVES ALONE, as expected
+replay C: stale + label                               1  KILLED (all parts together)
+
+ALL MUTATIONS AS EXPECTED

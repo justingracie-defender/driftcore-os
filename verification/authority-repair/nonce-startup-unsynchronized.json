@@ -1,0 +1,168 @@
+{
+  "incoming": [
+    {
+      "ready": 4,
+      "workers": 4,
+      "successful": 3,
+      "children": [
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "Traceback (most recent call last):\n  File \"/workspace/scratch/68864b741aa4/driftcore-sep13-review/incoming/driftcore-os/driftcore/verification/nonce_store_sqlite.py\", line 119, in __init__\n    self._db.execute(\"PRAGMA journal_mode=WAL\")     # concurrent readers+writer\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsqlite3.OperationalError: database is locked\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"<string>\", line 9, in <module>\n  File \"/workspace/scratch/68864b741aa4/driftcore-sep13-review/incoming/driftcore-os/driftcore/verification/nonce_store_sqlite.py\", line 133, in __init__\n    raise NonceStoreCorrupt(\ndriftcore.verification.nonce_store.NonceStoreCorrupt: could not open the nonce database at '/tmp/tmpfq11kxgc/nonces.db': database is locked. Refusing to treat unreadable replay state as 'never spent'."
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        }
+      ]
+    }
+  ],
+  "merged": [
+    {
+      "ready": 4,
+      "workers": 4,
+      "successful": 4,
+      "children": [
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "ready": 4,
+      "workers": 4,
+      "successful": 4,
+      "children": [
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "ready": 4,
+      "workers": 4,
+      "successful": 4,
+      "children": [
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "ready": 4,
+      "workers": 4,
+      "successful": 4,
+      "children": [
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "ready": 4,
+      "workers": 4,
+      "successful": 3,
+      "children": [
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "Traceback (most recent call last):\n  File \"/workspace/scratch/68864b741aa4/driftcore-sep13-review/verification/driftcore-os/driftcore/verification/nonce_store_sqlite.py\", line 119, in __init__\n    self._db.execute(\"PRAGMA journal_mode=WAL\")     # concurrent readers+writer\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsqlite3.OperationalError: database is locked\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"<string>\", line 9, in <module>\n  File \"/workspace/scratch/68864b741aa4/driftcore-sep13-review/verification/driftcore-os/driftcore/verification/nonce_store_sqlite.py\", line 133, in __init__\n    raise NonceStoreCorrupt(\ndriftcore.verification.nonce_store.NonceStoreCorrupt: could not open the nonce database at '/tmp/tmpr4zavfm6/nonces.db': database is locked. Refusing to treat unreadable replay state as 'never spent'."
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        },
+        {
+          "exit_code": 0,
+          "stdout": "DONE",
+          "stderr": ""
+        }
+      ]
+    }
+  ]
+}

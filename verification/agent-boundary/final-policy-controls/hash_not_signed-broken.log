@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_signature_binds_policy_independently_of_matching_check (test_policy_binding.PolicyBindingTests.test_signature_binds_policy_independently_of_matching_check)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/policy-control-pc203z5c/source/test_policy_binding.py", line 132, in test_signature_binds_policy_independently_of_matching_check
+    with self.assertRaises(InvalidSignature):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: InvalidSignature not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

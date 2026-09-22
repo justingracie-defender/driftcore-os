@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_install_requires_human_gate (test_artifact_channel.ArtifactChannelTests.test_install_requires_human_gate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/artifact-control-q3r9rmw7/source/test_artifact_channel.py", line 146, in test_install_requires_human_gate
+    with self.assertRaises(ArtifactRefused):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ArtifactRefused not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.010s
+
+FAILED (failures=1)

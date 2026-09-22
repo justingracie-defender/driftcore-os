@@ -38,7 +38,7 @@ def reset_enforcement():
     import driftcore.audit as _a
     _a._last_hash = None; _a._sequence = 0; _a._chain_compromised = False
     import os as _os
-    for _f in ["logs/audit_chain.jsonl","logs/CHAIN_SHUTDOWN_REASON.json","logs/flagged_attempts.jsonl"]:
+    for _f in [os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"CHAIN_SHUTDOWN_REASON.json"),os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"flagged_attempts.jsonl")]:
         try: _os.remove(_f)
         except: pass
     """Reset enforcement module state between tests."""
@@ -47,7 +47,7 @@ def reset_enforcement():
     enf._SESSION_KEY = None
     # Remove shutdown record if present
     try:
-        os.remove("logs/SHUTDOWN_REASON.json")
+        os.remove(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"))
     except Exception:
         pass
 
@@ -98,7 +98,7 @@ result = verify_tier1_store([item2])
 
 check("tamper detected on text change",      enf._SHUTDOWN_TRIGGERED == True)
 check("verify returns False on tamper",      result == False)
-check("shutdown reason file written",        os.path.exists("logs/SHUTDOWN_REASON.json"))
+check("shutdown reason file written",        os.path.exists(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json")))
 
 
 # ── TEST 3: Tamper detection — quarantine flag flipped ────────────

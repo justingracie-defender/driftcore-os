@@ -1,0 +1,5 @@
+dispatch_filter_disconnected: detected; restored test passed
+private_detail_echoed: detected; restored test passed
+uncertain_effect_reported_clean: detected; restored test passed
+untrusted_success_truthiness: detected; restored test passed
+4/4 mutation controls detected

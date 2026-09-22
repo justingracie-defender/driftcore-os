@@ -22,6 +22,19 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+# (2026-09-12) This file isolates each of its four sections with its own
+# os.chdir(d) — finer-grained than the per-FILE isolation DRIFTCORE_LOG_DIR gives
+# the other ten files that used to race on one shared relative "logs/". The two
+# do not compose: several driftcore modules (review, audit) resolve their log
+# paths ONCE, when first imported, into class or module attributes — a bare
+# relative "logs/..." naturally re-resolves against whatever cwd is active at
+# each later chdir, but an ABSOLUTE override from an outer caller (count_tests.sh)
+# does not move, and freezes every section onto ONE of the four workspaces
+# instead of each into its own. This file already isolates itself correctly the
+# older way, so it declines the newer, coarser one, before any driftcore module
+# is imported and any of those paths get frozen.
+os.environ.pop("DRIFTCORE_LOG_DIR", None)
+
 from driftcore.review import (
     AuditReviewer, ReviewConfig, AlertLevel,
     INJECTION_ACTIONS, BENIGN_USER_ACTIONS,

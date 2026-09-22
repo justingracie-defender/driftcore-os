@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_global_verifier_replacement_does_not_change_pinned_guard (test_authority_boundary.AuthorityBoundaryTests.test_global_verifier_replacement_does_not_change_pinned_guard)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-mxnm8amx/source/test_authority_boundary.py", line 115, in test_global_verifier_replacement_does_not_change_pinned_guard
+    self.assertFalse(guard.evaluate("send", Effect.DATA_EGRESS, forged).permitted)
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

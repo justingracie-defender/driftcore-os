@@ -1,0 +1,31 @@
+[
+  {
+    "check": "marshmallow",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "marshmallow/selftest.py"
+    ],
+    "exit": 0,
+    "tail": [
+      "  [PASS] M: the rendered report does not print the string 'level 7' for a run that never went past level 1",
+      "",
+      "N. Trailing unparsed content is an error, not a silent success",
+      "  [PASS] N: a valid object followed by garbage is an ERROR, not a clean parse",
+      "  [PASS] N: two FULLY valid concatenated objects are still clean (no regression)",
+      "",
+      "============================================================",
+      "43/43 checks passed"
+    ]
+  },
+  {
+    "check": "os-isolation",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "scripts/verify_authority_isolation.py"
+    ],
+    "exit": 77,
+    "tail": [
+      "{\"status\": \"ENVIRONMENT_UNAVAILABLE\", \"reason\": \"[Errno 22] Invalid argument: '/tmp/driftcore-uid-check-ykkn5679/channel'\"}"
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_transient_startup_lock_retries_and_preserves_single_use (test_nonce_store_startup.NonceStartupTests.test_transient_startup_lock_retries_and_preserves_single_use)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/nonce-startup-control-a1efkfdk/source/test_nonce_store_startup.py", line 57, in test_transient_startup_lock_retries_and_preserves_single_use
+    self.assertIsNone(error, f"transient lock must permit a successful retry: {error!r}")
+AssertionError: NonceStoreCorrupt("could not open the nonce database at '/tmp/tmpjgq4lyzx/nonces.db': injected startup error. Refusing to treat unreadable replay state as 'never spent'.") is not None : transient lock must permit a successful retry: NonceStoreCorrupt("could not open the nonce database at '/tmp/tmpjgq4lyzx/nonces.db': injected startup error. Refusing to treat unreadable replay state as 'never spent'.")
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

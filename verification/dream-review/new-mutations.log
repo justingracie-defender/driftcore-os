@@ -1,0 +1,6 @@
+append_cleanup_clock: detected; restoration passed
+sqlite_cleanup_clock: detected; restoration passed
+finite_clock: detected; restoration passed
+finite_window: detected; restoration passed
+checked_membership_sample: detected; restoration passed
+5/5 nonce-clock removal controls detected

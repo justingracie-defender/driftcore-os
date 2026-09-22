@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_real_dispatch_hides_callback_refusal_detail (test_agent_boundary.AgentBoundaryTests.test_real_dispatch_hides_callback_refusal_detail)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/agent-boundary-control-km3tv2bl/source/test_agent_boundary.py", line 159, in test_real_dispatch_hides_callback_refusal_detail
+    self.assertNotIn(CANARY, json.dumps(response))
+AssertionError: 'PRIVATE-CANARY-policy-key-path-threshold-84729' unexpectedly found in '{"ok": false, "error": "ledger_refused", "error_code": "LEDGER_REFUSED", "detail": "PRIVATE-CANARY-policy-key-path-threshold-84729", "effect_status": "NOT_STARTED", "retry_safe": false}'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

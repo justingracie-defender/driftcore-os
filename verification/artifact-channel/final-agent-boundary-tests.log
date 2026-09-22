@@ -1,0 +1,24 @@
+18/18 tests passed
+test_actuator_exception_preserves_uncertainty_after_real_effect (__main__.AgentBoundaryTests.test_actuator_exception_preserves_uncertainty_after_real_effect) ... ok
+test_after_effect_errors_are_not_clean_refusals (__main__.AgentBoundaryTests.test_after_effect_errors_are_not_clean_refusals) ... ok
+test_client_bad_inputs_fail_before_connecting (__main__.AgentBoundaryTests.test_client_bad_inputs_fail_before_connecting) ... ok
+test_client_refusal_retains_uncertain_outcome (__main__.AgentBoundaryTests.test_client_refusal_retains_uncertain_outcome) ... ok
+test_client_rejects_bad_replies_and_never_retries (__main__.AgentBoundaryTests.test_client_rejects_bad_replies_and_never_retries) ... ok
+test_client_round_trip_uses_real_broker_dispatch (__main__.AgentBoundaryTests.test_client_round_trip_uses_real_broker_dispatch) ... ok
+test_client_runs_without_broker_package_in_isolated_interpreter (__main__.AgentBoundaryTests.test_client_runs_without_broker_package_in_isolated_interpreter) ... ok
+test_client_sends_opaque_approvals_and_preserves_completion (__main__.AgentBoundaryTests.test_client_sends_opaque_approvals_and_preserves_completion) ... ok
+test_client_timeout_is_unknown_and_does_not_resend (__main__.AgentBoundaryTests.test_client_timeout_is_unknown_and_does_not_resend) ... ok
+test_debug_flags_cannot_select_operator_diagnostics (__main__.AgentBoundaryTests.test_debug_flags_cannot_select_operator_diagnostics) ... ok
+test_legitimate_dispatch_and_replay_still_distinguish_effects (__main__.AgentBoundaryTests.test_legitimate_dispatch_and_replay_still_distinguish_effects) ... ok
+test_peer_rejection_and_parse_failure_use_public_contract (__main__.AgentBoundaryTests.test_peer_rejection_and_parse_failure_use_public_contract) ... ok
+test_projection_discards_secret_values_and_extra_fields (__main__.AgentBoundaryTests.test_projection_discards_secret_values_and_extra_fields) ... ok
+test_real_dispatch_hides_callback_refusal_detail (__main__.AgentBoundaryTests.test_real_dispatch_hides_callback_refusal_detail) ... ok
+test_real_dispatch_hides_key_registry_detail_but_operator_keeps_it (__main__.AgentBoundaryTests.test_real_dispatch_hides_key_registry_detail_but_operator_keeps_it) ... ok
+test_success_is_not_a_secret_scanner_or_false_effect_confirmation (__main__.AgentBoundaryTests.test_success_is_not_a_secret_scanner_or_false_effect_confirmation) ... ok
+test_unhandled_exception_has_public_response_and_private_audit (__main__.AgentBoundaryTests.test_unhandled_exception_has_public_response_and_private_audit) ... ok
+test_unknown_codes_and_invalid_responses_fail_conservatively (__main__.AgentBoundaryTests.test_unknown_codes_and_invalid_responses_fail_conservatively) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.028s
+
+OK

@@ -45,6 +45,23 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 
 
+# ── log directory resolution ──────────────────────────────────────────────
+# Ten test files write logs/SHUTDOWN_REASON.json and logs/CHAIN_SHUTDOWN_REASON.json
+# at a fixed RELATIVE path. Run in parallel, one file's cleanup races another
+# file's write and the loser reports a failure that passes when run alone.
+# "Passes when run alone" is not a green suite, so the path is resolvable per
+# process: set DRIFTCORE_LOG_DIR and each runner gets its own.
+def _log_dir() -> str:
+    import os
+    return os.environ.get("DRIFTCORE_LOG_DIR", "logs")
+
+
+def _log_path(name: str) -> str:
+    import os
+    return os.path.join(_log_dir(), name)
+
+
+
 # ── Feedback entry ────────────────────────────────────────────────
 
 @dataclass
@@ -231,8 +248,8 @@ class FeedbackLoop:
         fb.run_analysis()   # call periodically
     """
 
-    FEEDBACK_PATH  = "logs/feedback_entries.jsonl"
-    PATTERNS_PATH  = "logs/feedback_patterns.json"
+    FEEDBACK_PATH  = _log_path("feedback_entries.jsonl")
+    PATTERNS_PATH  = _log_path("feedback_patterns.json")
 
     # How many similar reports before flagging to admin
     PATTERN_THRESHOLD = 3
@@ -413,7 +430,7 @@ class FeedbackLoop:
 
     def _save_entry(self, entry: FeedbackEntry):
         try:
-            os.makedirs("logs", exist_ok=True)
+            os.makedirs(_log_dir(), exist_ok=True)
             with open(self.FEEDBACK_PATH, "a") as f:
                 f.write(json.dumps({
                     "entry_id":       entry.entry_id,
@@ -431,7 +448,7 @@ class FeedbackLoop:
 
     def _save_patterns(self):
         try:
-            os.makedirs("logs", exist_ok=True)
+            os.makedirs(_log_dir(), exist_ok=True)
             data = []
             for p in self._patterns:
                 data.append({

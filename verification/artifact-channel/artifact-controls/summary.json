@@ -1,0 +1,44 @@
+[
+  {
+    "control": "read_scope_promoted_to_publish",
+    "test": "test_read_scope_cannot_publish",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "human_gate_requirement_removed",
+    "test": "test_install_requires_human_gate",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "packet_hash_check_removed",
+    "test": "test_even_signed_wrong_packet_hash_does_not_write",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "exposure_history_disconnected",
+    "test": "test_three_agent_derivative_chain_keeps_original_roots",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "retrieval_promotes_claim_status",
+    "test": "test_body_claiming_approval_never_becomes_authority",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  },
+  {
+    "control": "write_ahead_reservation_removed",
+    "test": "test_uncertain_send_remains_blocked_after_restart",
+    "healthy_exit": 0,
+    "removed_exit": 1,
+    "restored_exit": 0
+  }
+]

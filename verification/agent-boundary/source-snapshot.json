@@ -1,0 +1,15 @@
+{
+  "archive": "tested-source.zip",
+  "sha256": "31d2101d85ac056ceb154dd1be61f2143fd8ef250d75f4974aa361f182b98a12",
+  "previous_archive_sha256": "a5fd37b38dc366094578e039244356547639586dfdc050d5481c3dd994586bd3",
+  "changed_files": [
+    "driftcore/verification/agent_responses.py",
+    "driftcore/verification/mediated_actuation.py",
+    "agent/driftcore_client.py",
+    "test_agent_boundary.py",
+    "scripts/check_agent_boundary_controls.py",
+    "agent/README.md",
+    "GOVERNANCE_OBSERVABILITY.md"
+  ],
+  "files": 674
+}

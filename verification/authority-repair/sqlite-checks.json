@@ -1,0 +1,26 @@
+[
+  {
+    "name": "sqlite-startup",
+    "command": [
+      "python3",
+      "test_nonce_store_startup.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "merged-finite-guards",
+    "command": [
+      "python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "merged-claims-ledger",
+    "command": [
+      "python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit_code": 1
+  }
+]

@@ -1,0 +1,62 @@
+
+  CLAIMS LEDGER — stated safety properties vs tests that could break them
+  --------------------------------------------------------------------
+  tagged claims:      132
+  paired with a test: 120
+  UNPAIRED:           12
+  untagged claims in CRITICAL docstrings: 1561  (ceiling 1407)
+  waived, HUMAN-SIGNED: 0
+  waived, awaiting a human: 2
+  acknowledged, UNJUDGED: 170   <- a backlog, not a decision
+
+  FAIL - tagged claims that no test names:
+    driftcore/governance/audience_release.py:held-label-is-current-at-commit  (<module>)
+        the label a ticket carries is re-checked against its session at the moment the ticket is written
+    driftcore/governance/audience_release.py:label-identity-is-injective  (<module>)
+        anything signed over or compared as a label uses label_token(), because str(Label) joins compart
+    driftcore/governance/audience_release.py:the-audit-must-actually-write  (<module>)
+        an audit whose record() is async is refused when the gate is built, and a receipt that turns out
+    driftcore/governance/audience_release.py:the-drafter-has-seen-what-it-was-shown  (<module>)
+        every brief and item the gate hands a drafter is recorded against that drafter's session before 
+    driftcore/governance/audience_release.py:the-reviewer-sees-which-label  (<module>)
+        review() carries an id and a structured level-and-compartments form for the draft's label, the r
+    driftcore/governance/audience_release.py:the-seal-names-the-label-it-sealed  (<module>)
+        the context seal covers label_token() for the brief and every item, so replacing a label with an
+    driftcore/governance/audience_release.py:the-wall-owns-the-session  (<module>)
+        open_session() keeps the session and hands back an unguessable handle. No object the caller buil
+    driftcore/governance/restart_authority.py:expiry-refuses-non-finite  (expired)
+        a TTL that is NaN or infinite makes the approval expired, never eternal.
+    driftcore/safety/required_knowledge.py:prerequisites-only-accumulate  (prerequisites_for)
+        the result is the UNION of what the declared effects require, what the domain requires, and anyt
+    driftcore/verification/authorization_ttl.py:lease-expires-on-non-finite-ttl  (expired)
+        a NaN or infinite lease lifetime reads as EXPIRED, never as eternal.
+    driftcore/verification/coordinator.py:permission-is-not-safety  (_required_knowledge_check)
+        being allowed to act is a different question from having the information the act requires, and a
+    driftcore/verification/governed_actuator.py:mint-refuses-non-finite-ttl  (mint)
+        a NaN or infinite lifetime is refused at issue, never minted as a grant that cannot time out.
+    A claim in a docstring is a specification. Unpaired, it is a
+    specification nothing checks — which is how a module ends up
+    green while contradicting its own first paragraph.
+
+  FAIL - untagged claims rose from 1407 to 1561.
+    New safety prose was written that no test names. Either tag and
+    pair it, or waive it with a reason. The ceiling only moves down.
+
+  FAIL - the ceiling rose from 1309 to 1407 with no signed authorisation.
+    Raising it increases the unjudged surface the system will
+    tolerate. That is an authority-expanding operation and needs
+    a `ceiling_raise` attestation from a registered human — the
+    reason does not matter, the direction does.
+    NOTE: signature verification is currently fail-closed. See
+    _signed_by_human — a stored attestation cannot yet be checked
+    without consuming it, so no raise can be authorised at all.
+
+  2 waiver(s) AWAITING HUMAN. Drafted by the model that
+  wrote the code being waived; no human has signed them. They suppress
+  the untagged count and they do not claim to have been judged.
+    driftcore/kernel/state_machine.py  (proposed_by claude (cold pass))
+    driftcore/safety/amplification_guard.py  (proposed_by claude (latch))
+
+  reviewer of record: 2 human, 0 self-reviewed by the model
+
+  RESULT: FAIL

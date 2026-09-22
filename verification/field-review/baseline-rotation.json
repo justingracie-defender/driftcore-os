@@ -1,0 +1,9 @@
+{
+  "policy_binding_supported": false,
+  "actual_effects": 1,
+  "result": {
+    "ok": true,
+    "result": null,
+    "execution_confirmed": null
+  }
+}

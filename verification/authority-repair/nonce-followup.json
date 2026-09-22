@@ -1,0 +1,40 @@
+[
+  {
+    "name": "incoming-receipts",
+    "exit_code": 0,
+    "failures": [],
+    "tail": [
+      "------------------------------------------------------------",
+      "  24/24 tests passed"
+    ]
+  },
+  {
+    "name": "incoming-nonce-conformance",
+    "exit_code": 0,
+    "failures": [],
+    "tail": [
+      "--------------------------------------------------------------",
+      "  59/59 checks passed"
+    ]
+  },
+  {
+    "name": "merged-receipts",
+    "exit_code": 0,
+    "failures": [],
+    "tail": [
+      "------------------------------------------------------------",
+      "  24/24 tests passed"
+    ]
+  },
+  {
+    "name": "merged-nonce-conformance",
+    "exit_code": 1,
+    "failures": [
+      "  FAIL [sqlite   ] N1 torture + concurrent pruner: 200/200 nonces survive"
+    ],
+    "tail": [
+      "--------------------------------------------------------------",
+      "  58/59 checks passed"
+    ]
+  }
+]

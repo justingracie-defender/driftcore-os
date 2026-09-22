@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_nan_retention_is_refused (test_nonce_clock_sequences.SqliteFreshTests.test_nan_retention_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/nonce-clock-control-if5r4pmd/source/test_nonce_clock_sequences.py", line 39, in test_nan_retention_is_refused
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

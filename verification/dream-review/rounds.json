@@ -1,0 +1,358 @@
+{
+  "schema": 1,
+  "purpose": "Recorded fixed-contract evaluations. These are actual executions; replay does not generate outcomes.",
+  "rounds": [
+    {
+      "candidate": "baseline",
+      "parent": null,
+      "evaluator_sha256": "def2b2b631f5c41da88c378ec657058da756233577b35190dbf0c54c65869f0e",
+      "outcomes": [
+        {
+          "test": "AppendLogClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_len_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_membership_uses_the_checked_clock_sample",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_nonpositive_windows_and_overflow_are_rejected",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_stats_cleanup_blocks_signed_grant_replay",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_stats_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_valid_grant_and_small_clock_jitter_still_work",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_watermark_write_failure_prevents_cleanup",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_len_cleanup_blocks_signed_grant_replay",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_len_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_membership_uses_the_checked_clock_sample",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_nonpositive_windows_and_overflow_are_rejected",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_stats_cleanup_blocks_signed_grant_replay",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_stats_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_valid_grant_and_small_clock_jitter_still_work",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_watermark_write_failure_prevents_cleanup",
+          "outcome": "fail"
+        }
+      ],
+      "log": "baseline-clock-tests.log",
+      "log_sha256": "d9bd7fbc686826af2ecb35de0dbbe6c8baaed2d047abdab62b9bfa584bf8f6ee",
+      "source_hashes": {
+        "driftcore/verification/nonce_store.py": "0d8d535701f4552c019d7bb6db3727c8a26939ecda1d1000a2a0ea018bcdaa89",
+        "driftcore/verification/nonce_store_sqlite.py": "5b09a51f6f501e3bc07577f34961d9722c9adc094c4441b69d5e90953ddfffbd"
+      }
+    },
+    {
+      "candidate": "candidate-a",
+      "parent": "baseline",
+      "evaluator_sha256": "def2b2b631f5c41da88c378ec657058da756233577b35190dbf0c54c65869f0e",
+      "outcomes": [
+        {
+          "test": "AppendLogClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_len_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_membership_uses_the_checked_clock_sample",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_nonpositive_windows_and_overflow_are_rejected",
+          "outcome": "fail"
+        },
+        {
+          "test": "AppendLogClockTests.test_stats_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_stats_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_valid_grant_and_small_clock_jitter_still_work",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_watermark_write_failure_prevents_cleanup",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_len_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_len_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_membership_uses_the_checked_clock_sample",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_nonpositive_windows_and_overflow_are_rejected",
+          "outcome": "fail"
+        },
+        {
+          "test": "SqliteClockTests.test_stats_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_stats_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_valid_grant_and_small_clock_jitter_still_work",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_watermark_write_failure_prevents_cleanup",
+          "outcome": "pass"
+        }
+      ],
+      "log": "candidate-a-clock-tests.log",
+      "log_sha256": "eb613cf1266b387ad625c62eaf74da9945dd8a998f01d0d2a4e6394d49d8824f",
+      "source_hashes": {
+        "driftcore/verification/nonce_store.py": "53b0f5bf674ab241c11187decafceb891dab964be2b077b765b0f49273af1431",
+        "driftcore/verification/nonce_store_sqlite.py": "455aabad279092d760970ee5c2801af77229a855b806522aefe16ad8d61cd85e"
+      }
+    },
+    {
+      "candidate": "candidate-b",
+      "parent": "baseline",
+      "evaluator_sha256": "def2b2b631f5c41da88c378ec657058da756233577b35190dbf0c54c65869f0e",
+      "outcomes": [
+        {
+          "test": "AppendLogClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_len_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_membership_uses_the_checked_clock_sample",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_nonpositive_windows_and_overflow_are_rejected",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_stats_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_stats_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_valid_grant_and_small_clock_jitter_still_work",
+          "outcome": "pass"
+        },
+        {
+          "test": "AppendLogClockTests.test_watermark_write_failure_prevents_cleanup",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_len_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_len_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_membership_uses_the_checked_clock_sample",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_nonpositive_windows_and_overflow_are_rejected",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_stats_cleanup_blocks_signed_grant_replay",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_stats_cleanup_rollback_is_refused_after_reopen",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_valid_grant_and_small_clock_jitter_still_work",
+          "outcome": "pass"
+        },
+        {
+          "test": "SqliteClockTests.test_watermark_write_failure_prevents_cleanup",
+          "outcome": "pass"
+        }
+      ],
+      "log": "frozen-clock-tests.log",
+      "log_sha256": "81cce6c3a801036de0715342485e961a1c934693ff24f13b6ab178c559679e21",
+      "source_hashes": {
+        "driftcore/verification/nonce_store.py": "f3fca05dc1810db365387257e90ad182178f5d56361297825421db57a4c591b6",
+        "driftcore/verification/nonce_store_sqlite.py": "7ea060e84c70e77d1850f465e7068defbd48db2894de19ddc24fa509841e526e"
+      },
+      "refined_using_feedback_from": "candidate-a"
+    }
+  ]
+}

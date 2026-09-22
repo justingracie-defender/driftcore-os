@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_broker_global_replacement_has_no_authority (test_authority_boundary.AuthorityBoundaryTests.test_broker_global_replacement_has_no_authority)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-y135xx00/source/test_authority_boundary.py", line 186, in test_broker_global_replacement_has_no_authority
+    self.assertEqual(result.get("error"), "human_approval_rejected")
+AssertionError: None != 'human_approval_rejected'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.010s
+
+FAILED (failures=1)

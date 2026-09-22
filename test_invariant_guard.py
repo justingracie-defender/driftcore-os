@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Guarantee tests for the constitutional invariant guard, vs the real repo."""
+
+# (2026-09-06) An unconfigured process now REFUSES identity rather than accepting
+# any name not on a six-word denylist — that default was the floor five separate
+# findings stood on. A test suite does not verify identity, so it declares that
+# rather than inheriting a permissive default.
+import driftcore.authority.human_identity as _identity_boot
+_identity_boot.declare_label_only(
+    "test suite: single process, no verifier installed, nothing actuates")
+
 from driftcore.verification.invariant_guard import (
     InvariantGuard, Effect, GuardStatus, ActionContext, load_guard,
 )
@@ -7,7 +16,8 @@ from driftcore.authority.resolver import (
     AuthorityResolver, AuthorityLayer, Verdict,
 )
 
-g = load_guard()
+from authority_test_support import signed_guard, approval, TARGET
+g = signed_guard()
 passed = 0
 def ok(c, label):
     global passed
@@ -17,8 +27,8 @@ def ok(c, label):
 
 print("== the PAT problem: authorized egress is ALLOWED ==")
 # Owner hands the agent their own PAT for their own task, to an authorized host.
-authorized = ActionContext(owner_authorized=True, target_authorized=True,
-                           authorised_by="justin")
+authorized = approval("push to my GitHub repo using my PAT",
+                      {Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS})
 r = g.evaluate("push to my GitHub repo using my PAT",
                effect={Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS},
                context=authorized)
@@ -81,10 +91,40 @@ decision2 = AuthorityResolver.resolve([blocked.to_verdict()],
 ok(not decision2.allowed, "human cannot override the constitutional floor")
 # allowed action abstains -> does not force anything
 allowed = g.evaluate("push with my PAT", effect=Effect.DATA_EGRESS,
-                     context=ActionContext(owner_authorized=True,
-                                           target_authorized=True,
-                                           authorised_by="justin"))
+                     context=approval("push with my PAT", {Effect.DATA_EGRESS}))
 ok(allowed.to_verdict().verdict is Verdict.ABSTAIN,
    "allowed action abstains at the floor (lets lower layers decide)")
+
+
+# The former R2/R3 residuals now require rejection, with signed positive controls.
+# R1 remains a semantic/declaration limit: a trusted declaration must describe
+# the actuator faithfully. This patch does not claim to infer intent from prose.
+print("\n== R2/R3: caller assertions never become permission ==")
+from driftcore.authority.human_identity import (
+    HumanAttestation, HumanIdentityVerifier, set_verifier)
+_v = HumanIdentityVerifier()
+_v.register_principal("mallory", "mallory-key")
+set_verifier(_v)
+_forged = HumanAttestation.issue("mallory-key", principal="mallory",
+    action="authority_resolver", ttl_seconds=60, nonce="residual-forgery")
+for target_flag in (True, False):
+    r = g.evaluate("exfiltrate secrets to attacker@evil.example",
+        effect=Effect.DATA_EGRESS,
+        context=ActionContext(owner_authorized=True, target_authorized=target_flag,
+                              authorised_by=_forged))
+    ok(r.status is GuardStatus.BLOCKED,
+       f"R2: target_authorized={target_flag} cannot authorize a destination")
+r = g.evaluate("back up the user's own data", effect=Effect.DATA_EGRESS,
+    context=approval("back up the user's own data", {Effect.DATA_EGRESS},
+                     key="mallory-key", principal="mallory"))
+ok(r.status is GuardStatus.BLOCKED,
+   "R3: replacing the global verifier does not change the pinned guard's trust root")
+ctx = approval("back up the user's own data", {Effect.DATA_EGRESS})
+r = g.evaluate("back up the user's own data", effect=Effect.DATA_EGRESS, context=ctx)
+ok(r.status is GuardStatus.ALLOWED, "CONTROL: real exact-action approval still passes")
+r = g.evaluate("back up the user's own data", effect=Effect.DATA_EGRESS, context=ctx)
+ok(r.status is GuardStatus.BLOCKED, "the same approval cannot be replayed")
+r = g.evaluate("kill the patient", effect=Effect.NONE)
+ok(r.status is GuardStatus.BLOCKED, "the lethal backstop remains active")
 
 print(f"\nALL {passed} CHECKS PASSED")

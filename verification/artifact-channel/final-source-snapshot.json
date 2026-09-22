@@ -1,0 +1,13 @@
+{
+  "previous_archive_sha256": "6f0c508e35dee6603134aa3c8d7fd1786024c1f5cf5b90c50e9853c8cc3b6720",
+  "tested_source_archive_sha256": "46ff56195ae4d2ab57eed7f9736d9d5d86bfad0178e7d0a606781426a76ea0da",
+  "source_changes": [
+    "driftcore/governance/artifact_channel.py",
+    "driftcore/verification/mediated_actuation.py",
+    "test_artifact_channel.py",
+    "scripts/check_artifact_controls.py",
+    "ARTIFACT_CHANNEL.md",
+    "GROK_COMPARISON_REVIEW.md"
+  ],
+  "files": 818
+}

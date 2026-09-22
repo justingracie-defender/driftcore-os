@@ -1,0 +1,1358 @@
+16/26 tests passed
+test_automatic_prune_never_forgets_on_an_unrecorded_timeline (__main__.AppendLogClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_explicit_prune_never_forgets_on_an_unrecorded_timeline (__main__.AppendLogClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) ... 
+  test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='nan') ... FAIL
+  test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='inf') ... FAIL
+  test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='-inf') ... FAIL
+test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) ... 
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=4) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=4) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=4) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=4) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=0) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=1) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=2) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=3) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=4) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=0) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=1) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=2) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=3) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=4) ... ERROR
+test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) ... 
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value="'30'") ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='None') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='nan') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='True') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-1') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value="'30'") ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='None') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='nan') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-inf') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='True') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-1') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value="'30'") ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='None') ... ERROR
+test_len_cleanup_blocks_signed_grant_replay (__main__.AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay) ... ok
+test_len_cleanup_rollback_is_refused_after_reopen (__main__.AppendLogClockTests.test_len_cleanup_rollback_is_refused_after_reopen) ... ok
+test_membership_uses_the_checked_clock_sample (__main__.AppendLogClockTests.test_membership_uses_the_checked_clock_sample) ... FAIL
+test_nonpositive_windows_and_overflow_are_rejected (__main__.AppendLogClockTests.test_nonpositive_windows_and_overflow_are_rejected) ... 
+  test_nonpositive_windows_and_overflow_are_rejected (__main__.AppendLogClockTests.test_nonpositive_windows_and_overflow_are_rejected) (params={'retention_seconds': 100, 'max_grant_ttl_seconds': 0, 'skew_seconds': 0}) ... ERROR
+test_stats_cleanup_blocks_signed_grant_replay (__main__.AppendLogClockTests.test_stats_cleanup_blocks_signed_grant_replay) ... ok
+test_stats_cleanup_rollback_is_refused_after_reopen (__main__.AppendLogClockTests.test_stats_cleanup_rollback_is_refused_after_reopen) ... ok
+test_valid_grant_and_small_clock_jitter_still_work (__main__.AppendLogClockTests.test_valid_grant_and_small_clock_jitter_still_work) ... ok
+test_watermark_write_failure_prevents_cleanup (__main__.AppendLogClockTests.test_watermark_write_failure_prevents_cleanup) ... ok
+test_automatic_prune_never_forgets_on_an_unrecorded_timeline (__main__.SqliteClockTests.test_automatic_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_explicit_prune_never_forgets_on_an_unrecorded_timeline (__main__.SqliteClockTests.test_explicit_prune_never_forgets_on_an_unrecorded_timeline) ... ok
+test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) ... 
+  test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='nan') ... FAIL
+  test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='inf') ... FAIL
+  test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='-inf') ... FAIL
+test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) ... 
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=4) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=5) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=4) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=5) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=4) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=5) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=0) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=1) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=2) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=3) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=4) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=5) ... FAIL
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=0) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=1) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=2) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=3) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=4) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=5) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=0) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=1) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=2) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=3) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=4) ... ERROR
+  test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=5) ... ERROR
+test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) ... 
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='nan') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='-inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='True') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='-1') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value="'30'") ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='None') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='nan') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='True') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-1') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value="'30'") ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='None') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='nan') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='inf') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-inf') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='True') ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-1') ... ERROR
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value="'30'") ... FAIL
+  test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='None') ... ERROR
+test_len_cleanup_blocks_signed_grant_replay (__main__.SqliteClockTests.test_len_cleanup_blocks_signed_grant_replay) ... ok
+test_len_cleanup_rollback_is_refused_after_reopen (__main__.SqliteClockTests.test_len_cleanup_rollback_is_refused_after_reopen) ... ok
+test_membership_uses_the_checked_clock_sample (__main__.SqliteClockTests.test_membership_uses_the_checked_clock_sample) ... FAIL
+test_nonpositive_windows_and_overflow_are_rejected (__main__.SqliteClockTests.test_nonpositive_windows_and_overflow_are_rejected) ... 
+  test_nonpositive_windows_and_overflow_are_rejected (__main__.SqliteClockTests.test_nonpositive_windows_and_overflow_are_rejected) (params={'retention_seconds': 100, 'max_grant_ttl_seconds': 0, 'skew_seconds': 0}) ... FAIL
+test_stats_cleanup_blocks_signed_grant_replay (__main__.SqliteClockTests.test_stats_cleanup_blocks_signed_grant_replay) ... ok
+test_stats_cleanup_rollback_is_refused_after_reopen (__main__.SqliteClockTests.test_stats_cleanup_rollback_is_refused_after_reopen) ... ok
+test_valid_grant_and_small_clock_jitter_still_work (__main__.SqliteClockTests.test_valid_grant_and_small_clock_jitter_still_work) ... ok
+test_watermark_write_failure_prevents_cleanup (__main__.SqliteClockTests.test_watermark_write_failure_prevents_cleanup) ... ok
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 109, in <lambda>
+    routes = [lambda: len(self.store), self.store.stats, self.store.prune,
+                      ^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 468, in __len__
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 478, in _prune_locked
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 497, in stats
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 478, in _prune_locked
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 492, in prune
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 457, in __contains__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+                                           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 437, in add
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 109, in <lambda>
+    routes = [lambda: len(self.store), self.store.stats, self.store.prune,
+                      ^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 468, in __len__
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 478, in _prune_locked
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 497, in stats
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 478, in _prune_locked
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 492, in prune
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 457, in __contains__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+                                           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 437, in add
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 306, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value="'30'")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 123, in __init__
+    if not math.isfinite(retention_seconds):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: must be real number, not str
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='None')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 123, in __init__
+    if not math.isfinite(retention_seconds):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: must be real number, not NoneType
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='None')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 136, in __init__
+    need = float(max_grant_ttl_seconds) + float(skew_seconds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: float() argument must be a string or a real number, not 'NoneType'
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 166, in __init__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 307, in _check_clock
+    raise ClockWentBackwards(
+driftcore.verification.nonce_store.ClockWentBackwards: wall clock moved backwards: now=1789934988 but this store previously observed 1789934988 (tolerance -infs). Pruning and grant expiry both key on this clock, so a rollback can un-expire a grant whose nonce was already forgotten. Refusing.
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 166, in __init__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 307, in _check_clock
+    raise ClockWentBackwards(
+driftcore.verification.nonce_store.ClockWentBackwards: wall clock moved backwards: now=1789934988 but this store previously observed 1789934988 (tolerance -1s). Pruning and grant expiry both key on this clock, so a rollback can un-expire a grant whose nonce was already forgotten. Refusing.
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='None')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 136, in __init__
+    need = float(max_grant_ttl_seconds) + float(skew_seconds)
+                                          ^^^^^^^^^^^^^^^^^^^
+TypeError: float() argument must be a string or a real number, not 'NoneType'
+
+======================================================================
+ERROR: test_nonpositive_windows_and_overflow_are_rejected (__main__.AppendLogClockTests.test_nonpositive_windows_and_overflow_are_rejected) (params={'retention_seconds': 100, 'max_grant_ttl_seconds': 0, 'skew_seconds': 0})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 183, in _acquire_owner_lock
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+BlockingIOError: [Errno 11] Resource temporarily unavailable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 156, in test_nonpositive_windows_and_overflow_are_rejected
+    self.open_store(**params).close()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 35, in open_store
+    return self.backend(str(self.path), **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 164, in __init__
+    self._acquire_owner_lock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store.py", line 186, in _acquire_owner_lock
+    raise NonceStoreLocked(
+driftcore.verification.nonce_store.NonceStoreLocked: another owner already holds '/tmp/tmph6ijwk64/state/nonces'. This store is single-owner by design: concurrent owners erase each other's replay state. Route verification through one broker process, or use a transactional store.
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+                                           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 374, in add
+    self._db.execute(
+sqlite3.IntegrityError: NOT NULL constraint failed: nonces.ts
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 109, in <lambda>
+    routes = [lambda: len(self.store), self.store.stats, self.store.prune,
+                      ^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 409, in __len__
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 421, in _prune_locked
+    cutoff = self._check_clock() - self.retention_seconds
+             ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 434, in stats
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 421, in _prune_locked
+    cutoff = self._check_clock() - self.retention_seconds
+             ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 429, in prune
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 395, in __contains__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+                                           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 373, in add
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value="'5000'", route=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 112, in <lambda>
+    routes.append(lambda: self.store.consume("new"))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 339, in consume
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 109, in <lambda>
+    routes = [lambda: len(self.store), self.store.stats, self.store.prune,
+                      ^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 409, in __len__
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 421, in _prune_locked
+    cutoff = self._check_clock() - self.retention_seconds
+             ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 434, in stats
+    self._prune_locked()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 421, in _prune_locked
+    cutoff = self._check_clock() - self.retention_seconds
+             ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 429, in prune
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 395, in __contains__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 110, in <lambda>
+    lambda: "spent" in self.store, lambda: self.store.add("new")]
+                                           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 373, in add
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='None', route=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 119, in test_invalid_clock_refuses_and_preserves_spent_state
+    route()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 112, in <lambda>
+    routes.append(lambda: self.store.consume("new"))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 339, in consume
+    now = self._check_clock()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 280, in _check_clock
+    if hw and now < hw - self.skew_seconds:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'NoneType' and 'float'
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value="'30'")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 87, in __init__
+    if retention_seconds <= 0:
+       ^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<=' not supported between instances of 'str' and 'int'
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='None')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 87, in __init__
+    if retention_seconds <= 0:
+       ^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<=' not supported between instances of 'NoneType' and 'int'
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='None')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 91, in __init__
+    need = float(max_grant_ttl_seconds) + float(skew_seconds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: float() argument must be a string or a real number, not 'NoneType'
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 134, in __init__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 281, in _check_clock
+    raise ClockWentBackwards(
+driftcore.verification.nonce_store.ClockWentBackwards: wall clock moved backwards: now=1789934988 but this store previously observed 1789934988 (tolerance -infs). Pruning and grant expiry both key on this clock, so a rollback can un-expire a grant whose nonce was already forgotten. Refusing.
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='-1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 134, in __init__
+    self._check_clock()
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 281, in _check_clock
+    raise ClockWentBackwards(
+driftcore.verification.nonce_store.ClockWentBackwards: wall clock moved backwards: now=1789934988 but this store previously observed 1789934988 (tolerance -1s). Pruning and grant expiry both key on this clock, so a rollback can un-expire a grant whose nonce was already forgotten. Refusing.
+
+======================================================================
+ERROR: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='None')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 147, in test_invalid_policy_is_rejected_before_files_are_created
+    opened = self.backend(str(path), **values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/driftcore/verification/nonce_store_sqlite.py", line 91, in __init__
+    need = float(max_grant_ttl_seconds) + float(skew_seconds)
+                                          ^^^^^^^^^^^^^^^^^^^
+TypeError: float() argument must be a string or a real number, not 'NoneType'
+
+======================================================================
+FAIL: test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 130, in test_invalid_clock_at_startup_does_not_erase_existing_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 130, in test_invalid_clock_at_startup_does_not_erase_existing_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.AppendLogClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='-inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 130, in test_invalid_clock_at_startup_does_not_erase_existing_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.AppendLogClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 122, in test_invalid_clock_refuses_and_preserves_spent_state
+    self.assertIn("spent", self.store)
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf456a060>
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 149, in test_invalid_policy_is_rejected_before_files_are_created
+    self.assertFalse(path.parent.exists())
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='True')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value="'30'")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 149, in test_invalid_policy_is_rejected_before_files_are_created
+    self.assertFalse(path.parent.exists())
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='True')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.AppendLogClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value="'30'")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_membership_uses_the_checked_clock_sample (__main__.AppendLogClockTests.test_membership_uses_the_checked_clock_sample)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 81, in test_membership_uses_the_checked_clock_sample
+    self.assertIn("spent", self.store,
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store.ExpiringNonceStore object at 0x7ffbf457c8c0> : a second unchecked clock read must not forget a live nonce
+
+======================================================================
+FAIL: test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 130, in test_invalid_clock_at_startup_does_not_erase_existing_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 130, in test_invalid_clock_at_startup_does_not_erase_existing_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_at_startup_does_not_erase_existing_state (__main__.SqliteClockTests.test_invalid_clock_at_startup_does_not_erase_existing_state) (value='-inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 130, in test_invalid_clock_at_startup_does_not_erase_existing_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='nan', route=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='inf', route=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='-inf', route=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_clock_refuses_and_preserves_spent_state (__main__.SqliteClockTests.test_invalid_clock_refuses_and_preserves_spent_state) (value='True', route=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 118, in test_invalid_clock_refuses_and_preserves_spent_state
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='-inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 149, in test_invalid_policy_is_rejected_before_files_are_created
+    self.assertFalse(path.parent.exists())
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='True')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 149, in test_invalid_policy_is_rejected_before_files_are_created
+    self.assertFalse(path.parent.exists())
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='retention_seconds', value='-1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 149, in test_invalid_policy_is_rejected_before_files_are_created
+    self.assertFalse(path.parent.exists())
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 149, in test_invalid_policy_is_rejected_before_files_are_created
+    self.assertFalse(path.parent.exists())
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='True')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value='-1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='max_grant_ttl_seconds', value="'30'")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 149, in test_invalid_policy_is_rejected_before_files_are_created
+    self.assertFalse(path.parent.exists())
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value='True')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_invalid_policy_is_rejected_before_files_are_created (__main__.SqliteClockTests.test_invalid_policy_is_rejected_before_files_are_created) (field='skew_seconds', value="'30'")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 146, in test_invalid_policy_is_rejected_before_files_are_created
+    with self.assertRaises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_membership_uses_the_checked_clock_sample (__main__.SqliteClockTests.test_membership_uses_the_checked_clock_sample)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 81, in test_membership_uses_the_checked_clock_sample
+    self.assertIn("spent", self.store,
+AssertionError: 'spent' not found in <driftcore.verification.nonce_store_sqlite.SqliteNonceStore object at 0x7ffbf457fbf0> : a second unchecked clock read must not forget a live nonce
+
+======================================================================
+FAIL: test_nonpositive_windows_and_overflow_are_rejected (__main__.SqliteClockTests.test_nonpositive_windows_and_overflow_are_rejected) (params={'retention_seconds': 100, 'max_grant_ttl_seconds': 0, 'skew_seconds': 0})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-a/driftcore-os/test_nonce_clock_paths.py", line 155, in test_nonpositive_windows_and_overflow_are_rejected
+    with self.subTest(params=params), self.assertRaises(ValueError):
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.069s
+
+FAILED (failures=77, errors=36)

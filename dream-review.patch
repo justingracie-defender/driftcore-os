@@ -1,0 +1,1014 @@
+--- a/AUTHORITY_REPAIR.md
++++ b/AUTHORITY_REPAIR.md
+@@ -1,3 +1,14 @@
++# Subsequent review update
++
++Read **DREAM_REVIEW.md** for the latest nonce-clock repairs, test isolation,
++replay experiment and current result: **4,863 / 134, seven failures, exit 1**.
++The report below documents the earlier authority repair and its original
++measurements. Those measurements are retained as history, not substituted
++for the current run. `authority-repair.patch` now includes both repair rounds
++against the September 13 input.
++
++---
++
+ # DriftCore authorization repair — September 13 base, updated 20 September 2026
+ 
+ The two reported authorization gaps have been repaired in the guard and broker
+--- /dev/null
++++ b/DREAM_REVIEW.md
+@@ -0,0 +1,195 @@
++# DriftCore: bounded replay review — 20 September 2026
++
++I used earlier failures to look for related defects, compared two repairs in
++separate copies, and kept the one that passed the fixed checks and fresh tests.
++The result is a concrete improvement to spent-approval storage and test isolation.
++No model weights changed, no external model API was called, and no autonomous
++background worker or deployment was installed.
++
++The current full suite reports **4,863 passing checks across 134 test files,
++seven failed files, exit 1**. This is not an all-green release. The seven files
++encounter the same socket restrictions recorded in the preceding review.
++
++## What the video contributed
++
++The [Dream-RSI paper](https://arxiv.org/html/2609.14858v1) describes replaying
++recorded experiments to improve exploration policy while keeping the underlying
++models and evaluator fixed. Replay reveals recorded outcomes; it cannot supply
++results for experiments that never ran.
++
++For this repository, I adapted that into a bounded review: historical failures
++suggested hypotheses, fixed regressions compared candidates, and fresh executions
++checked the selected repair. This is not a reproduction of the paper's complete
++recursive policy-development system or evidence of unlimited improvement.
++
++## What was found and changed
++
++**Routine status checks could reopen a spent approval.** Both nonce backends
++discarded expired entries through `len(store)` and `store.stats()` without updating
++the clock rollback barrier. In the reproduced sequence, an approval was spent at
++time 5,000, housekeeping discarded it at 5,200, and the clock returned to 5,000.
++The same signed grant could then be reserved again. Explicit `prune()` tests had
++missed these indirect paths.
++
++Cleanup now uses a checked clock sample. The append-log backend records the
++high-water value before deletion and carries that sample through loading and
++rewriting. Its high-water rename also uses the existing directory-sync helper.
++SQLite records the high-water value and deletes expired entries in one transaction.
++SQLite membership checks also serialize their clock update with other writers.
++
++**Checking one timestamp and using another was unsafe.** Membership and several
++cleanup paths sampled the clock again after checking it. A changing clock could
++therefore authorize expiry using a value that had never passed the check. The
++repair carries the checked value through each decision. Automatic cleanup that
++starts a new transaction checks its own sample.
++
++**Invalid numeric inputs could defeat the intended comparisons.** Both backends
++now share validation for retention, maximum grant lifetime and clock skew. These
++must be finite built-in integers or floats; booleans and strings are refused.
++Retention and maximum lifetime must be positive, skew non-negative, and retention
++must cover a finite lifetime-plus-skew sum. Invalid clock readings raise a
++nonce-store error before they can authorize cleanup or a spent-state write.
++These stricter input requirements are an intentional compatibility change.
++
++**A self-test could leave its deliberately unsafe fixture in the real package.**
++The first full run encountered a leftover `_audit_selftest_tmp.py`, causing
++`test_one_door_client.py` to fail. An interrupted-test control reproduced this
++contamination mechanism in the old fixture. `test_no_egress_bypass.py` now plants
++its example in a disposable fixture tree. Its checks of the actual source tree
++remain in place; a real planted source bypass still fails.
++
++The exact event that left the probe in the first full run was not established:
++that run reported the earlier fixture test passing, and a later sequential replay
++did not reproduce the leftover. The evidence distinguishes this uncertainty from
++the interruption mechanism that was directly reproduced.
++
++## The improvement cycle
++
++The same 26-test contract, with SHA-256
++`def2b2b631f5c41da88c378ec657058da756233577b35190dbf0c54c65869f0e`,
++was used throughout candidate selection. Existing release gates and their
++baselines were not relaxed.
++
++| Candidate | Fixed contract | Decision |
++|---|---:|---|
++| Starting repaired repository | 2/26 | Reproduced missing protections |
++| A: check the clock at cleanup entry | 16/26 | Rejected as incomplete |
++| B: checked samples, atomic cleanup and numeric validation | 26/26 | Accepted after fresh checks |
++
++These are results of the **new targeted contract**, not the old repository's
++overall test totals. Ten additional tests cover seeded operation sequences,
++boundary values and real child-process termination during SQLite cleanup. All ten
++pass. The interruption controls for the audit fixture are separate experiments.
++
++Five protection-removal controls each pass when healthy, fail by assertion when
++one protection is removed, and pass after restoration. They cover append-log
++housekeeping, SQLite housekeeping, finite clock values, finite retention, and the
++checked membership timestamp. Import errors do not count as successful detection.
++
++## What replay did not improve
++
++`verification/dream-review/replay_review.py` compares three diagnostic test orders
++using only saved outcomes. Orders use earlier rounds' results, then reveal the
++next round's outcomes one at a time. It executes no tests or edits.
++
++| Retrospective diagnostic order | Checks through first failure or exhaustion |
++|---|---:|
++| Alphabetical | 29 |
++| Previous failures first | 29 |
++| Housekeeping tests first | 37 |
++
++There was **no observed gain** from changing the order. The existing order was
++retained. This small analysis was retrospective; every candidate actually ran the
++entire fixed contract. It establishes no measured runtime saving or generalization
++to other projects. The null result is retained in `replay-policy-results.json`.
++
++## Measured verification
++
++| Check | Result |
++|---|---|
++| New fixed nonce contract | 26/26, exit 0 |
++| Fresh sequence and process-death checks | 10/10, exit 0 |
++| New nonce removal controls | 5/5, exit 0 |
++| Previous authority removal controls | 5/5, exit 0 |
++| Previous SQLite startup removal control | 1/1, exit 0 |
++| Authority boundary tests | 22/22 in final suite |
++| SQLite startup tests | 9/9 in final suite |
++| Existing nonce tests / conformance | 37/37 and 59/59, exit 0 |
++| Marshmallow self-test | 43/43, exit 0 |
++| Final official suite | 4,863 across 134 files; seven failures; exit 1 |
++| Finite-value ratchet | Exit 0: 182 current findings, no new findings; baseline unchanged |
++| Robot-surface ratchet | Exit 1: prior broker baseline drift remains |
++| Untested-modules ratchet | Exit 1: prior `audit_story.py` waiver drift remains |
++| Claims ledger | Exit 1: 128 tagged, 116 paired, 12 unpaired; 1,549 untagged versus ceiling 1,407 |
++| OS isolation acceptance | Exit 77, `ENVIRONMENT_UNAVAILABLE`; not a pass |
++
++The first full run was **4,787/134, eight failures, exit 1** before fixture
++isolation. Its log is retained as `release-full-suite.log`; the final result is
++`final-full-suite.log`. The wrapper excludes counts from files that exit nonzero.
++The 76-check difference is the recovered `test_one_door_client.py` file, not 76
++new tests.
++
++The remaining seven failures are `test_aisi_incident_harness.py`,
++`test_broker_process.py`, `test_bypass_resistance.py`,
++`test_effect_wall_integration.py`, `test_halt_interlock_integration.py`,
++`test_implementation_binding.py`, and `test_mediated_actuation.py`.
++
++The final executable snapshot was extracted fresh before its full-suite run.
++SHA-256: `33a39b1fc19899b826909371eabfd15f452b384a71f09a4e077c6c4df74cf5fa`.
++The deliverable adds reports and evidence; packaging verifies that the tested
++source bytes match. Counts describe this snapshot and environment, not all future
++versions or machines. Python used here: 3.12.14.
++
++## Use and review instructions
++
++The full ZIP contains the combined September 13 tree and both rounds of repair.
++`dream-review.patch` is the incremental source/report diff against the previous
++repaired ZIP, SHA-256
++`f342417816c99deca78d157a3302974f00af36c617b5f0f6dfcdc8d043f22138`.
++`authority-repair.patch` is regenerated cumulatively against the original
++September 13 upload, SHA-256
++`328a7ffd64035f27779a84362c68ab5e68f36c2a4ed6ebb6420324dea2f045b6`.
++Use the matching patch from its project root with `patch -p1`; do not apply both
++patches to the same tree. Evidence and manifests are supplied in the full ZIP.
++
++From the project root, run each command separately and preserve its exit code:
++
++```sh
++python3 test_nonce_clock_paths.py
++python3 test_nonce_clock_sequences.py
++python3 scripts/check_nonce_clock_controls.py /tmp/new-nonce-clock-controls
++python3 scripts/check_authority_controls.py /tmp/new-authority-controls
++python3 scripts/check_nonce_startup_control.py /tmp/new-startup-control
++python3 marshmallow/selftest.py
++bash scripts/count_tests.sh
++python3 verification/dream-review/replay_review.py
++```
++
++Control output directories must not already exist. The replay command only
++analyzes recorded data and does not substitute for running tests. Raw command
++statuses, rejected candidates, source hashes and probe scripts are retained in
++`verification/dream-review/`.
++
++For the next bounded cycle, select one concrete question from a failed test or
++execution trace; define the expected behavior before editing; keep candidate
++copies separate; retain unsuccessful outcomes; and validate any selected change
++with fresh cases and a removal control. An improvement search must not grant
++itself wider execution authority or rewrite the criteria that judge it.
++
++## Remaining limits
++
++This repairs the demonstrated paths, not every replay or clock problem. Existing
++recovery heuristics for corrupted time metadata were not redesigned. Review the
++distinction between genuine clock movement and corrupted high-water values before
++claiming protection against arbitrary clock control. A trusted time source and
++protected storage remain deployment requirements.
++
++SQLite now serializes additional clock-dependent decisions; contention may rise
++under heavy concurrent use. No throughput improvement is claimed. The two process
++crash tests do not certify every power-loss or filesystem failure mode. The
++append-log backend retains its existing single-owner and filesystem limitations.
++
++The earlier R2/R3 deployment limits still apply: protect the broker, signer keys,
++configuration and direct actuator paths with a real OS boundary. This work does
++not establish universal model honesty, OS isolation in this sandbox, or safety of
++every action a legitimate authority might approve.
+--- a/FINDINGS.md
++++ b/FINDINGS.md
+@@ -1,3 +1,21 @@
++# Current bounded replay review — 20 September 2026
++
++**DREAM_REVIEW.md** contains the latest changes, source hashes and results.
++This round fixes replay through indirect nonce cleanup, unchecked clock
++resampling, invalid time/window values, and a source-contaminating audit
++fixture. The new 26-test contract, 10 additional tests and five removal
++controls pass. Historical test-order replay showed no benefit, and no
++scheduler change was adopted.
++
++The final clean-source suite reports **4,863 passing checks / 134 files,
++seven socket-dependent failures, exit 1**. OS isolation is unavailable here;
++the remaining project ratchet failures are documented. The earlier failed
++full run is retained. No all-green or production-verification claim is made.
++
++Everything below is the earlier review history.
++
++---
++
+ # Current repair on the September 13 base
+ 
+ Read **AUTHORITY_REPAIR.md** for current changes, measured results, deployment
+--- a/driftcore/verification/nonce_store.py
++++ b/driftcore/verification/nonce_store.py
+@@ -105,6 +105,40 @@
+ _MAX_NONCE_LEN = 512
+ 
+ 
++def _finite_number(value, name: str, error_type=ValueError) -> float:
++    if type(value) not in (int, float):
++        raise error_type(f"{name} must be a finite number, not a boolean or text")
++    try:
++        value = float(value)
++    except (ValueError, OverflowError) as exc:
++        raise error_type(f"{name} must be a finite number") from exc
++    if not math.isfinite(value):
++        raise error_type(f"{name} must be a finite number")
++    return value
++
++
++def _validated_window(retention_seconds, max_grant_ttl_seconds, skew_seconds):
++    """CLAIM finite-nonce-window: Both backends reject invalid retention, TTL and
++    skew before creating storage; retention covers the finite TTL-plus-skew sum.
++    """
++    retention_seconds = _finite_number(retention_seconds, "retention_seconds")
++    max_grant_ttl_seconds = _finite_number(max_grant_ttl_seconds, "max_grant_ttl_seconds")
++    skew_seconds = _finite_number(skew_seconds, "skew_seconds")
++    if retention_seconds <= 0 or max_grant_ttl_seconds <= 0 or skew_seconds < 0:
++        raise ValueError("retention and maximum TTL must be positive; skew must be non-negative")
++    need = max_grant_ttl_seconds + skew_seconds
++    if not math.isfinite(need) or retention_seconds < need:
++        raise ValueError("retention_seconds must cover the finite maximum grant TTL plus skew")
++    return retention_seconds, max_grant_ttl_seconds, skew_seconds
++
++
++def _read_clock(time_fn) -> float:
++    """CLAIM finite-nonce-clock: An invalid clock sample refuses the operation
++    before it can authorize expiry, pruning or a spent-nonce write.
++    """
++    return _finite_number(time_fn(), "nonce-store clock", NonceStoreError)
++
++
+ class ExpiringNonceStore:
+     """Set-like spent-nonce store: durable, single-owner, bounded by rate x retention.
+ 
+@@ -120,27 +154,8 @@
+                  max_grant_ttl_seconds: float, skew_seconds: float = 60.0,
+                  prune_every: int = 64, time_fn=time.time,
+                  salvage_corrupt: bool = False, single_owner: bool = True):
+-        if not math.isfinite(retention_seconds):
+-            # NaN is false against every comparator, so `<= 0` passed it through and
+-            # then `now - t >= retention` and `now - t < retention` were BOTH false:
+-            # nonces were neither pruned nor ever inside the window, leaving the
+-            # replay window undefined. Verified by execution, 2026-08-25.
+-            raise ValueError(
+-                "retention_seconds must be a finite number of seconds. A non-finite "
+-                "retention compares false against every bound, so it passes "
+-                "validation and then no nonce is ever inside or outside the window.")
+-        if retention_seconds <= 0:
+-            raise ValueError("retention_seconds must be positive")
+-        # N3: the relationship is validated at CONSTRUCTION. An unsafe configuration
+-        # cannot exist, rather than depending on someone remembering to assert it.
+-        need = float(max_grant_ttl_seconds) + float(skew_seconds)
+-        if retention_seconds < need:
+-            raise ValueError(
+-                f"retention_seconds={retention_seconds:.0f} is shorter than the longest "
+-                f"grant TTL ({max_grant_ttl_seconds:.0f}s) plus clock skew "
+-                f"({skew_seconds:.0f}s). A nonce would be forgotten while its grant is "
+-                f"still valid, reopening the replay window. Use "
+-                f"retention_seconds >= {need:.0f}.")
++        retention_seconds, max_grant_ttl_seconds, skew_seconds = _validated_window(
++            retention_seconds, max_grant_ttl_seconds, skew_seconds)
+ 
+         self.path = path
+         self.retention_seconds = float(retention_seconds)
+@@ -163,8 +178,8 @@
+         if single_owner:
+             self._acquire_owner_lock()
+         try:
+-            self._check_clock()
+-            self._load()
++            now = self._check_clock()
++            self._load(now)
+         except Exception:
+             self.close()
+             raise
+@@ -207,7 +222,7 @@
+ 
+     # ── N2: clock rollback fails closed ───────────────────────────
+ 
+-    def _read_high_water(self) -> float:
++    def _read_high_water(self, now: float) -> float:
+         """The newest time this store has provably observed.
+ 
+         (self red-team B2/B10) The sidecar alone was unauthenticated security state:
+@@ -257,7 +272,7 @@
+             ceiling = newest + horizon
+         else:
+             newest = 0.0
+-            ceiling = self._time() + max(self.retention_seconds, self._absurd_horizon)
++            ceiling = now + max(self.retention_seconds, self._absurd_horizon)
+ 
+         if side > ceiling:
+             side = 0.0        # absurd sidecar: ignore rather than brick
+@@ -298,11 +313,12 @@
+             f.flush()
+             os.fsync(f.fileno())
+         os.replace(tmp, self._hw_path)
++        self._fsync_dir(os.path.dirname(self._hw_path) or ".")
+ 
+     def _check_clock(self) -> float:
+         """Refuse if the wall clock has moved backwards beyond tolerance."""
+-        now = self._time()
+-        hw = self._read_high_water()
++        now = _read_clock(self._time)
++        hw = self._read_high_water(now)
+         if hw and now < hw - self.skew_seconds:
+             raise ClockWentBackwards(
+                 f"wall clock moved backwards: now={now:.0f} but this store previously "
+@@ -332,12 +348,11 @@
+ 
+     # ── durability ────────────────────────────────────────────────
+ 
+-    def _read_disk(self) -> Dict[str, float]:
++    def _read_disk(self, now: float) -> Dict[str, float]:
+         """Read every persisted record. Corruption fails CLOSED (N7)."""
+         out: Dict[str, float] = {}
+         if not os.path.exists(self.path):
+             return out
+-        now = self._time()
+         future_ok = now + self.skew_seconds
+         with open(self.path, "r") as f:
+             data = f.read()
+@@ -383,19 +398,17 @@
+             out[nonce] = t if nonce not in out else max(out[nonce], t)
+         return out
+ 
+-    def _load(self) -> None:
+-        now = self._time()
+-        disk = self._read_disk()
++    def _load(self, now: float) -> None:
++        disk = self._read_disk(now)
+         self._entries = {n: t for n, t in disk.items()
+                          if now - t < self.retention_seconds}
+         if len(self._entries) != len(disk):
+-            self._rewrite_locked()   # compact away entries that are certainly expired
+-
+-    def _rewrite_locked(self) -> None:
++            self._rewrite_locked(now)   # compact away entries that are certainly expired
++
++    def _rewrite_locked(self, now: float) -> None:
+         """Atomically rewrite, MERGING from disk (N1) so a concurrent or prior writer's
+         records are never clobbered by this owner's in-memory view."""
+-        now = self._time()
+-        merged = dict(self._read_disk())
++        merged = dict(self._read_disk(now))
+         merged.update(self._entries)          # our view wins only on the same key
+         live = {n: t for n, t in merged.items()
+                 if now - t < self.retention_seconds}
+@@ -444,7 +457,7 @@
+             self._entries[nonce] = now
+             self._since_prune += 1
+             if self._since_prune >= self._prune_every:
+-                self._prune_locked()
++                self._prune_locked(now)
+ 
+     def __contains__(self, nonce) -> bool:
+         try:
+@@ -454,11 +467,15 @@
+             # add() reject it if anyone tries to burn it.
+             return False
+         with self._lock:
+-            self._check_clock()
++            now = self._check_clock()
+             t = self._entries.get(nonce)
+             if t is None:
+                 return False
+-            if self._time() - t >= self.retention_seconds:
++            # Validate the value read here as well: this public attribute is not
++            # immutable, so constructor validation alone cannot prove this read.
++            retention_seconds = _finite_number(
++                self.retention_seconds, "retention_seconds", NonceStoreError)
++            if now - t >= retention_seconds:
+                 del self._entries[nonce]
+                 return False
+             return True
+@@ -474,8 +491,13 @@
+ 
+     # ── pruning ───────────────────────────────────────────────────
+ 
+-    def _prune_locked(self) -> int:
+-        now = self._time()
++    def _prune_locked(self, now: Optional[float] = None) -> int:
++        """CLAIM checked-cleanup-clock: Cleanup reached through prune, len, stats
++        or automatic housekeeping uses a checked clock sample and records its
++        high-water mark before forgetting nonces.
++        """
++        if now is None:
++            now = self._check_clock()
+         before = len(self._entries)
+         dead = [n for n, t in self._entries.items()
+                 if now - t >= self.retention_seconds]
+@@ -483,13 +505,12 @@
+             del self._entries[n]
+         self._since_prune = 0
+         if dead:
+-            self._rewrite_locked()
++            self._rewrite_locked(now)
+         return before - len(self._entries)
+ 
+     def prune(self) -> int:
+         """Drop every nonce whose grant is certainly expired. Returns the count."""
+         with self._lock:
+-            self._check_clock()
+             return self._prune_locked()
+ 
+     def stats(self) -> dict:
+--- a/driftcore/verification/nonce_store_sqlite.py
++++ b/driftcore/verification/nonce_store_sqlite.py
+@@ -63,6 +63,7 @@
+ from driftcore.verification.nonce_store import (
+     NonceStoreError, NonceStoreCorrupt, ClockWentBackwards, InvalidNonce,
+     NonceStoreLocked,
++    _validated_window, _read_clock,
+ )
+ 
+ _FORBIDDEN = ("\n", "\r", "\t", "\x00")
+@@ -84,18 +85,8 @@
+                  busy_timeout_ms: int = 5000):
+         if type(busy_timeout_ms) is not int or busy_timeout_ms not in range(2_147_483_648):
+             raise ValueError("busy_timeout_ms must be a non-negative SQLite millisecond integer")
+-        if retention_seconds <= 0:
+-            raise ValueError("retention_seconds must be positive")
+-        # N3: the policy invariant is enforced at CONSTRUCTION — an unsafe window
+-        # cannot exist, rather than depending on someone remembering to assert it.
+-        need = float(max_grant_ttl_seconds) + float(skew_seconds)
+-        if retention_seconds < need:
+-            raise ValueError(
+-                f"retention_seconds={retention_seconds:.0f} is shorter than the longest "
+-                f"grant TTL ({max_grant_ttl_seconds:.0f}s) plus clock skew "
+-                f"({skew_seconds:.0f}s). A nonce would be forgotten while its grant is "
+-                f"still valid, reopening the replay window. Use "
+-                f"retention_seconds >= {need:.0f}.")
++        retention_seconds, max_grant_ttl_seconds, skew_seconds = _validated_window(
++            retention_seconds, max_grant_ttl_seconds, skew_seconds)
+ 
+         self.path = path
+         self.retention_seconds = float(retention_seconds)
+@@ -131,7 +122,6 @@
+ 
+         try:
+             self._integrity_check()
+-            self._check_clock()
+             self._prune_locked()
+         except Exception:
+             self.close()
+@@ -275,7 +265,7 @@
+             "ON CONFLICT(k) DO UPDATE SET v=excluded.v", (float(t),))
+ 
+     def _check_clock(self) -> float:
+-        now = self._time()
++        now = _read_clock(self._time)
+         hw = self._read_high_water()
+         if hw and now < hw - self.skew_seconds:
+             raise ClockWentBackwards(
+@@ -392,16 +382,20 @@
+         except InvalidNonce:
+             return False
+         with self._lock:
+-            self._check_clock()
+-            # (red-team #3) Presence and age used to be two steps — SELECT the row, then
+-            # compare its timestamp in Python. A concurrent prune landing between them
+-            # is a TOCTOU that can report a still-live nonce as absent, which the
+-            # verifier would read as "not spent" and accept a replay. One statement
+-            # decides both, so there is no window between them.
+-            cutoff = self._time() - self.retention_seconds
+-            row = self._db.execute(
+-                "SELECT 1 FROM nonces WHERE nonce=? AND ts > ?",
+-                (nonce, cutoff)).fetchone()
++            # Checking the clock may advance its persistent high-water mark.
++            # Serialize that read/write with other owners, and use the same sample
++            # for the membership decision rather than taking an unchecked second one.
++            self._db.execute("BEGIN IMMEDIATE")
++            try:
++                now = self._check_clock()
++                cutoff = now - self.retention_seconds
++                row = self._db.execute(
++                    "SELECT 1 FROM nonces WHERE nonce=? AND ts > ?",
++                    (nonce, cutoff)).fetchone()
++                self._db.execute("COMMIT")
++            except Exception:
++                self._db.execute("ROLLBACK")
++                raise
+             return row is not None
+ 
+     def __len__(self) -> int:
+@@ -418,15 +412,24 @@
+     # ── pruning: one statement, no read-modify-rewrite ────────────
+ 
+     def _prune_locked(self) -> int:
+-        cutoff = self._time() - self.retention_seconds
+-        cur = self._db.execute("DELETE FROM nonces WHERE ts <= ?", (cutoff,))
++        """CLAIM checked-cleanup-clock: All cleanup paths check the clock and
++        atomically persist its high-water mark with the deletion it authorizes.
++        """
++        self._db.execute("BEGIN IMMEDIATE")
++        try:
++            now = self._check_clock()
++            cutoff = now - self.retention_seconds
++            cur = self._db.execute("DELETE FROM nonces WHERE ts <= ?", (cutoff,))
++            self._db.execute("COMMIT")
++        except Exception:
++            self._db.execute("ROLLBACK")
++            raise
+         self._since_prune = 0
+         return int(cur.rowcount or 0)
+ 
+     def prune(self) -> int:
+         """Drop every nonce whose grant is certainly expired. Returns the count."""
+         with self._lock:
+-            self._check_clock()
+             return self._prune_locked()
+ 
+     def stats(self) -> dict:
+--- /dev/null
++++ b/scripts/check_nonce_clock_controls.py
+@@ -0,0 +1,72 @@
++"""Remove each new nonce protection in a disposable copy and require detection."""
++from pathlib import Path
++import json
++import os
++import shutil
++import subprocess
++import sys
++import tempfile
++
++ROOT = Path(__file__).resolve().parents[1]
++CASES = [
++    ("append_cleanup_clock", "driftcore/verification/nonce_store.py",
++     "        if now is None:\n            now = self._check_clock()",
++     "        if now is None:\n            now = self._time()",
++     "test_nonce_clock_paths.AppendLogClockTests.test_len_cleanup_blocks_signed_grant_replay"),
++    ("sqlite_cleanup_clock", "driftcore/verification/nonce_store_sqlite.py",
++     '        self._db.execute("BEGIN IMMEDIATE")\n        try:\n            now = self._check_clock()',
++     '        self._db.execute("BEGIN IMMEDIATE")\n        try:\n            now = self._time()',
++     "test_nonce_clock_paths.SqliteClockTests.test_stats_cleanup_blocks_signed_grant_replay"),
++    ("finite_clock", "driftcore/verification/nonce_store.py",
++     "    if not math.isfinite(value):", "    if False:",
++     "test_nonce_clock_sequences.SqliteFreshTests.test_infinite_clock_cannot_delete_spent_records"),
++    ("finite_window", "driftcore/verification/nonce_store.py",
++     '    retention_seconds = _finite_number(retention_seconds, "retention_seconds")',
++     '    retention_seconds = retention_seconds',
++     "test_nonce_clock_sequences.SqliteFreshTests.test_nan_retention_is_refused"),
++    ("checked_membership_sample", "driftcore/verification/nonce_store_sqlite.py",
++     '                cutoff = now - self.retention_seconds\n                row = self._db.execute(',
++     '                cutoff = self._time() - self.retention_seconds\n                row = self._db.execute(',
++     "test_nonce_clock_paths.SqliteClockTests.test_membership_uses_the_checked_clock_sample"),
++]
++
++
++def main():
++    out = Path(sys.argv[1]).resolve()
++    out.mkdir(parents=True, exist_ok=False)
++    results = []
++    for name, relative, before, after, test in CASES:
++        with tempfile.TemporaryDirectory(prefix="nonce-clock-control-") as temporary:
++            tree = Path(temporary) / "source"
++            def ignored(directory, names):
++                blocked = set(shutil.ignore_patterns("__pycache__", "*.pyc", "logs", "*.zip", ".git")(directory, names))
++                if Path(directory) == ROOT:
++                    blocked.add("verification")
++                return blocked
++            shutil.copytree(ROOT, tree, ignore=ignored)
++            target = tree / relative
++            original = target.read_text()
++            if original.count(before) != 1:
++                raise RuntimeError(f"{name}: mutation anchor must match exactly once")
++            statuses = {}
++            for state in ("healthy", "broken", "restored"):
++                target.write_text(original.replace(before, after, 1) if state == "broken" else original)
++                result = subprocess.run([sys.executable, "-m", "unittest", test], cwd=tree,
++                    capture_output=True, text=True, timeout=30,
++                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
++                output = result.stdout + result.stderr
++                (out / f"{name}-{state}.log").write_text(output)
++                statuses[state] = result.returncode
++                if state == "broken":
++                    if result.returncode == 0 or "AssertionError" not in output or "ERROR:" in output:
++                        raise RuntimeError(f"{name}: removal did not produce an assertion failure")
++                elif result.returncode != 0:
++                    raise RuntimeError(f"{name}: {state} test failed")
++            results.append({"control": name, "test": test, "exits": statuses})
++            print(f"{name}: detected; restoration passed", flush=True)
++    (out / "summary.json").write_text(json.dumps(results, indent=2) + "\n")
++    print(f"{len(results)}/{len(CASES)} nonce-clock removal controls detected")
++
++
++if __name__ == "__main__":
++    main()
+--- a/test_no_egress_bypass.py
++++ b/test_no_egress_bypass.py
+@@ -31,19 +31,18 @@
+    + (f"\n  FOUND {len(findings)}:\n{detail}" if findings else ""))
+ 
+ # The audit must still be capable of finding one, or an empty result proves
+-# nothing. Plant a bypass in a temp file inside the tree and confirm it is seen.
+-import os
+-probe = "driftcore/_audit_selftest_tmp.py"
+-with open(probe, "w") as fh:
+-    fh.write("import urllib.request\n"
+-             "def leak():\n"
+-             "    return urllib.request.urlopen('https://evil.example.com')\n")
+-try:
+-    found = audit_bypasses("driftcore")
++# nothing. Use a separate fixture tree: interrupted probes must not leave
++# deliberately unsafe Python inside the real package for later tests to find.
++from pathlib import Path
++import tempfile
++with tempfile.TemporaryDirectory(prefix="egress-audit-fixture-") as fixture:
++    probe = Path(fixture) / "_audit_selftest_tmp.py"
++    probe.write_text("import urllib.request\n"
++                     "def leak():\n"
++                     "    return urllib.request.urlopen('https://evil.example.com')\n")
++    found = audit_bypasses(fixture)
+     ok(any("_audit_selftest_tmp" in p for p, _, _ in found),
+        "the audit still detects a planted bypass (an empty result is meaningful)")
+-finally:
+-    os.remove(probe)
+ 
+ ok(not audit_bypasses("driftcore"), "tree is clean again after the probe")
+ 
+--- /dev/null
++++ b/test_nonce_clock_paths.py
+@@ -0,0 +1,192 @@
++"""Replay protection through every cleanup path, with real signed-grant controls.
++
++These tests are fixed before selecting a repair. No model or external service runs.
++"""
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++
++from driftcore.verification.nonce_store import (
++    ExpiringNonceStore, ClockWentBackwards, NonceStoreError)
++from driftcore.verification.nonce_store_sqlite import SqliteNonceStore
++from driftcore.verification.signed_permission import Grant, PermissionVerifier
++
++
++class ClockPathContract:
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.path = Path(self.temp.name) / "state" / "nonces"
++        self.clock = [5000.0]
++        self.store = self.open_store()
++        self.addCleanup(self.store.close)
++        self.binding = PermissionVerifier.bind_action("test-device", "record", {})
++        self.verifier = self.make_verifier()
++        self.grant = self.mint("spent")
++        self.verifier.reserve(self.grant, required_scope=("test:record",),
++                              action_binding=self.binding)
++        self.verifier.commit(self.grant)
++
++    def open_store(self, **kwargs):
++        params = dict(retention_seconds=100, max_grant_ttl_seconds=30,
++                      skew_seconds=10, time_fn=lambda: self.clock[0])
++        params.update(kwargs)
++        return self.backend(str(self.path), **params)
++
++    def make_verifier(self):
++        v = PermissionVerifier(used_nonces=self.store, clock=lambda: self.clock[0])
++        v.register_key("test", "local-test-key", unrestricted=True)
++        return v
++
++    def mint(self, nonce):
++        return Grant.issue("local-test-key", key_id="test", role="operator",
++            scope=("test:record",), subject="test", ttl_seconds=30,
++            nonce=nonce, action_binding=self.binding, now=self.clock[0])
++
++    def cleanup(self, route):
++        return len(self.store) if route == "len" else self.store.stats()["live_nonces"]
++
++    def check_cleanup_replay(self, route, reopen=False):
++        # CLAIMS: driftcore/verification/nonce_store.py:checked-cleanup-clock
++        # CLAIMS: driftcore/verification/nonce_store_sqlite.py:checked-cleanup-clock
++        self.clock[0] = 5200.0
++        self.assertEqual(self.cleanup(route), 0)
++        self.clock[0] = 5000.0
++        if reopen:
++            self.store.close()
++            with self.assertRaises(ClockWentBackwards):
++                reopened = self.open_store()
++                self.addCleanup(reopened.close)
++        else:
++            with self.assertRaises(ClockWentBackwards):
++                self.verifier.reserve(self.grant, required_scope=("test:record",),
++                                      action_binding=self.binding)
++
++    def test_len_cleanup_blocks_signed_grant_replay(self):
++        self.check_cleanup_replay("len")
++
++    def test_stats_cleanup_blocks_signed_grant_replay(self):
++        self.check_cleanup_replay("stats")
++
++    def test_len_cleanup_rollback_is_refused_after_reopen(self):
++        self.check_cleanup_replay("len", reopen=True)
++
++    def test_stats_cleanup_rollback_is_refused_after_reopen(self):
++        self.check_cleanup_replay("stats", reopen=True)
++
++    def test_membership_uses_the_checked_clock_sample(self):
++        samples = iter([5000.0, 5200.0])
++        self.store._time = lambda: next(samples, 5200.0)
++        self.assertIn("spent", self.store,
++                      "a second unchecked clock read must not forget a live nonce")
++
++    def test_explicit_prune_never_forgets_on_an_unrecorded_timeline(self):
++        samples = iter([5000.0, 5200.0])
++        self.store._time = lambda: next(samples, 5200.0)
++        self.store.prune()
++        self.store._time = lambda: self.clock[0]
++        try:
++            remembered = "spent" in self.store
++        except ClockWentBackwards:
++            return
++        self.assertTrue(remembered, "forgotten nonce without recorded rollback barrier")
++
++    def test_automatic_prune_never_forgets_on_an_unrecorded_timeline(self):
++        self.store._prune_every = 1
++        samples = iter([5000.0, 5200.0])
++        self.store._time = lambda: next(samples, 5200.0)
++        self.store.add("another")
++        self.store._time = lambda: self.clock[0]
++        try:
++            remembered = "spent" in self.store
++        except ClockWentBackwards:
++            return
++        self.assertTrue(remembered, "automatic cleanup lost the replay barrier")
++
++    def test_invalid_clock_refuses_and_preserves_spent_state(self):
++        # CLAIMS: driftcore/verification/nonce_store.py:finite-nonce-clock
++        routes = [lambda: len(self.store), self.store.stats, self.store.prune,
++                  lambda: "spent" in self.store, lambda: self.store.add("new")]
++        if hasattr(self.store, "consume"):
++            routes.append(lambda: self.store.consume("new"))
++        for bad in (float("nan"), float("inf"), float("-inf"), True, "5000", None):
++            for i, route in enumerate(routes):
++                with self.subTest(value=repr(bad), route=i):
++                    self.clock[0] = bad
++                    try:
++                        with self.assertRaises(NonceStoreError):
++                            route()
++                    finally:
++                        self.clock[0] = 5000.0
++                    self.assertIn("spent", self.store)
++
++    def test_invalid_clock_at_startup_does_not_erase_existing_state(self):
++        self.store.close()
++        for bad in (float("nan"), float("inf"), float("-inf")):
++            with self.subTest(value=repr(bad)):
++                self.clock[0] = bad
++                try:
++                    with self.assertRaises(NonceStoreError):
++                        opened = self.open_store()
++                        opened.close()
++                finally:
++                    self.clock[0] = 5000.0
++                with self.open_store() as restored:
++                    self.assertIn("spent", restored)
++
++    def test_invalid_policy_is_rejected_before_files_are_created(self):
++        # CLAIMS: driftcore/verification/nonce_store.py:finite-nonce-window
++        normal = dict(retention_seconds=100, max_grant_ttl_seconds=30, skew_seconds=10)
++        for field in normal:
++            for bad in (float("nan"), float("inf"), float("-inf"), True, -1, "30", None):
++                with self.subTest(field=field, value=repr(bad)):
++                    path = Path(self.temp.name) / "invalid" / "nonces"
++                    values = {**normal, field: bad}
++                    with self.assertRaises(ValueError):
++                        opened = self.backend(str(path), **values)
++                        opened.close()
++                    self.assertFalse(path.parent.exists())
++
++    def test_nonpositive_windows_and_overflow_are_rejected(self):
++        for params in (dict(retention_seconds=0, max_grant_ttl_seconds=30, skew_seconds=0),
++                       dict(retention_seconds=100, max_grant_ttl_seconds=0, skew_seconds=0),
++                       dict(retention_seconds=1e308, max_grant_ttl_seconds=1e308, skew_seconds=1e308)):
++            with self.subTest(params=params), self.assertRaises(ValueError):
++                self.open_store(**params).close()
++
++    def test_watermark_write_failure_prevents_cleanup(self):
++        self.clock[0] = 5200.0
++        with patch.object(self.store, "_write_high_water", side_effect=OSError("disk fault")):
++            with self.assertRaises(OSError):
++                len(self.store)
++        self.clock[0] = 5000.0
++        self.assertIn("spent", self.store)
++
++    def test_valid_grant_and_small_clock_jitter_still_work(self):
++        self.clock[0] = 5200.0
++        self.assertEqual(self.cleanup("stats"), 0)
++        self.clock[0] = 5195.0
++        g = self.mint("fresh")
++        self.verifier.reserve(g, required_scope=("test:record",), action_binding=self.binding)
++        self.verifier.commit(g)
++        self.assertIn("fresh", self.store)
++        self.assertEqual(len(self.store), 1)
++
++
++class AppendLogClockTests(ClockPathContract, unittest.TestCase):
++    backend = ExpiringNonceStore
++
++
++class SqliteClockTests(ClockPathContract, unittest.TestCase):
++    backend = SqliteNonceStore
++
++
++if __name__ == "__main__":
++    suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(cls)
++        for cls in (AppendLogClockTests, SqliteClockTests))
++    result = unittest.TextTestRunner(verbosity=2).run(suite)
++    # Subtest failures may outnumber test methods. Count failing methods once.
++    failed_ids = {getattr(test, "test_case", test).id() for test, _ in result.failures + result.errors}
++    print(f"{result.testsRun - len(failed_ids)}/{result.testsRun} tests passed")
++    raise SystemExit(0 if result.wasSuccessful() else 1)
+--- /dev/null
++++ b/test_nonce_clock_sequences.py
+@@ -0,0 +1,148 @@
++"""Fresh sequence and process-death checks after the initial repair selection."""
++from pathlib import Path
++import random
++import subprocess
++import sys
++import tempfile
++import unittest
++
++from driftcore.verification.nonce_store import (
++    ExpiringNonceStore, ClockWentBackwards, NonceStoreError)
++from driftcore.verification.nonce_store_sqlite import SqliteNonceStore
++
++
++class FreshClockContract:
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.path = Path(self.temp.name) / "nonces"
++        self.clock = [300000.0]
++
++    def make(self, **kwargs):
++        options = dict(retention_seconds=100, max_grant_ttl_seconds=30,
++                       skew_seconds=10, time_fn=lambda: self.clock[0])
++        options.update(kwargs)
++        store = self.backend(str(self.path), **options)
++        self.addCleanup(store.close)
++        return store
++
++    def test_infinite_clock_cannot_delete_spent_records(self):
++        store = self.make()
++        store.add("spent")
++        self.clock[0] = float("inf")
++        with self.assertRaises(NonceStoreError):
++            len(store)
++        self.clock[0] = 300000.0
++        self.assertIn("spent", store)
++
++    def test_nan_retention_is_refused(self):
++        with self.assertRaises(ValueError):
++            self.make(retention_seconds=float("nan"))
++
++    def test_zero_skew_and_exact_retention_boundary_work(self):
++        store = self.make(retention_seconds=30, max_grant_ttl_seconds=30, skew_seconds=0)
++        store.add("spent")
++        self.clock[0] += 29
++        self.assertIn("spent", store)
++        self.clock[0] += 1
++        self.assertEqual(store.prune(), 1)
++        self.assertNotIn("spent", store)
++        self.clock[0] -= 1
++        with self.assertRaises(ClockWentBackwards):
++            store.stats()
++
++    def test_seeded_operation_sequences_match_clock_and_expiry_contract(self):
++        # Fixed seeds make failures reproducible; no timing or model randomness.
++        for seed in (73, 241, 901):
++            with self.subTest(seed=seed):
++                self.path = Path(self.temp.name) / str(seed)
++                self.clock[0] = 300000.0
++                store = self.make(prune_every=1)
++                newest, entries = self.clock[0], {}
++                rng = random.Random(seed)
++                for step in range(70):
++                    now = newest + rng.choice((-35, -9, 0, 3, 20, 130))
++                    self.clock[0] = now
++                    action = rng.choice(("add", "contains", "len", "stats", "prune"))
++                    nonce = f"n-{step}" if action == "add" else f"n-{max(0, step-1)}"
++                    operations = {
++                        "add": lambda: store.add(nonce),
++                        "contains": lambda: nonce in store,
++                        "len": lambda: len(store),
++                        "stats": lambda: store.stats()["live_nonces"],
++                        "prune": store.prune,
++                    }
++                    if now < newest - 10:
++                        with self.assertRaises(ClockWentBackwards, msg=f"seed={seed}, step={step}, action={action}"):
++                            operations[action]()
++                        continue
++                    newest = max(newest, now)
++                    expected_live = {n: t for n, t in entries.items() if now - t < 100}
++                    result = operations[action]()
++                    if action == "add":
++                        entries = {**expected_live, nonce: now}
++                    elif action == "contains":
++                        self.assertEqual(result, nonce in expected_live)
++                        if nonce not in expected_live:
++                            entries.pop(nonce, None)
++                    else:
++                        expected = len(entries) - len(expected_live) if action == "prune" else len(expected_live)
++                        self.assertEqual(result, expected, f"seed={seed}, step={step}, action={action}")
++                        entries = expected_live
++                store.close()
++
++
++class AppendLogFreshTests(FreshClockContract, unittest.TestCase):
++    backend = ExpiringNonceStore
++
++
++class SqliteFreshTests(FreshClockContract, unittest.TestCase):
++    backend = SqliteNonceStore
++
++
++class SqliteCleanupCrashTests(unittest.TestCase):
++    def crash_at(self, statement_prefix):
++        with tempfile.TemporaryDirectory() as temporary:
++            path = str(Path(temporary) / "nonce.db")
++            code = r'''
++import os, sys
++from driftcore.verification.nonce_store_sqlite import SqliteNonceStore
++clock = [300000.0]
++s = SqliteNonceStore(sys.argv[1], retention_seconds=100, max_grant_ttl_seconds=30,
++                     skew_seconds=10, time_fn=lambda: clock[0])
++s.add('spent')
++class Connection:
++    def execute(self, sql, *args):
++        result = real.execute(sql, *args)
++        if sql.startswith(sys.argv[2]):
++            os._exit(9)
++        return result
++    def close(self):
++        real.close()
++real = s._db
++s._db = Connection()
++clock[0] = 300200.0
++len(s)
++raise SystemExit(0)
++'''
++            result = subprocess.run([sys.executable, "-c", code, path, statement_prefix],
++                                    capture_output=True, text=True, timeout=15)
++            self.assertEqual(result.returncode, 9, result.stderr)
++            with SqliteNonceStore(path, retention_seconds=100, max_grant_ttl_seconds=30,
++                                  skew_seconds=10, time_fn=lambda: 300000.0) as store:
++                self.assertIn("spent", store, "uncommitted cleanup must not survive process death")
++
++    def test_process_death_after_watermark_write_keeps_original_nonce(self):
++        self.crash_at("INSERT INTO meta")
++
++    def test_process_death_after_delete_keeps_original_nonce(self):
++        self.crash_at("DELETE FROM nonces WHERE ts <=")
++
++
++if __name__ == "__main__":
++    suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(cls)
++        for cls in (AppendLogFreshTests, SqliteFreshTests, SqliteCleanupCrashTests))
++    result = unittest.TextTestRunner(verbosity=2).run(suite)
++    failed_ids = {getattr(test, "test_case", test).id() for test, _ in result.failures + result.errors}
++    print(f"{result.testsRun - len(failed_ids)}/{result.testsRun} tests passed")
++    raise SystemExit(0 if result.wasSuccessful() else 1)

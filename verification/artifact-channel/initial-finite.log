@@ -1,0 +1,14 @@
+  files parsed: 154 (baseline 150)
+  known: 185   current: 184   new: 2   removed: 3   resolved: 0
+
+  new unguarded non-finite boundaries:
+    driftcore/governance/artifact_channel.py::ArtifactStore._expose::8c422c82251b
+      db.execute("SELECT COUNT(*) FROM seen WHERE session=?", (session,)).fetchone()[0
+    driftcore/governance/artifact_channel.py::ArtifactStore._put::86581156e519
+      db.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0] >= MAX_ARTIFACTS
+
+  Check the compared VALUE for finiteness, or write the validation so the non-finite path REACHES A RAISE:
+      if not (0.0 < x <= 1.0): raise    # NaN and +/-inf raise here
+      if not (0.0 < x <= 1.0): return   # NOT safe: same shape, inverted consequence
+
+  RESULT: NEW_FINDINGS

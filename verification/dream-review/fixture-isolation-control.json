@@ -1,0 +1,30 @@
+{
+  "/workspace/scratch/68864b741aa4/driftcore-dream-review/baseline/driftcore-os": {
+    "healthy": {
+      "exit_code": 0,
+      "probe_left_inside_package": false
+    },
+    "interrupted": {
+      "exit_code": 23,
+      "probe_left_inside_package": true
+    },
+    "real_bypass": {
+      "exit_code": 1,
+      "probe_left_inside_package": false
+    }
+  },
+  "/workspace/scratch/68864b741aa4/driftcore-dream-review/candidate-b/driftcore-os": {
+    "healthy": {
+      "exit_code": 0,
+      "probe_left_inside_package": false
+    },
+    "interrupted": {
+      "exit_code": 23,
+      "probe_left_inside_package": false
+    },
+    "real_bypass": {
+      "exit_code": 1,
+      "probe_left_inside_package": false
+    }
+  }
+}

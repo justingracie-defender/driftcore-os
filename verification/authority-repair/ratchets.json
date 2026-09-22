@@ -1,0 +1,76 @@
+[
+  {
+    "variant": "incoming",
+    "name": "finite-guards",
+    "command": [
+      "python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "variant": "incoming",
+    "name": "robot-surface",
+    "command": [
+      "python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit_code": 1
+  },
+  {
+    "variant": "incoming",
+    "name": "untested-modules",
+    "command": [
+      "python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit_code": 1
+  },
+  {
+    "variant": "incoming",
+    "name": "claims-ledger",
+    "command": [
+      "python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit_code": 1
+  },
+  {
+    "variant": "merged",
+    "name": "finite-guards",
+    "command": [
+      "python3",
+      "scripts/finite_guards.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "variant": "merged",
+    "name": "robot-surface",
+    "command": [
+      "python3",
+      "scripts/robot_surface.py",
+      "--check"
+    ],
+    "exit_code": 1
+  },
+  {
+    "variant": "merged",
+    "name": "untested-modules",
+    "command": [
+      "python3",
+      "scripts/untested_modules.py"
+    ],
+    "exit_code": 1
+  },
+  {
+    "variant": "merged",
+    "name": "claims-ledger",
+    "command": [
+      "python3",
+      "scripts/claims_ledger.py"
+    ],
+    "exit_code": 1
+  }
+]

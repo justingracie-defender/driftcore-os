@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_real_dispatch_hides_key_registry_detail_but_operator_keeps_it (test_agent_boundary.AgentBoundaryTests.test_real_dispatch_hides_key_registry_detail_but_operator_keeps_it)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/agent-boundary-control-wyor2m_v/source/test_agent_boundary.py", line 151, in test_real_dispatch_hides_key_registry_detail_but_operator_keeps_it
+    self.assertNotIn(CANARY, json.dumps(response))
+AssertionError: 'PRIVATE-CANARY-policy-key-path-threshold-84729' unexpectedly found in '{"ok": false, "error": "grant_rejected", "detail": "grant signed by unknown/untrusted key_id \'PRIVATE-CANARY-policy-key-path-threshold-84729\'"}'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

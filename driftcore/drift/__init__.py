@@ -38,6 +38,23 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 from enum import Enum
 
+
+# ── log directory resolution ──────────────────────────────────────────────
+# Ten test files write logs/SHUTDOWN_REASON.json and logs/CHAIN_SHUTDOWN_REASON.json
+# at a fixed RELATIVE path. Run in parallel, one file's cleanup races another
+# file's write and the loser reports a failure that passes when run alone.
+# "Passes when run alone" is not a green suite, so the path is resolvable per
+# process: set DRIFTCORE_LOG_DIR and each runner gets its own.
+def _log_dir() -> str:
+    import os
+    return os.environ.get("DRIFTCORE_LOG_DIR", "logs")
+
+
+def _log_path(name: str) -> str:
+    import os
+    return os.path.join(_log_dir(), name)
+
+
 # Consistency probe — H-neuron signal detection
 try:
     from driftcore.probe import ConsistencyProbe, ProbeResult
@@ -244,7 +261,7 @@ class UserDriftPolicy:
                 min(0.3, self.contradiction_avoidance + boost),
         }
 
-    def save(self, path: str = "logs/drift_policy.json"):
+    def save(self, path: str = _log_path("drift_policy.json")):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
             data = {
@@ -260,7 +277,7 @@ class UserDriftPolicy:
             json.dump(data, f, indent=2)
 
     @classmethod
-    def load(cls, path: str = "logs/drift_policy.json") -> "UserDriftPolicy":
+    def load(cls, path: str = _log_path("drift_policy.json")) -> "UserDriftPolicy":
         try:
             with open(path) as f:
                 data = json.load(f)
@@ -823,8 +840,8 @@ class DriftDetector:
 
     def _log_safety_trigger(self, signal: str, text: str):
         try:
-            os.makedirs("logs", exist_ok=True)
-            with open("logs/safety_drift.jsonl", "a") as f:
+            os.makedirs(_log_dir(), exist_ok=True)
+            with open(_log_path("safety_drift.jsonl"), "a") as f:
                 f.write(json.dumps({
                     "timestamp": time.time(),
                     "signal":    signal,
@@ -836,7 +853,7 @@ class DriftDetector:
 
     def _save_session_record(self):
         try:
-            os.makedirs("logs", exist_ok=True)
+            os.makedirs(_log_dir(), exist_ok=True)
             record = {
                 "session_id":          self._session.session_id,
                 "started_at":          self._session.started_at,
@@ -847,7 +864,7 @@ class DriftDetector:
                 "safety_triggers":     self._session.safety_triggers,
                 "user_flagged_count":  self._session.user_flagged_count,
             }
-            with open("logs/session_history.jsonl", "a") as f:
+            with open(_log_path("session_history.jsonl"), "a") as f:
                 f.write(json.dumps(record) + "\n")
         except Exception:
             pass

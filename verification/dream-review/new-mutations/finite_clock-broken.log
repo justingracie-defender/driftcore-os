@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_infinite_clock_cannot_delete_spent_records (test_nonce_clock_sequences.SqliteFreshTests.test_infinite_clock_cannot_delete_spent_records)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/nonce-clock-control-9jmr9ukm/source/test_nonce_clock_sequences.py", line 33, in test_infinite_clock_cannot_delete_spent_records
+    with self.assertRaises(NonceStoreError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: NonceStoreError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

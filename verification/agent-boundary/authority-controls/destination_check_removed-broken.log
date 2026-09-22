@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_broker_wrong_destination_despite_valid_signatures (test_authority_boundary.AuthorityBoundaryTests.test_broker_wrong_destination_despite_valid_signatures)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-pztevna7/source/test_authority_boundary.py", line 197, in test_broker_wrong_destination_despite_valid_signatures
+    self.assertFalse(result["ok"])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 1 test in 0.009s
+
+FAILED (failures=1)

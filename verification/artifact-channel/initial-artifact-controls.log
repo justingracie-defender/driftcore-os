@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/68864b741aa4/driftcore-artifact-review/candidate/driftcore-os/scripts/check_artifact_controls.py", line 88, in <module>
+    main()
+  File "/workspace/scratch/68864b741aa4/driftcore-artifact-review/candidate/driftcore-os/scripts/check_artifact_controls.py", line 76, in main
+    raise RuntimeError(name+": no qualifying assertion failure")
+RuntimeError: read_scope_promoted_to_publish: no qualifying assertion failure

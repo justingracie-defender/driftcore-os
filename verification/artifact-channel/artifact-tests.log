@@ -1,0 +1,37 @@
+31/31 tests passed
+test_agent_cannot_replace_stored_metadata_via_extra_parameters (__main__.ArtifactChannelTests.test_agent_cannot_replace_stored_metadata_via_extra_parameters) ... ok
+test_all_seen_sources_are_retained_without_caller_parent_list (__main__.ArtifactChannelTests.test_all_seen_sources_are_retained_without_caller_parent_list) ... ok
+test_authorized_publication_reaches_board_with_exact_bytes (__main__.ArtifactChannelTests.test_authorized_publication_reaches_board_with_exact_bytes) ... ok
+test_body_claiming_approval_never_becomes_authority (__main__.ArtifactChannelTests.test_body_claiming_approval_never_becomes_authority) ... ok
+test_changed_id_hash_destination_audience_purpose_are_not_approved (__main__.ArtifactChannelTests.test_changed_id_hash_destination_audience_purpose_are_not_approved) ... ok
+test_concurrent_fresh_approvals_cannot_publish_twice (__main__.ArtifactChannelTests.test_concurrent_fresh_approvals_cannot_publish_twice) ... ok
+test_cross_subject_request_is_refused (__main__.ArtifactChannelTests.test_cross_subject_request_is_refused) ... ok
+test_even_signed_unconfigured_route_does_not_write (__main__.ArtifactChannelTests.test_even_signed_unconfigured_route_does_not_write) ... ok
+test_even_signed_wrong_packet_hash_does_not_write (__main__.ArtifactChannelTests.test_even_signed_wrong_packet_hash_does_not_write) ... ok
+test_exposure_limit_refuses_delivery_without_forgetting_history (__main__.ArtifactChannelTests.test_exposure_limit_refuses_delivery_without_forgetting_history) ... ok
+test_forged_human_approval_cannot_publish (__main__.ArtifactChannelTests.test_forged_human_approval_cannot_publish) ... ok
+test_forged_or_stripped_metadata_is_unverified_external_content (__main__.ArtifactChannelTests.test_forged_or_stripped_metadata_is_unverified_external_content) ... ok
+test_install_requires_human_gate (__main__.ArtifactChannelTests.test_install_requires_human_gate) ... ok
+test_install_requires_subject_binding_and_no_replacement (__main__.ArtifactChannelTests.test_install_requires_subject_binding_and_no_replacement) ... ok
+test_label_change_after_approval_is_rechecked (__main__.ArtifactChannelTests.test_label_change_after_approval_is_rechecked) ... ok
+test_operator_grant_without_human_approval_cannot_publish (__main__.ArtifactChannelTests.test_operator_grant_without_human_approval_cannot_publish) ... ok
+test_provenance_signature_is_not_human_approval (__main__.ArtifactChannelTests.test_provenance_signature_is_not_human_approval) ... ok
+test_public_label_is_not_publication_permission (__main__.ArtifactChannelTests.test_public_label_is_not_publication_permission) ... ok
+test_read_scope_cannot_publish (__main__.ArtifactChannelTests.test_read_scope_cannot_publish) ... ok
+test_replay_and_fresh_approval_do_not_duplicate_publication (__main__.ArtifactChannelTests.test_replay_and_fresh_approval_do_not_duplicate_publication) ... ok
+test_restart_cannot_rebind_a_session_to_another_actor (__main__.ArtifactChannelTests.test_restart_cannot_rebind_a_session_to_another_actor) ... ok
+test_restart_preserves_exposure_and_provenance (__main__.ArtifactChannelTests.test_restart_preserves_exposure_and_provenance) ... ok
+test_restart_preserves_sensitive_context (__main__.ArtifactChannelTests.test_restart_preserves_sensitive_context) ... ok
+test_self_corroboration_does_not_add_an_independent_root (__main__.ArtifactChannelTests.test_self_corroboration_does_not_add_an_independent_root) ... ok
+test_sensitive_context_cannot_publish_publicly (__main__.ArtifactChannelTests.test_sensitive_context_cannot_publish_publicly) ... ok
+test_store_tampering_is_detected_before_publication (__main__.ArtifactChannelTests.test_store_tampering_is_detected_before_publication) ... ok
+test_three_agent_derivative_chain_keeps_original_roots (__main__.ArtifactChannelTests.test_three_agent_derivative_chain_keeps_original_roots) ... ok
+test_uncertain_send_remains_blocked_after_restart (__main__.ArtifactChannelTests.test_uncertain_send_remains_blocked_after_restart) ... ok
+test_unknown_artifact_and_unseen_artifact_are_refused (__main__.ArtifactChannelTests.test_unknown_artifact_and_unseen_artifact_are_refused) ... ok
+test_wrong_provenance_key_cannot_reopen_existing_store (__main__.ArtifactChannelTests.test_wrong_provenance_key_cannot_reopen_existing_store) ... ok
+test_wrong_receipt_is_uncertain_and_retry_is_blocked (__main__.ArtifactChannelTests.test_wrong_receipt_is_uncertain_and_retry_is_blocked) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 0.183s
+
+OK

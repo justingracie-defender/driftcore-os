@@ -1,0 +1,53 @@
+FFFFFF
+======================================================================
+FAIL: test_legacy_booleans_never_authorize (test_authority_boundary.AuthorityBoundaryTests.test_legacy_booleans_never_authorize) (effect=<Effect.DATA_EGRESS: 'data_egress'>, flag=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-6k1bowwf/source/test_authority_boundary.py", line 82, in test_legacy_booleans_never_authorize
+    self.assertFalse(guard.evaluate("send", effect=effect,
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_legacy_booleans_never_authorize (test_authority_boundary.AuthorityBoundaryTests.test_legacy_booleans_never_authorize) (effect=<Effect.DATA_EGRESS: 'data_egress'>, flag=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-6k1bowwf/source/test_authority_boundary.py", line 82, in test_legacy_booleans_never_authorize
+    self.assertFalse(guard.evaluate("send", effect=effect,
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_legacy_booleans_never_authorize (test_authority_boundary.AuthorityBoundaryTests.test_legacy_booleans_never_authorize) (effect=<Effect.DATA_EGRESS: 'data_egress'>, flag='yes')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-6k1bowwf/source/test_authority_boundary.py", line 82, in test_legacy_booleans_never_authorize
+    self.assertFalse(guard.evaluate("send", effect=effect,
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_legacy_booleans_never_authorize (test_authority_boundary.AuthorityBoundaryTests.test_legacy_booleans_never_authorize) (effect=<Effect.ACCOUNT_ACCESS: 'account_access'>, flag=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-6k1bowwf/source/test_authority_boundary.py", line 82, in test_legacy_booleans_never_authorize
+    self.assertFalse(guard.evaluate("send", effect=effect,
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_legacy_booleans_never_authorize (test_authority_boundary.AuthorityBoundaryTests.test_legacy_booleans_never_authorize) (effect=<Effect.ACCOUNT_ACCESS: 'account_access'>, flag=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-6k1bowwf/source/test_authority_boundary.py", line 82, in test_legacy_booleans_never_authorize
+    self.assertFalse(guard.evaluate("send", effect=effect,
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_legacy_booleans_never_authorize (test_authority_boundary.AuthorityBoundaryTests.test_legacy_booleans_never_authorize) (effect=<Effect.ACCOUNT_ACCESS: 'account_access'>, flag='yes')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authority-control-6k1bowwf/source/test_authority_boundary.py", line 82, in test_legacy_booleans_never_authorize
+    self.assertFalse(guard.evaluate("send", effect=effect,
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=6)

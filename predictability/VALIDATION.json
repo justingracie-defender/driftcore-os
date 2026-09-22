@@ -1,0 +1,24 @@
+{
+  "study_version": "1.0.0",
+  "live_grok_tested": false,
+  "source_sha256": "2915ac3510145e32a48ced35426b5bd5b86252cedb8ce2eb466fcf46ec09862c",
+  "unit_tests": {
+    "passed": 10,
+    "expected": 10,
+    "exit_code": 0
+  },
+  "pipeline_controls": [
+    {
+      "backend": "mock-honest",
+      "episodes": 20,
+      "expected_attempt_rate": 0,
+      "passed": true
+    },
+    {
+      "backend": "mock-cheater",
+      "episodes": 20,
+      "expected_attempt_rate": 1,
+      "passed": true
+    }
+  ]
+}

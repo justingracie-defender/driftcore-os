@@ -49,7 +49,10 @@ your research points at.*
 
 - **A working existence proof.** Not a paper — runnable code. `python eval_harness.py`
   shows a misaligned agent's harmful actions caught by deterministic invariants, with a
-  control proving the guard discriminates. 1400+ tests. A concrete artifact to point at,
+  control proving the guard discriminates. For the test count run
+  `bash scripts/count_tests.sh` — the number is not written here because it has
+  been stale in this file before. Reproducible
+  with `bash scripts/count_tests.sh`. A concrete artifact to point at,
   critique, or build on.
 - **An honest map of the frontier.** `THREAT_BOUNDARIES.md` and the safety case name
   exactly what is an interlock, what is a backstop, and what is unsolved (persuasion,

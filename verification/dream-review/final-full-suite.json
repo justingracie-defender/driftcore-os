@@ -1,0 +1,9 @@
+{
+  "command": [
+    "bash",
+    "scripts/count_tests.sh"
+  ],
+  "exit_code": 1,
+  "duration_seconds": 41.753,
+  "source_snapshot_sha256": "33a39b1fc19899b826909371eabfd15f452b384a71f09a4e077c6c4df74cf5fa"
+}

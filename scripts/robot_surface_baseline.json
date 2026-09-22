@@ -1,5 +1,11 @@
 {
   "modules": {
+    "driftcore/authority/egress_authorization.py": {
+      "leaky": 0,
+      "leaky_decide": 0,
+      "leaves": 8,
+      "robot": 5
+    },
     "driftcore/kernel/actuation_gate.py": {
       "leaky": 1,
       "leaky_decide": 0,
@@ -69,8 +75,8 @@
     "driftcore/verification/invariant_guard.py": {
       "leaky": 0,
       "leaky_decide": 0,
-      "leaves": 4,
-      "robot": 4
+      "leaves": 9,
+      "robot": 7
     },
     "driftcore/verification/mediated_actuation.py": {
       "leaky": 14,
@@ -79,7 +85,7 @@
       "robot": 42
     }
   },
-  "note": "Baseline history through (23) established in earlier sessions. (24) MERGED FROM A SIBLING SESSION: allowlist_hygiene.py, responding to the public Memory Heist disclosure (Ayush Paul, verified, July 2026) \u2014 Claude web_fetch leaking memory via letter-by-letter link navigation. The adjacent finding: even after that class of bug is closed, egress_guard matches (scheme, host, port) and is BLIND to path/query by design, so an allowlisted pastebin/shortener/webhook still lets a secret ride out one request at a time. This module lints the DECLARATION at build time \u2014 forces every entry to be classified as trusted-or-not-trusted to RECEIVE data, refuses known-bad shapes outright. Two branches shared common ancestry, diverged, and were reconciled here: zero conflict, since the two sessions touched disjoint modules. Also fixed in the merge: test_allowlist_hygiene.py printed a summary line count_tests.sh's own pattern did not match, so 24 passing checks were being silently dropped from every count taken before this fix. A baseline moves when the world moves or the ruler was wrong, never to make a number look better.",
+  "note": "Baseline history through (23) established in earlier sessions. (24) MERGED FROM A SIBLING SESSION: allowlist_hygiene.py, responding to the public Memory Heist disclosure (Ayush Paul, verified, July 2026) \u2014 Claude web_fetch leaking memory via letter-by-letter link navigation. The adjacent finding: even after that class of bug is closed, egress_guard matches (scheme, host, port) and is BLIND to path/query by design, so an allowlisted pastebin/shortener/webhook still lets a secret ride out one request at a time. This module lints the DECLARATION at build time \u2014 forces every entry to be classified as trusted-or-not-trusted to RECEIVE data, refuses known-bad shapes outright. Two branches shared common ancestry, diverged, and were reconciled here: zero conflict, since the two sessions touched disjoint modules. Also fixed in the merge: test_allowlist_hygiene.py printed a summary line count_tests.sh's own pattern did not match, so 24 passing checks were being silently dropped from every count taken before this fix. A baseline moves when the world moves or the ruler was wrong, never to make a number look better. (25) 2026-09-20 R2/R3 authorization repair: reviewed the guard growth from 4 to 7 robot branches and 4 to 9 decision leaves. The additional paths validate Effect types, check unconditional denials before consuming approval, and invoke the pinned construction-time authorizer before evaluating conditional egress. test_authority_boundary.py checks these paths and the removal controls detect restored self-authorization/global-verifier trust. Only this guard entry is updated; the pre-existing mediated_actuation.py regressions remain visible. Implementation review by Codex; this is not a human-signed production approval. The new egress_authorization.py is also added to the measured enforcement list, with 5 robot branches, 8 decision leaves and 0 leaky paths. Its reviewed decisions reject empty/malformed inputs, require a configured verifier, and enforce exact target membership; its tests include changed/missing/additional targets, wrong signatures, and valid approvals. This additional surface remains visible to future ratchet runs.",
   "total_leaky": 24,
-  "total_robot": 154
+  "total_robot": 162
 }

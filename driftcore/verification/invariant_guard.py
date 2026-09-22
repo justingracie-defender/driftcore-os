@@ -24,7 +24,7 @@ Design principles (all grounded in this project's own architecture):
     rather than letting a missing floor pass — the opposite of the old
     `except ImportError: pass`.
   * STRUCTURED, not keyword-guessing. The real mechanism is explicit effect
-    tags + an authorization context supplied by the caller. A coarse text
+    tags + authorization derived by a trusted, construction-time policy. A coarse text
     backstop exists ONLY so a mis-tagged obviously-harmful action still trips;
     it is a safety net, not the primary mechanism, and is documented as such.
 
@@ -35,12 +35,13 @@ and the physical force cap (deployment floor). This module is the hard-line
 
 from __future__ import annotations
 
+from copy import copy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Dict, FrozenSet, List, Optional, Set, Union
 
 from driftcore.authority.resolver import (
-    AuthorityLayer, LayerVerdict, Verdict, _is_human,
+    AuthorityLayer, LayerVerdict, Verdict,
 )
 
 
@@ -76,22 +77,26 @@ class Effect(Enum):
 @dataclass(frozen=True)
 class ActionContext:
     """
-    What the guard needs to tell authorized work from a violation.
+    Untrusted request data.
 
-    owner_authorized   — the human owner explicitly authorized THIS action
-                         (e.g. handed over their own PAT for their own task).
-    target_authorized  — the destination/party is an authorized recipient
-                         (not "an unauthorized party").
-    authorised_by      — who authorized it (checked with the shared _is_human
-                         gate, so "the agent authorized itself" does not count).
+    CLAIM caller-flags-are-not-permission: The legacy owner_authorized and
+    target_authorized booleans never grant permission.
+
+    CLAIM signed-egress-matches-request: SignedEgressApproval checks the structural
+    targets and requires an attestation bound to this action, effects and targets.
+
+    Construct/configure the guard outside the agent process; it is not a sandbox.
     """
     owner_authorized: bool = False
     target_authorized: bool = False
-    authorised_by: str = ""
+    authorised_by: object = ""
+    targets: tuple = ()
 
     @property
     def has_human_authorization(self) -> bool:
-        return self.owner_authorized and _is_human(self.authorised_by)
+        # Identity alone never authorizes a destination. Also avoid consuming an
+        # unrelated, module-wide identity token just by inspecting a property.
+        return False
 
 
 # ── An invariant ──────────────────────────────────────────────────
@@ -113,6 +118,7 @@ class GuardRequest:
     action: str
     effects: FrozenSet[Effect]
     context: ActionContext = field(default_factory=ActionContext)
+    egress_authorized: bool = False
 
 
 # ── The seed constitutional invariant set ─────────────────────────
@@ -127,8 +133,7 @@ def _egress_to_unauthorized(req: "GuardRequest") -> bool:
     leaving = bool(req.effects & {Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS})
     if not leaving:
         return False
-    authorized = req.context.has_human_authorization and req.context.target_authorized
-    return not authorized
+    return req.egress_authorized is not True
 
 
 def _disable_oversight(req: "GuardRequest") -> bool:
@@ -296,9 +301,24 @@ class GuardResult:
 class InvariantGuard:
     """Evaluates an action against the constitutional floor. Fail-closed."""
 
-    def __init__(self, invariants: Optional[List[Invariant]] = None):
+    def __init__(self, invariants: Optional[List[Invariant]] = None, *,
+                 authorize_egress: Optional[Callable[[GuardRequest], bool]] = None):
         self._invariants = list(invariants if invariants is not None
                                 else SEED_INVARIANTS)
+        # Trusted bootstrap configuration, NEVER supplied by evaluate's caller.
+        # The default refuses conditional effects even if a caller claims to be
+        # authorized. A callback must return the literal True. Keep this object
+        # in the broker process; arbitrary Python in this process is privileged.
+        self._authorize_egress = authorize_egress
+
+    def with_egress_authorizer(self, authorizer) -> "InvariantGuard":
+        """CLAIM guard-policy-preserves-custom-checks: Installing an egress policy
+        preserves an overridden evaluate method and leaves the original unchanged.
+        """
+        guard = copy(self)
+        guard._invariants = list(self._invariants)
+        guard._authorize_egress = authorizer
+        return guard
 
     def evaluate(self,
                  action: str = "",
@@ -321,6 +341,8 @@ class InvariantGuard:
                 effects = {effect}
             else:
                 effects = set(effect)
+            if any(not isinstance(e, Effect) for e in effects):
+                raise TypeError("effect entries must be Effect values")
             effects -= {Effect.NONE}
 
             # Backstop: ALWAYS union text-inferred effects — never gate this on
@@ -341,7 +363,25 @@ class InvariantGuard:
                 context=context or ActionContext(),
             )
 
+            # Check unconditional invariants before spending an approval. A
+            # caller cannot use a doomed lethal action to consume a valid token.
             for inv in self._invariants:
+                if inv.invariant_id == "no_unauthorized_exfiltration":
+                    continue
+                if inv.applies_to & req.effects and inv.fires(req):
+                    return GuardResult(
+                        GuardStatus.BLOCKED,
+                        f"constitutional invariant '{inv.invariant_id}' blocks "
+                        f"this action: {inv.description}",
+                        binding_invariant=inv.invariant_id)
+            if (req.effects & {Effect.DATA_EGRESS, Effect.ACCOUNT_ACCESS}
+                    and self._authorize_egress is not None):
+                verified = self._authorize_egress(req) is True
+                req = GuardRequest(req.action, req.effects, req.context, verified)
+
+            for inv in self._invariants:
+                if inv.invariant_id != "no_unauthorized_exfiltration":
+                    continue
                 if not (inv.applies_to & req.effects):
                     continue
                 if inv.fires(req):

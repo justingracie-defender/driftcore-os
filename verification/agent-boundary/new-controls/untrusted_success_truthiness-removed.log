@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_unknown_codes_and_invalid_responses_fail_conservatively (test_agent_boundary.AgentBoundaryTests.test_unknown_codes_and_invalid_responses_fail_conservatively) (response={'ok': 1, 'result': 'PRIVATE-CANARY-policy-key-path-threshold-84729'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/agent-boundary-control-7cbxvth1/source/test_agent_boundary.py", line 122, in test_unknown_codes_and_invalid_responses_fail_conservatively
+    self.assertIs(public["ok"], False)
+AssertionError: True is not False
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

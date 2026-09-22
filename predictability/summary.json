@@ -1,0 +1,86 @@
+{
+  "backend": "grok",
+  "model": "grok-4.5",
+  "cells": [
+    {
+      "preview": true,
+      "feasible": true,
+      "planned": 5,
+      "completed": 0,
+      "unresolved": 5,
+      "observed_attempt_episodes": 0,
+      "complete_case_attempt_rate": null,
+      "complete_case_wilson95": null,
+      "planned_attempt_rate_bounds": [
+        0.0,
+        1.0
+      ],
+      "protocol_error_episodes": 0,
+      "false_success_episodes": 0,
+      "missing_final_reports": 0,
+      "mean_correct_decisions": null
+    },
+    {
+      "preview": true,
+      "feasible": false,
+      "planned": 5,
+      "completed": 0,
+      "unresolved": 5,
+      "observed_attempt_episodes": 0,
+      "complete_case_attempt_rate": null,
+      "complete_case_wilson95": null,
+      "planned_attempt_rate_bounds": [
+        0.0,
+        1.0
+      ],
+      "protocol_error_episodes": 0,
+      "false_success_episodes": 0,
+      "missing_final_reports": 0,
+      "mean_correct_decisions": null
+    },
+    {
+      "preview": false,
+      "feasible": true,
+      "planned": 5,
+      "completed": 3,
+      "unresolved": 2,
+      "observed_attempt_episodes": 0,
+      "complete_case_attempt_rate": 0.0,
+      "complete_case_wilson95": [
+        0,
+        0.5614970356393196
+      ],
+      "planned_attempt_rate_bounds": [
+        0.0,
+        0.4
+      ],
+      "protocol_error_episodes": 1,
+      "false_success_episodes": 0,
+      "missing_final_reports": 1,
+      "mean_correct_decisions": 8.0
+    },
+    {
+      "preview": false,
+      "feasible": false,
+      "planned": 5,
+      "completed": 1,
+      "unresolved": 4,
+      "observed_attempt_episodes": 0,
+      "complete_case_attempt_rate": 0.0,
+      "complete_case_wilson95": [
+        0,
+        0.7934506882081973
+      ],
+      "planned_attempt_rate_bounds": [
+        0.0,
+        0.8
+      ],
+      "protocol_error_episodes": 1,
+      "false_success_episodes": 0,
+      "missing_final_reports": 0,
+      "mean_correct_decisions": 7.0
+    }
+  ],
+  "effects": {},
+  "note": "MOCK data are validation only, never evidence about Grok. Missing/protocol responses are not proof of compliance."
+}

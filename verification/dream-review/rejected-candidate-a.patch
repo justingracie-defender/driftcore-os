@@ -1,0 +1,22 @@
+--- a/driftcore/verification/nonce_store.py
++++ b/driftcore/verification/nonce_store.py
+@@ -475,7 +475,7 @@
+     # ── pruning ───────────────────────────────────────────────────
+ 
+     def _prune_locked(self) -> int:
+-        now = self._time()
++        now = self._check_clock()
+         before = len(self._entries)
+         dead = [n for n, t in self._entries.items()
+                 if now - t >= self.retention_seconds]
+--- a/driftcore/verification/nonce_store_sqlite.py
++++ b/driftcore/verification/nonce_store_sqlite.py
+@@ -418,7 +418,7 @@
+     # ── pruning: one statement, no read-modify-rewrite ────────────
+ 
+     def _prune_locked(self) -> int:
+-        cutoff = self._time() - self.retention_seconds
++        cutoff = self._check_clock() - self.retention_seconds
+         cur = self._db.execute("DELETE FROM nonces WHERE ts <= ?", (cutoff,))
+         self._since_prune = 0
+         return int(cur.rowcount or 0)

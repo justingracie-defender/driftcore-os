@@ -50,8 +50,8 @@ def reset_all():
     a._sequence = 0
     a._chain_compromised = False
     for f in [
-        "logs/audit_chain.jsonl",
-        "logs/SHUTDOWN_REASON.json",
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"),
+        os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"SHUTDOWN_REASON.json"),
     ]:
         try: os.remove(f)
         except: pass
@@ -312,7 +312,7 @@ audit_mod12._last_hash = None
 audit_mod12._sequence = 0
 audit_mod12._chain_compromised = False
 enf_mod12._SHUTDOWN_TRIGGERED = False
-try: os.remove("logs/audit_chain.jsonl")
+try: os.remove(os.path.join(os.environ.get("DRIFTCORE_LOG_DIR","logs"),"audit_chain.jsonl"))
 except: pass
 
 vm10 = VM12()

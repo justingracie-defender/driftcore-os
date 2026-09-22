@@ -1,0 +1,13 @@
+7/7 tests passed
+test_concurrent_cold_start_produces_one_nonce_winner (__main__.NonceStartupTests.test_concurrent_cold_start_produces_one_nonce_winner) ... ok
+test_corruption_is_not_retried_or_treated_as_an_empty_store (__main__.NonceStartupTests.test_corruption_is_not_retried_or_treated_as_an_empty_store) ... ok
+test_exhausted_budget_refuses_and_closes_connection (__main__.NonceStartupTests.test_exhausted_budget_refuses_and_closes_connection) ... ok
+test_invalid_wait_budgets_are_rejected (__main__.NonceStartupTests.test_invalid_wait_budgets_are_rejected) ... ok
+test_transient_startup_lock_retries_and_preserves_single_use (__main__.NonceStartupTests.test_transient_startup_lock_retries_and_preserves_single_use) ... ok
+test_zero_budget_allows_an_uncontended_store (__main__.NonceStartupTests.test_zero_budget_allows_an_uncontended_store) ... ok
+test_zero_budget_refuses_a_real_exclusive_lock (__main__.NonceStartupTests.test_zero_budget_refuses_a_real_exclusive_lock) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.086s
+
+OK

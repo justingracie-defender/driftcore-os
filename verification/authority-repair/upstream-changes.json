@@ -1,0 +1,62 @@
+[
+  {
+    "path": "driftcore-os/FINDINGS.md",
+    "status": "modified",
+    "also_changed_by_repair": true,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/data/domain_state.json",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/data/registered_agents.json",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/driftcore_spent_tokens.json",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/logs/audit_chain.jsonl",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/logs/audit_head.json",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/marshmallow/analyze.py",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/marshmallow/marshmallow.py",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/marshmallow/runner.py",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  },
+  {
+    "path": "driftcore-os/marshmallow/selftest.py",
+    "status": "modified",
+    "also_changed_by_repair": false,
+    "new_matches_repair": false
+  }
+]

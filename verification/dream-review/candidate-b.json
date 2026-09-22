@@ -1,0 +1,11 @@
+{
+  "candidate": "candidate-b",
+  "command": [
+    "python3",
+    "test_nonce_clock_paths.py"
+  ],
+  "exit_code": 0,
+  "duration_seconds": 0.12714685700029804,
+  "summary": "26/26 tests passed",
+  "evaluator_sha256": "def2b2b631f5c41da88c378ec657058da756233577b35190dbf0c54c65869f0e"
+}
